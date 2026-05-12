@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # LÄS IN FIL, låt detta vara orört
 # =========================
 
-file = "OBS.csv" # ändra till ditt filnamn
+file = "Algebra_and_geometry_lab3_data.csv" # ändra till ditt filnamn
 
 df = pd.read_csv(file, sep=";", header=None, encoding="utf-8")
 
@@ -39,9 +39,9 @@ A = np.column_stack([
     np.cos(omega*t)
 ])
 
-print("A =", A)
-
-print("T =", T)
+# Commented out, may print for debugging uses
+# print("A =", A)
+# print("T =", T)
 
 # =========================
 # UPPGIFT
