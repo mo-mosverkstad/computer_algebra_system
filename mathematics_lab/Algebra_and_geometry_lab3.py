@@ -7,9 +7,13 @@ import matplotlib.pyplot as plt
 # LÄS IN FIL, låt detta vara orört
 # =========================
 
-file = "Algebra_and_geometry_lab3_data.csv" # ändra till ditt filnamn
+# file = "Algebra_and_geometry_lab3_data.csv"
+file = "testsin.csv"
 
-df = pd.read_csv(file, sep=";", header=None, encoding="utf-8")
+try:
+    df = pd.read_csv(file, sep=";", header=None, encoding="utf-8")
+except FileNotFoundError:
+    raise SystemExit(f"Error: Data file '{file}' not found. Please check the file path.")
 
 # hitta kolumn med "YYYY-MM"
 ym = df[2]
@@ -32,7 +36,7 @@ omega = 2 * np.pi # 1 år periodnp array
 
 # X = np.ones((len(t), 4)) # dummy/start-matris, ersätts i uppgiften
 
-A = np.column_stack([
+A_matrix = np.column_stack([
     np.ones(len(t)),
     t,
     np.sin(omega*t),
@@ -56,8 +60,8 @@ A = np.column_stack([
 # Använd matrismultiplikation för att lösa problemet.
 # (A^T*A)*\beta = A^T*T, where 
 
-left_matrix = A.T @ A
-right_matrix = A.T @ T
+left_matrix = A_matrix.T @ A_matrix
+right_matrix = A_matrix.T @ T
 
 beta = np.linalg.solve(left_matrix, right_matrix)
 a, b, A, B = beta
