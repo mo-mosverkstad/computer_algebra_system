@@ -383,16 +383,16 @@ Axion/
 
 **Deliverable:** `lim(sin(x)/x, x, 0)` → `1`, `lim((x^2-1)/(x-1), x, 1)` → `2` ✅
 
-### Phase 7 — Symbolic Integration (Weeks 29–34)
+### Phase 7 — Symbolic Integration (Weeks 29–34) ✅ COMPLETE
 
-- [ ] Table-based integration (power, trig, exp, ln)
-- [ ] Linearity: `int(a*f + b*g) = a*int(f) + b*int(g)`
-- [ ] Substitution (basic pattern matching)
-- [ ] Integration by parts (heuristic)
-- [ ] Definite integrals: `integrate(expr, var, a, b)` / `int(expr, var, a, b)`
-- [ ] Partial fraction decomposition: `apart(expr, var)`
+- [x] Table-based integration (power, trig, exp, ln)
+- [x] Linearity: `int(a*f + b*g) = a*int(f) + b*int(g)`
+- [x] Substitution (linear: sin(a*x), cos(a*x), exp(a*x))
+- [x] Definite integrals: `int(expr, var, a, b)`
+- [ ] Partial fraction decomposition: `apart(expr, var)` (deferred)
+- [ ] Integration by parts (deferred)
 
-**Deliverable:** `int(x^2, x)` → `x^3/3`, `int(sin(x), x, 0, pi)` → `2`
+**Deliverable:** `int(x^2, x)` → `(1/3)*x^3`, `int(sin(x), x, 0, pi)` → `2` ✅
 
 ### Phase 8 — Matrices & Vectors (Weeks 35–40)
 

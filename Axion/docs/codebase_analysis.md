@@ -847,3 +847,253 @@ if (num_zero && den_zero) {
 L'Hôpital's rule states that if lim f(x)/g(x) is 0/0 or ∞/∞, then
 lim f(x)/g(x) = lim f'(x)/g'(x) (provided the latter exists). By differentiating
 and re-evaluating, we often resolve the indeterminate form in 1–2 iterations.
+
+
+---
+
+## Phase 7 — Symbolic Integration
+
+---
+
+### 25. Integration Engine (`src/modules/integration.h`, `src/modules/integration.cpp`)
+
+#### What Is Symbolic Integration?
+
+When you differentiate `x^3`, you get `3*x^2`. Integration is the **reverse**: given `3*x^2`,
+find the function whose derivative is `3*x^2` — that's `x^3` (plus a constant).
+
+Unlike differentiation (which always works mechanically), integration is **hard**. There's no
+universal algorithm. Instead, we maintain a **table of known patterns** and try to match the
+input against them.
+
+#### How the Module Is Structured
+
+```
+integrate(expr, var)
+    │
+    ├─ Is it a constant? (no var) ──→ c*x
+    │
+    ├─ Is it just x? ──→ x²/2
+    │
+    ├─ Is it e^x? ──→ e^x
+    │
+    ├─ Is it e^(a*x)? ──→ e^(a*x)/a
+    │
+    ├─ Is it x^n? ──→ x^(n+1)/(n+1)
+    │   └─ Special case: x^(-1) ──→ ln|x|
+    │
+    ├─ Is it a sum? (ADD) ──→ integrate each term separately
+    │
+    ├─ Is it a product? (MUL)
+    │   ├─ Constants × f(x) ──→ constants × integrate(f(x))
+    │   └─ sin(x)*cos(x) ──→ sin(x)²/2
+    │
+    ├─ Is it -f(x)? (NEG) ──→ -integrate(f(x))
+    │
+    ├─ Is it sin(x)? ──→ -cos(x)
+    ├─ Is it cos(x)? ──→ sin(x)
+    ├─ Is it exp(x)? ──→ exp(x)
+    │
+    ├─ Is it sin(a*x)? ──→ -cos(a*x)/a
+    ├─ Is it cos(a*x)? ──→ sin(a*x)/a
+    ├─ Is it exp(a*x)? ──→ exp(a*x)/a
+    │
+    └─ None matched ──→ "cannot integrate"
+```
+
+Each branch is a simple `if` statement that checks the structure of the AST node.
+
+#### The Key Insight: Pattern Matching on the AST
+
+Integration works by **looking at the shape of the tree**. For example:
+
+```
+Input: 3*x^2
+
+AST:  MUL
+     /   \
+   NUM(3) POW
+          / \
+        SYM(x) NUM(2)
+
+The integrator sees:
+  - It's a MUL ──→ enter the "product" branch
+  - One factor is a constant (3) ──→ pull it out
+  - The other factor is x^2 ──→ apply power rule
+  - Power rule: x^(2+1)/(2+1) = x^3/3
+  - Result: 3 * x^3/3 = x^3
+```
+
+#### Annotated Code: The Power Rule
+
+```cpp
+// x^n → x^(n+1)/(n+1) for n != -1
+if (e->is_pow() && is_var(e->children[0], var) && e->children[1]->is_num()) {
+    int64_t n_num = e->children[1]->num;   // numerator of exponent
+    int64_t n_den = e->children[1]->den;   // denominator of exponent
+
+    // Compute n+1 as a fraction: n_num/n_den + 1 = (n_num + n_den)/n_den
+    int64_t new_n = n_num + n_den;
+    int64_t new_d = n_den;
+    reduce_fraction(new_n, new_d);
+
+    // Special case: n = -1 means x^(-1) = 1/x, integral is ln|x|
+    if (new_n == 0) {
+        return make_func(arena, "ln", make_func(arena, "abs", make_sym(arena, var)));
+    }
+
+    // General case: (1/(n+1)) * x^(n+1)
+    // The coefficient is the reciprocal of (n+1): new_d/new_n
+    return make_mul(arena, {
+        make_num(arena, new_d, new_n),                          // 1/(n+1)
+        make_pow(arena, make_sym(arena, var), make_num(arena, new_n, new_d))  // x^(n+1)
+    });
+}
+```
+
+**Why rational arithmetic matters here:** If n = 1/2 (i.e., `sqrt(x) = x^(1/2)`),
+then n+1 = 3/2, and the integral is `(2/3)*x^(3/2)`. With floating-point, this
+would accumulate rounding errors. With exact rationals, it's always precise.
+
+#### Annotated Code: Linearity (Sum Rule)
+
+```cpp
+// int(a + b + c) = int(a) + int(b) + int(c)
+if (e->is_add()) {
+    std::vector<Expr*> terms;
+    for (auto* c : e->children) {
+        Expr* t = integrate(arena, c, var);  // integrate each term
+        if (!t) return nullptr;               // if ANY term fails, give up
+        terms.push_back(t);
+    }
+    return make_add(arena, std::move(terms));
+}
+```
+
+This is why `int(3*x^2 + 2*x, x)` works: it splits into `int(3*x^2)` + `int(2*x)`,
+integrates each separately, then combines.
+
+#### Annotated Code: Constant Multiple
+
+```cpp
+if (e->is_mul()) {
+    // Separate factors into constants (no var) and var-dependent
+    std::vector<Expr*> const_factors;
+    std::vector<Expr*> var_factors;
+    for (auto* f : e->children) {
+        if (contains_var(f, var))
+            var_factors.push_back(f);    // depends on x
+        else
+            const_factors.push_back(f);  // just a number/other symbol
+    }
+
+    // If we have constants AND var parts: pull constants out
+    // int(5 * x^2) = 5 * int(x^2)
+    if (!const_factors.empty() && !var_factors.empty()) {
+        Expr* var_part = /* combine var_factors */;
+        Expr* integral = integrate(arena, var_part, var);
+        if (!integral) return nullptr;
+        const_factors.push_back(integral);
+        return make_mul(arena, std::move(const_factors));
+    }
+}
+```
+
+#### Annotated Code: Linear Substitution
+
+```cpp
+// sin(a*x) → -cos(a*x)/a
+// This handles cases like sin(3*x), where the "inner function" is linear (a*x)
+if (e->is_func() && e->name == "sin" && e->children[0]->is_mul()) {
+    auto* inner = e->children[0];  // the a*x part
+    std::vector<Expr*> consts;
+    bool has_var = false;
+    for (auto* f : inner->children) {
+        if (is_var(f, var)) has_var = true;  // found x
+        else consts.push_back(f);            // everything else is the "a"
+    }
+    if (has_var && !consts.empty()) {
+        Expr* a = /* combine consts */;
+        // Result: (1/a) * (-cos(a*x))
+        return make_mul(arena, {
+            make_pow(arena, a, make_num(arena, -1)),  // 1/a
+            make_neg(arena, make_func(arena, "cos", inner))  // -cos(a*x)
+        });
+    }
+}
+```
+
+**Why this works:** By the chain rule, d/dx[-cos(a*x)] = sin(a*x) * a.
+So ∫sin(a*x)dx = -cos(a*x)/a. This is called "linear substitution" because
+the inner function `a*x` is linear (its derivative `a` is constant).
+
+#### Annotated Code: Definite Integral (Fundamental Theorem of Calculus)
+
+```cpp
+Expr* integrate_definite(Arena& arena, Expr* e, const std::string& var, Expr* a, Expr* b) {
+    // Step 1: Find the antiderivative F(x)
+    Expr* antideriv = integrate(arena, e, var);
+    if (!antideriv) return nullptr;
+    antideriv = simplify(arena, antideriv);
+
+    // Step 2: Compute F(b) - F(a)
+    Expr* fb = subst_int(arena, antideriv, var, b);  // F(b): replace x with upper bound
+    Expr* fa = subst_int(arena, antideriv, var, a);  // F(a): replace x with lower bound
+    fb = simplify(arena, fb);
+    fa = simplify(arena, fa);
+
+    // Step 3: Subtract
+    Expr* result = make_add(arena, {fb, make_neg(arena, fa)});  // F(b) - F(a)
+    return simplify(arena, result);
+}
+```
+
+**Example:** `int(sin(x), x, 0, pi)`
+1. Antiderivative: F(x) = -cos(x)
+2. F(pi) = -cos(pi) = -(-1) = 1
+3. F(0) = -cos(0) = -(1) = -1
+4. F(pi) - F(0) = 1 - (-1) = 2 ✓
+
+#### What This Module CANNOT Do
+
+| Expression | Why it fails |
+|-----------|-------------|
+| `int(x*sin(x), x)` | Requires integration by parts |
+| `int(1/(x^2+1), x)` | Requires arctan (not in table) |
+| `int(exp(-x^2), x)` | No closed form exists |
+| `int(ln(x), x)` | Requires integration by parts |
+
+These would need more advanced techniques (integration by parts, partial fractions,
+special function recognition) which are planned for future phases.
+
+---
+
+### 26. Trig Simplification at π
+
+#### Rules Added
+
+```
+sin(pi) → 0       cos(pi) → -1
+sin(n*pi) → 0     cos(n*pi) → (-1)^n   (for integer n)
+```
+
+These are essential for definite integrals with bounds involving π.
+Without them, `int(sin(x), x, 0, pi)` would return `1 - cos(pi)` instead of `2`.
+
+#### How It's Implemented
+
+```cpp
+// In simplify(): check if FUNC argument is the symbol "pi"
+if (e->is_func() && e->children[0]->is_sym() && e->children[0]->name == "pi") {
+    if (e->name == "sin") return make_num(arena, 0);    // sin(π) = 0
+    if (e->name == "cos") return make_num(arena, -1);   // cos(π) = -1
+}
+
+// Check for cos(n*pi) where n is integer
+if (e->is_func() && e->name == "cos" && e->children[0]->is_mul()) {
+    // Look for pattern: MUL(integer, SYM("pi"))
+    if (/* matches */) {
+        return make_num(arena, (n % 2 == 0) ? 1 : -1);  // (-1)^n
+    }
+}
+```

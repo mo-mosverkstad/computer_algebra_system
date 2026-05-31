@@ -309,10 +309,37 @@ Expr* simplify(Arena& arena, Expr* e) {
             if (e->name == "exp") return make_sym(arena, "e");
             if (e->name == "ln") return make_num(arena, 0);
         }
-        // For sqrt: if perfect square, simplify
         if (e->name == "sqrt" && d == 1 && n >= 0) {
             int64_t root = static_cast<int64_t>(std::sqrt(static_cast<double>(n)));
             if (root * root == n) return make_num(arena, root);
+        }
+    }
+
+    // FUNC with symbolic constant args (pi, e)
+    if (e->is_func() && e->children.size() == 1 && e->children[0]->is_sym()) {
+        const std::string& arg = e->children[0]->name;
+        if (arg == "pi") {
+            if (e->name == "sin") return make_num(arena, 0);
+            if (e->name == "cos") return make_num(arena, -1);
+            if (e->name == "tan") return make_num(arena, 0);
+        }
+    }
+    // cos(n*pi) for integer n
+    if (e->is_func() && e->name == "cos" && e->children[0]->is_mul()) {
+        auto* inner = e->children[0];
+        if (inner->children.size() == 2 && inner->children[0]->is_num()
+            && inner->children[1]->is_sym() && inner->children[1]->name == "pi"
+            && inner->children[0]->den == 1) {
+            int64_t n = inner->children[0]->num;
+            return make_num(arena, (n % 2 == 0) ? 1 : -1);
+        }
+    }
+    if (e->is_func() && e->name == "sin" && e->children[0]->is_mul()) {
+        auto* inner = e->children[0];
+        if (inner->children.size() == 2 && inner->children[0]->is_num()
+            && inner->children[1]->is_sym() && inner->children[1]->name == "pi"
+            && inner->children[0]->den == 1) {
+            return make_num(arena, 0);
         }
     }
 

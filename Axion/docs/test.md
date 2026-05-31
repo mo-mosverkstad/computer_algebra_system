@@ -218,3 +218,33 @@ All 52 Phase 1–5 tests: ✅ Pass (no regressions)
 | `lim(sin(x)/x, x, 0)` | 1 | 1 | L'Hôpital (0/0) | ✅ |
 | `lim((x^3-8)/(x-2), x, 2)` | 12 | 12 | L'Hôpital (0/0) | ✅ |
 | `lim(x+1, x, 5)` | 6 | 6 | Direct substitution | ✅ |
+
+
+---
+
+## Phase 7 — Symbolic Integration
+
+### Regression Test
+
+All 52 Phase 1–6 tests: ✅ Pass (no regressions)
+
+### Integration Verification (manual REPL tests)
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `int(x^2, x)` | `(1/3)*x^3` | `(1/3)*x^3` | ✅ |
+| `int(x^3, x)` | `(1/4)*x^4` | `(1/4)*x^4` | ✅ |
+| `int(sin(x), x)` | `-cos(x)` | `-cos(x)` | ✅ |
+| `int(cos(x), x)` | `sin(x)` | `sin(x)` | ✅ |
+| `int(exp(x), x)` | `exp(x)` | `exp(x)` | ✅ |
+| `int(1/x, x)` | `ln(abs(x))` | `ln(abs(x))` | ✅ |
+| `int(3*x^2 + 2*x, x)` | `x^3 + x^2` | `x^3 + x^2` | ✅ |
+| `int(x^2, x, 0, 1)` | `1/3` | `1/3` | ✅ |
+| `int(sin(x), x, 0, pi)` | `2` | `2` | ✅ |
+| `int(cos(x), x, 0, pi)` | `0` | `0` | ✅ |
+
+### Issues Found
+
+1. **`int(sin(x), x, 0, pi)` initially returned `1 - cos(pi)` instead of `2`**
+   - Cause: `cos(pi)` did not simplify to `-1`
+   - Fix: Added `cos(pi)→-1`, `sin(pi)→0`, `cos(n*pi)→(-1)^n`, `sin(n*pi)→0` rules

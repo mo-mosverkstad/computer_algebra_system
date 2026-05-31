@@ -280,3 +280,40 @@ lim((x^3-8)/(x-2), x, 2)   → 12  (L'Hôpital: 3x²/1 at x=2)
 ### Known Limitations
 
 - Complex numbers deferred to future phase
+
+
+---
+
+## Phase 7 — Symbolic Integration (2026-05-31)
+
+### Added
+
+- **Integration module** (`src/modules/integration.h/.cpp`)
+  - `integrate(arena, expr, var)` — indefinite integral
+  - `integrate_definite(arena, expr, var, a, b)` — definite integral via F(b)-F(a)
+  - Table-based rules: power rule, sin, cos, exp, ln (1/x)
+  - Linearity: distributes over ADD, pulls out constants from MUL
+  - Linear substitution: `sin(a*x)`, `cos(a*x)`, `exp(a*x)`
+
+- **Simplifier enhancements**
+  - `cos(pi)` → `-1`, `sin(pi)` → `0`
+  - `cos(n*pi)` → `(-1)^n`, `sin(n*pi)` → `0` for integer n
+
+- **REPL commands**
+  - `int(expr, var)` — indefinite integral
+  - `int(expr, var, a, b)` — definite integral
+  - `integrate(...)` — alias for `int`
+
+### Key Results
+
+```
+int(x^2, x)           → (1/3)*x^3
+int(x^3, x)           → (1/4)*x^4
+int(sin(x), x)        → -cos(x)
+int(cos(x), x)        → sin(x)
+int(exp(x), x)        → exp(x)
+int(1/x, x)           → ln(abs(x))
+int(3*x^2 + 2*x, x)  → x^3 + x^2
+int(x^2, x, 0, 1)    → 1/3
+int(sin(x), x, 0, pi) → 2
+```

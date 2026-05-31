@@ -24,6 +24,7 @@ set(AXION_SOURCES
     src/modules/polynomial.cpp
     src/modules/series.cpp
     src/modules/limits.cpp
+    src/modules/integration.cpp
     src/output/printer.cpp
 )
 

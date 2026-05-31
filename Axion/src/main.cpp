@@ -18,6 +18,7 @@ extern "C" {
 #include "modules/polynomial.h"
 #include "modules/series.h"
 #include "modules/limits.h"
+#include "modules/integration.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -202,6 +203,34 @@ int main() {
                         std::cout << print(result) << "\n";
                     } else {
                         std::cout << "undefined (limit could not be computed)\n";
+                    }
+                    continue;
+                }
+
+                // integrate(expr, var) or integrate(expr, var, a, b) or int(...)
+                if ((fname == "integrate" || fname == "int") && e->children.size() >= 2) {
+                    Expr* body = e->children[0];
+                    std::string var = e->children[1]->name;
+                    if (e->children.size() == 2) {
+                        Expr* result = integrate(session.arena, body, var);
+                        if (result) {
+                            result = simplify(session.arena, result);
+                            session.last_result = result;
+                            std::cout << print(result) << "\n";
+                        } else {
+                            std::cout << "cannot integrate\n";
+                        }
+                    } else if (e->children.size() == 4) {
+                        Expr* a = simplify(session.arena, e->children[2]);
+                        Expr* b = simplify(session.arena, e->children[3]);
+                        Expr* result = integrate_definite(session.arena, body, var, a, b);
+                        if (result) {
+                            result = simplify(session.arena, result);
+                            session.last_result = result;
+                            std::cout << print(result) << "\n";
+                        } else {
+                            std::cout << "cannot integrate\n";
+                        }
                     }
                     continue;
                 }
