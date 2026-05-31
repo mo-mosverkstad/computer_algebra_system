@@ -204,3 +204,35 @@ Chronological record of changes to the Axion CAS project.
 ### Bugs Found and Fixed
 
 None — clean implementation on first build (after fixing missing `<iomanip>` include and removing unused functions).
+
+
+---
+
+## Phase 5 — Summation & Product (2026-05-31)
+
+### Added
+
+- **Series module** (`src/modules/series.h/.cpp`)
+  - `eval_sum(arena, body, var, lo, hi)` — finite summation by substitution
+  - `eval_prod(arena, body, var, lo, hi)` — finite product by substitution
+  - `collect(arena, expr, var)` — group terms by powers of a variable
+  - Safety limit: max 10000 iterations
+
+- **REPL commands**
+  - `sum(expr, var, lo, hi)` — compute finite sum
+  - `prod(expr, var, lo, hi)` — compute finite product
+  - `collect(expr, var)` — collect by variable
+
+- **Tests**
+  - `tests/test_series.cpp` — 6 new tests
+  - Total: 52 tests, all passing
+
+### Key Results
+
+```
+sum(k, k, 1, 10)        → 55
+sum(k^2, k, 1, 5)       → 55
+prod(k, k, 1, 5)        → 120
+sum(1/k, k, 1, 4)       → 25/12  (exact rational!)
+collect(x^2+2*x+3*x+1, x) → 1 + 5*x + x^2
+```

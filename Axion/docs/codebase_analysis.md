@@ -702,3 +702,81 @@ approx(pi)     → 3.14159265358979 (numeric)
 ```
 
 The `approx` command substitutes `pi=3.14159...` and `e=2.71828...` then evaluates.
+
+
+---
+
+## Phase 5 — Summation, Product & Collect
+
+---
+
+### 21. Finite Summation (`src/modules/series.h`, `src/modules/series.cpp`)
+
+#### Concept
+
+`sum(expr, var, lo, hi)` computes a finite sum by substituting each integer value
+of `var` from `lo` to `hi` into `expr`, simplifying each term, then adding them all.
+
+#### ASCII Diagram
+
+```
+sum(k^2, k, 1, 3):
+
+  k=1: 1^2 = 1
+  k=2: 2^2 = 4
+  k=3: 3^2 = 9
+  
+  Result: 1 + 4 + 9 = 14
+```
+
+#### Annotated Code
+
+```cpp
+Expr* eval_sum(Arena& arena, Expr* body, const std::string& var, int64_t lo, int64_t hi) {
+    std::vector<Expr*> terms;
+    for (int64_t k = lo; k <= hi; ++k) {
+        Expr* val = make_num(arena, k);
+        Expr* term = subst_var(arena, body, var, val);  // replace var with k
+        term = simplify(arena, term);                   // simplify (e.g. k^2 → 9)
+        terms.push_back(term);
+    }
+    Expr* result = make_add(arena, std::move(terms));
+    return simplify(arena, result);  // combine: 1 + 4 + 9 = 14
+}
+```
+
+#### Why It Works
+
+By substituting and simplifying each term individually, we get exact rational results.
+The final simplification combines all numeric terms into one. For expressions with
+symbolic parts, like `sum(k*x, k, 1, 3)`, the result is `6*x` (since 1+2+3=6).
+
+---
+
+### 22. Finite Product
+
+Same approach as summation but multiplies instead of adding.
+`prod(k, k, 1, 5)` = 1×2×3×4×5 = 120.
+
+---
+
+### 23. Collect (`collect(expr, var)`)
+
+#### Concept
+
+`collect` groups terms of a polynomial by powers of a specified variable.
+For example, `x^2 + 2*x + 3*x + 1` becomes `1 + 5*x + x^2` (the two `x` terms
+are combined into `5*x`).
+
+#### Algorithm
+
+1. For each term in the ADD, determine its power of `var` (0, 1, 2, ...)
+2. Group terms by power
+3. For each group, sum the coefficients (the non-var parts)
+4. Rebuild: `coeff_sum * var^power` for each group
+
+#### Why It's Different from Simplify
+
+The simplifier already combines `2*x + 3*x` → `5*x`. But `collect` is explicit
+about which variable to group by, which matters for multivariate expressions where
+you might want to collect by `x` or by `y`.

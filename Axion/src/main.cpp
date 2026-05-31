@@ -16,6 +16,7 @@ extern "C" {
 #include "engine/eval.h"
 #include "modules/calculus.h"
 #include "modules/polynomial.h"
+#include "modules/series.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -133,6 +134,52 @@ int main() {
                     Expr* expr = e->children[0];
                     expr = expand(session.arena, expr);
                     expr = simplify(session.arena, expr);
+                    session.last_result = expr;
+                    std::cout << print(expr) << "\n";
+                    continue;
+                }
+
+                // sum(expr, var, lo, hi)
+                if (fname == "sum" && e->children.size() == 4) {
+                    Expr* body = e->children[0];
+                    std::string var = e->children[1]->name;
+                    Expr* lo_e = simplify(session.arena, e->children[2]);
+                    Expr* hi_e = simplify(session.arena, e->children[3]);
+                    if (lo_e->is_num() && lo_e->den == 1 && hi_e->is_num() && hi_e->den == 1) {
+                        Expr* result = eval_sum(session.arena, body, var, lo_e->num, hi_e->num);
+                        if (result) {
+                            session.last_result = result;
+                            std::cout << print(result) << "\n";
+                            continue;
+                        }
+                    }
+                    std::cerr << "Error: sum requires integer bounds\n";
+                    continue;
+                }
+
+                // prod(expr, var, lo, hi)
+                if (fname == "prod" && e->children.size() == 4) {
+                    Expr* body = e->children[0];
+                    std::string var = e->children[1]->name;
+                    Expr* lo_e = simplify(session.arena, e->children[2]);
+                    Expr* hi_e = simplify(session.arena, e->children[3]);
+                    if (lo_e->is_num() && lo_e->den == 1 && hi_e->is_num() && hi_e->den == 1) {
+                        Expr* result = eval_prod(session.arena, body, var, lo_e->num, hi_e->num);
+                        if (result) {
+                            session.last_result = result;
+                            std::cout << print(result) << "\n";
+                            continue;
+                        }
+                    }
+                    std::cerr << "Error: prod requires integer bounds\n";
+                    continue;
+                }
+
+                // collect(expr, var)
+                if (fname == "collect" && e->children.size() == 2) {
+                    Expr* expr = e->children[0];
+                    std::string var = e->children[1]->name;
+                    expr = collect(session.arena, expr, var);
                     session.last_result = expr;
                     std::cout << print(expr) << "\n";
                     continue;

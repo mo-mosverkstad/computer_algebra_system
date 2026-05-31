@@ -175,3 +175,27 @@ All 40 Phase 1–3 tests rewritten for new rational AST: ✅ Pass (no regression
 ### Issues Found
 
 None.
+
+
+---
+
+## Phase 5 — Summation & Product
+
+### Regression Test
+
+All 46 Phase 1–4 tests: ✅ Pass (no regressions)
+
+### New Series Tests (6/6 passed)
+
+| Test | Input | Expected | Actual | Verdict |
+|------|-------|----------|--------|---------|
+| SumIntegers | `sum(k, k, 1, 10)` | 55 | 55 | ✅ Pass |
+| SumSquares | `sum(k^2, k, 1, 5)` | 55 | 55 | ✅ Pass |
+| SumConstant | `sum(3, k, 1, 4)` | 12 | 12 | ✅ Pass |
+| ProdIntegers | `prod(k, k, 1, 5)` | 120 | 120 | ✅ Pass |
+| ProdExpression | `prod(k+1, k, 0, 3)` | 24 | 24 | ✅ Pass |
+| CollectSimple | `collect(x^2+2*x+3*x, x)` at x=2 | 14 | 14 | ✅ Pass |
+
+### Issues Found
+
+None.

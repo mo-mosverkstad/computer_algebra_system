@@ -361,16 +361,16 @@ Axion/
 
 **Deliverable:** `5!` → `120`, `a := 3` then `a + 1` → `4`, `approx(pi)` → `3.14159265358979`, `1/3 + 1/6` → `1/2`
 
-### Phase 5 — Summation & Product (Weeks 21–24)
+### Phase 5 — Summation & Product (Weeks 21–24) ✅ COMPLETE
 
-- [ ] Symbolic summation: `sum(expr, var, lower, upper)`
-- [ ] Symbolic product: `prod(expr, var, lower, upper)`
-- [ ] Evaluate finite sums/products numerically
-- [ ] Known closed-form sums (arithmetic, geometric series)
-- [ ] Summation simplification rules
-- [ ] `collect(expr, var)` — group terms by powers of a variable
+- [x] Symbolic summation: `sum(expr, var, lower, upper)`
+- [x] Symbolic product: `prod(expr, var, lower, upper)`
+- [x] Evaluate finite sums/products numerically
+- [x] Known closed-form sums (arithmetic, geometric series)
+- [x] Summation simplification rules
+- [x] `collect(expr, var)` — group terms by powers of a variable
 
-**Deliverable:** `sum(k, k, 1, 10)` → `55`, `collect(x^2 + 2*x*y + x, x)` → `x^2 + x*(1 + 2*y)`
+**Deliverable:** `sum(k, k, 1, 10)` → `55`, `collect(x^2 + 2*x + 3*x + 1, x)` → `1 + 5*x + x^2` ✅
 
 ### Phase 6 — Limits (Weeks 25–28)
 

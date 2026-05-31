@@ -787,3 +787,55 @@ must be unambiguous and executable. The key differences:
 7. **Logic operators:** Require boolean evaluation and a truth-value type.
    Syntax is ready (`\and`, `\or`, `\not`, `\implies`) — implementation deferred
    until an equation/constraint solving module needs them.
+
+---
+
+## Extended Grammar Examples
+
+Examples demonstrating the full precedence chain:
+`Expression → Logical → Relational → SetOp → Additive → Multiplicative → Power → Unary → Postfix → Primary`
+
+### Logical Operators
+
+```
+math`x > 0 \and x < 10`
+math`p \implies q`
+math`A \or \not B`
+math`p \iff q`
+```
+
+### Set Operators
+
+```
+math`A \union B`
+math`A \inter B \setminus C`
+math`x \in \\R`
+math`A \subset B \and B \subset C`
+```
+
+### Multiplicative Extensions
+
+```
+math`[u] \cross [v]`
+math`f \oring g`
+math`A \tensor B`
+```
+
+### Combined (Showing Precedence)
+
+```
+math`x \in A \union B \implies x \in A \or x \in B`
+math`\not p \and q \implies r`
+math`[A] \cross [B] = -[B] \cross [A]`
+math`A \inter B \subset A \union B`
+```
+
+### Core Features
+
+```
+math`\S{k=0, n, k^2} = n(n+1)(2n+1)/6`
+math`\int{0, \inf, e^(-x^2)} = \p^(1/2)/2`
+math`lim{n->\inf, (1 + 1/n)^n} = e`
+math`f'(x) = lim{h->0, (f(x+h) - f(x))/h}`
+math`[[1, 0], [0, 1]] \cross [v] = [v]`
+```
