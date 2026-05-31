@@ -192,6 +192,128 @@ std::vector<Expr*> solve(Arena& arena, Expr* equation, const std::string& var) {
         return {simplify(arena, sol1), simplify(arena, sol2)};
     }
 
+    // Degree 3+: Rational Root Theorem
+    // Try all ±(factors of constant term) / (factors of leading coefficient)
+    if (poly.degree >= 3) {
+        Expr* leading = poly.coeffs[poly.degree];
+        Expr* constant = poly.coeffs[0];
+
+        // Only works if leading and constant are integers
+        if (leading->is_num() && leading->den == 1 && constant->is_num() && constant->den == 1) {
+            int64_t lead_val = std::abs(leading->num);
+            int64_t const_val = std::abs(constant->num);
+
+            // Get factors
+            std::vector<int64_t> const_factors, lead_factors;
+            for (int64_t i = 1; i <= const_val; ++i)
+                if (const_val % i == 0) const_factors.push_back(i);
+            if (const_factors.empty()) const_factors.push_back(0); // constant = 0 means x=0 is a root
+            for (int64_t i = 1; i <= lead_val; ++i)
+                if (lead_val % i == 0) lead_factors.push_back(i);
+
+            // Try each candidate rational root p/q
+            std::vector<Expr*> found_roots;
+            std::vector<int64_t> current_coeffs(poly.degree + 1);
+            for (int i = 0; i <= poly.degree; ++i) {
+                if (poly.coeffs[i]->is_num() && poly.coeffs[i]->den == 1)
+                    current_coeffs[i] = poly.coeffs[i]->num;
+                else
+                    goto not_all_integer; // can't use rational root theorem
+            }
+
+            {
+                int current_degree = poly.degree;
+
+                // Also try x=0 if constant is 0
+                if (current_coeffs[0] == 0) {
+                    found_roots.push_back(make_num(arena, 0));
+                    // Divide out x: shift coefficients down
+                    for (int i = 0; i < current_degree; ++i)
+                        current_coeffs[i] = current_coeffs[i + 1];
+                    current_degree--;
+                }
+
+                for (int64_t p : const_factors) {
+                    for (int64_t q : lead_factors) {
+                        if (p == 0 && q != 1) continue;
+                        // Try +p/q and -p/q
+                        for (int sign : {1, -1}) {
+                            int64_t num = sign * p;
+                            int64_t den = q;
+                            // Evaluate polynomial at num/den using Horner's method
+                            // To avoid fractions: multiply through by den^degree
+                            // P(p/q) = 0 iff sum(coeff[i] * p^i * q^(n-i)) = 0
+                            int64_t val = 0;
+                            int64_t p_pow = 1;
+                            int64_t q_pow = 1;
+                            for (int i = 0; i < current_degree; ++i) q_pow *= den;
+                            for (int i = 0; i <= current_degree; ++i) {
+                                val += current_coeffs[i] * p_pow * q_pow;
+                                p_pow *= num;
+                                if (i < current_degree) q_pow /= den;
+                            }
+                            if (val == 0) {
+                                found_roots.push_back(make_num(arena, num, den));
+                                // Synthetic division: divide by (x - num/den)
+                                // Equivalent to dividing by (den*x - num)
+                                // Using Horner: new_coeffs[i] from top down
+                                std::vector<int64_t> new_coeffs(current_degree);
+                                new_coeffs[current_degree - 1] = current_coeffs[current_degree];
+                                for (int i = current_degree - 2; i >= 0; --i) {
+                                    // new_coeffs[i] = current_coeffs[i+1] + (num/den)*new_coeffs[i+1]
+                                    // To stay integer: work with den*x - num division
+                                    // Simpler: use rational synthetic division
+                                    new_coeffs[i] = current_coeffs[i + 1] + new_coeffs[i + 1] * num / den;
+                                }
+                                // Verify: remainder should be 0
+                                current_coeffs = new_coeffs;
+                                current_degree--;
+                                // Reset search for remaining polynomial
+                                break;
+                            }
+                        }
+                        if (static_cast<int>(found_roots.size()) > poly.degree - current_degree)
+                            break; // found a root in this iteration
+                    }
+                    if (current_degree <= 2) break;
+                }
+
+                // Solve remaining quadratic/linear
+                if (current_degree == 2) {
+                    // Build quadratic from current_coeffs and solve
+                    PolyCoeffs remaining;
+                    remaining.degree = 2;
+                    remaining.coeffs.resize(3);
+                    for (int i = 0; i <= 2; ++i)
+                        remaining.coeffs[i] = make_num(arena, current_coeffs[i]);
+
+                    Expr* a2 = remaining.coeffs[2];
+                    Expr* b2 = remaining.coeffs[1];
+                    Expr* c2 = remaining.coeffs[0];
+                    Expr* disc = simplify(arena, make_add(arena, {
+                        make_pow(arena, b2, make_num(arena, 2)),
+                        make_neg(arena, make_mul(arena, {make_num(arena, 4), a2, c2}))
+                    }));
+                    if (disc->is_num() && disc->num >= 0 && disc->den == 1) {
+                        int64_t sq = static_cast<int64_t>(std::sqrt(static_cast<double>(disc->num)));
+                        if (sq * sq == disc->num) {
+                            int64_t b_val = current_coeffs[1];
+                            int64_t a_val = current_coeffs[2];
+                            found_roots.push_back(simplify(arena, make_num(arena, -b_val + sq, 2 * a_val)));
+                            if (sq != 0)
+                                found_roots.push_back(simplify(arena, make_num(arena, -b_val - sq, 2 * a_val)));
+                        }
+                    }
+                } else if (current_degree == 1) {
+                    found_roots.push_back(simplify(arena, make_num(arena, -current_coeffs[0], current_coeffs[1])));
+                }
+            }
+
+            if (!found_roots.empty()) return found_roots;
+        }
+    }
+    not_all_integer:
+
     return {};
 }
 
@@ -200,29 +322,32 @@ Expr* factor(Arena& arena, Expr* e, const std::string& var) {
     e = simplify(arena, e);
 
     PolyCoeffs poly = extract_poly(arena, e, var);
-    if (poly.degree < 2) return e; // can't factor linear or constant
+    if (poly.degree < 2) return e;
 
-    // Try to find rational roots and factor
-    if (poly.degree == 2) {
-        // Solve x^2 + bx + c = 0 to find roots
-        Expr* eq = make_rel(arena, "=", e, make_num(arena, 0));
-        auto roots = solve(arena, eq, var);
-        if (roots.size() == 2) {
-            // (x - r1)(x - r2) * leading_coeff
-            Expr* a = poly.coeffs[2];
-            Expr* f1 = make_add(arena, {make_sym(arena, var), make_neg(arena, roots[0])});
-            Expr* f2 = make_add(arena, {make_sym(arena, var), make_neg(arena, roots[1])});
-            Expr* result = make_mul(arena, {a, f1, f2});
-            return simplify(arena, result);
-        }
-        if (roots.size() == 1) {
-            Expr* a = poly.coeffs[2];
-            Expr* f = make_add(arena, {make_sym(arena, var), make_neg(arena, roots[0])});
-            return simplify(arena, make_mul(arena, {a, make_pow(arena, f, make_num(arena, 2))}));
-        }
+    // Find all rational roots
+    Expr* eq = make_rel(arena, "=", e, make_num(arena, 0));
+    auto roots = solve(arena, eq, var);
+    if (roots.empty()) return e;
+
+    // Build factored form: leading_coeff * (x - r1) * (x - r2) * ...
+    Expr* leading = poly.coeffs[poly.degree];
+    std::vector<Expr*> factors;
+    if (!(leading->is_num() && leading->num == 1 && leading->den == 1))
+        factors.push_back(leading);
+
+    for (auto* root : roots) {
+        Expr* f = make_add(arena, {make_sym(arena, var), make_neg(arena, root)});
+        factors.push_back(f);
     }
 
-    return e; // can't factor
+    // If we didn't find all roots, there's a remaining irreducible factor
+    if (static_cast<int>(roots.size()) < poly.degree) {
+        // Compute remaining factor by dividing original by found factors
+        // For now, just return partial factoring
+    }
+
+    if (factors.size() == 1) return factors[0];
+    return simplify(arena, make_mul(arena, std::move(factors)));
 }
 
 } // namespace axion

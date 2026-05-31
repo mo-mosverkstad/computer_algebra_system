@@ -1374,12 +1374,67 @@ where `a` is the leading coefficient.
 
 ---
 
-### 30. Test Results
+### 30. Rational Root Theorem & Synthetic Division
+
+#### Concept
+
+For polynomials of degree 3 or higher, there's no simple formula like the quadratic formula.
+Instead, we use the **Rational Root Theorem**: if a polynomial with integer coefficients has
+a rational root p/q, then p divides the constant term and q divides the leading coefficient.
+
+#### Algorithm
+
+```
+For polynomial a_n*x^n + ... + a_1*x + a_0:
+  1. List all factors of |a_0| (constant term): p = ±1, ±2, ...
+  2. List all factors of |a_n| (leading coeff): q = ±1, ±2, ...
+  3. Try each candidate p/q:
+     - Evaluate polynomial at p/q
+     - If result = 0, it's a root!
+  4. When a root r is found, divide out (x - r) using synthetic division
+  5. Repeat on the reduced polynomial until degree ≤ 2
+  6. Solve remaining quadratic with the formula
+```
+
+#### ASCII Diagram — Solving x³ - 6x² + 11x - 6 = 0
+
+```
+Constant term = -6, factors: ±1, ±2, ±3, ±6
+Leading coeff = 1, factors: ±1
+Candidates: ±1, ±2, ±3, ±6
+
+Try x=1: 1 - 6 + 11 - 6 = 0 ✓  → root found!
+
+Synthetic division by (x - 1):
+  [1, -6, 11, -6] ÷ (x-1) = [1, -5, 6]
+  
+Remaining: x² - 5x + 6
+  Discriminant: 25 - 24 = 1
+  Roots: (5±1)/2 = 3, 2
+
+All roots: {1, 3, 2}
+```
+
+#### Annotated Code (synthetic division)
+
+```cpp
+// When root num/den is found, divide polynomial by (x - num/den)
+std::vector<int64_t> new_coeffs(current_degree);
+new_coeffs[current_degree - 1] = current_coeffs[current_degree];  // leading stays
+for (int i = current_degree - 2; i >= 0; --i) {
+    // Each new coefficient = old coefficient + root * previous new coefficient
+    new_coeffs[i] = current_coeffs[i + 1] + new_coeffs[i + 1] * num / den;
+}
+current_coeffs = new_coeffs;
+current_degree--;
+```
+
+#### Test Results
 
 | Input | Expected | Actual | Verdict |
 |-------|----------|--------|---------|
-| `solve(2*x + 6 = 0, x)` | -3 | -3 | ✅ |
-| `solve(x^2 - 5*x + 6 = 0, x)` | {3, 2} | {3, 2} | ✅ |
-| `solve(x^2 - 2 = 0, x)` | symbolic sqrt | symbolic sqrt | ✅ |
-| `factor(x^2 - 5*x + 6, x)` | (x-3)(x-2) | (-3+x)(-2+x) | ✅ |
-| `factor(x^2 - 1, x)` | (x-1)(x+1) | (-1+x)(1+x) | ✅ |
+| `solve(x^3 - 6*x^2 + 11*x - 6 = 0, x)` | {1, 2, 3} | {1, 3, 2} | ✅ |
+| `solve(x^3 - 1 = 0, x)` | 1 (rational only) | 1 | ✅ |
+| `solve(x^4 - 5*x^2 + 4 = 0, x)` | {±1, ±2} | {1, 2, -1, -2} | ✅ |
+| `factor(x^3 - 6*x^2 + 11*x - 6, x)` | (x-1)(x-2)(x-3) | (-1+x)(-3+x)(-2+x) | ✅ |
+| `factor(x^4 - 5*x^2 + 4, x)` | (x-1)(x+1)(x-2)(x+2) | (-1+x)(-2+x)(1+x)(2+x) | ✅ |

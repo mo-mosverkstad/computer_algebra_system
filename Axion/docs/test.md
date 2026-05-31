@@ -248,3 +248,18 @@ All 52 Phase 1–6 tests: ✅ Pass (no regressions)
 1. **`int(sin(x), x, 0, pi)` initially returned `1 - cos(pi)` instead of `2`**
    - Cause: `cos(pi)` did not simplify to `-1`
    - Fix: Added `cos(pi)→-1`, `sin(pi)→0`, `cos(n*pi)→(-1)^n`, `sin(n*pi)→0` rules
+
+
+---
+
+## Phase 9 — Equation Solving (extended)
+
+### Additional Tests (higher degree)
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `solve(x^3 - 6*x^2 + 11*x - 6 = 0, x)` | {1, 2, 3} | {1, 3, 2} | ✅ |
+| `solve(x^3 - 1 = 0, x)` | 1 | 1 | ✅ |
+| `solve(x^4 - 5*x^2 + 4 = 0, x)` | {±1, ±2} | {1, 2, -1, -2} | ✅ |
+| `factor(x^3 - 6*x^2 + 11*x - 6, x)` | (x-1)(x-2)(x-3) | (-1+x)(-3+x)(-2+x) | ✅ |
+| `factor(x^4 - 5*x^2 + 4, x)` | 4 factors | 4 factors | ✅ |

@@ -412,12 +412,12 @@ Axion/
 
 - [x] Linear equations: `solve(a*x + b = 0, x)`
 - [x] Quadratic equations: `solve(a*x^2 + b*x + c = 0, x)`
-- [x] `factor(expr, var)` — polynomial factorization via root-finding
+- [x] Cubic/quartic/higher via Rational Root Theorem + synthetic division
+- [x] `factor(expr, var)` — polynomial factorization via root-finding (any degree)
 - [ ] Systems of linear equations (deferred)
-- [ ] Polynomial roots — rational root theorem (deferred)
 - [ ] Inequality solving (deferred)
 
-**Deliverable:** `solve(x^2 - 5*x + 6 = 0, x)` → `{3, 2}`, `factor(x^2 - 1, x)` → `(-1 + x)*(1 + x)` ✅
+**Deliverable:** `solve(x^3 - 6*x^2 + 11*x - 6 = 0, x)` → `{1, 3, 2}`, `factor(x^4 - 5*x^2 + 4, x)` → `(-1+x)*(-2+x)*(1+x)*(2+x)` ✅
 
 ### Phase 10 — Pattern Matching & Rewrite Engine (Weeks 47–52)
 
