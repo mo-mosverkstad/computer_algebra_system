@@ -468,29 +468,101 @@ Expr* solve_inequality(Arena& arena, Expr* ineq, const std::string& var) {
     // Move to form: expr > 0 (or <, <=, >=)
     Expr* lhs = make_add(arena, {ineq->children[0], make_neg(arena, ineq->children[1])});
     lhs = simplify(arena, lhs);
+    lhs = expand(arena, lhs);
+    lhs = simplify(arena, lhs);
 
-    // Extract linear: a*x + b
     PolyCoeffs poly = extract_poly(arena, lhs, var);
-    if (poly.degree != 1) return nullptr; // only linear inequalities
+    if (poly.degree < 1) return nullptr;
 
-    Expr* a = poly.coeffs[1];
-    Expr* b = poly.coeffs[0];
+    // Linear: a*x + b > 0 → x > -b/a (flip if a < 0)
+    if (poly.degree == 1) {
+        Expr* a = poly.coeffs[1];
+        Expr* b = poly.coeffs[0];
+        if (!a->is_num() || a->num == 0) return nullptr;
 
-    if (!a->is_num() || a->num == 0) return nullptr;
-
-    // x > -b/a (if a > 0) or x < -b/a (if a < 0, flip inequality)
-    Expr* bound = simplify(arena, make_mul(arena, {make_neg(arena, b), make_pow(arena, a, make_num(arena, -1))}));
-
-    std::string result_op = op;
-    if (a->num < 0) {
-        // Flip inequality
-        if (op == "<") result_op = ">";
-        else if (op == ">") result_op = "<";
-        else if (op == "<=") result_op = ">=";
-        else if (op == ">=") result_op = "<=";
+        Expr* bound = simplify(arena, make_mul(arena, {make_neg(arena, b), make_pow(arena, a, make_num(arena, -1))}));
+        std::string result_op = op;
+        if (a->num < 0) {
+            if (op == "<") result_op = ">";
+            else if (op == ">") result_op = "<";
+            else if (op == "<=") result_op = ">=";
+            else if (op == ">=") result_op = "<=";
+        }
+        return make_rel(arena, result_op, make_sym(arena, var), bound);
     }
 
-    return make_rel(arena, result_op, make_sym(arena, var), bound);
+    // Quadratic: a*x^2 + b*x + c > 0
+    // Find roots, then determine sign intervals
+    if (poly.degree == 2) {
+        Expr* a = poly.coeffs[2];
+        if (!a->is_num()) return nullptr;
+
+        // Find roots
+        Expr* eq = make_rel(arena, "=", lhs, make_num(arena, 0));
+        auto roots = solve(arena, eq, var);
+
+        // No real roots: sign is constant (same as sign of leading coeff)
+        if (roots.empty()) {
+            bool positive = (a->num > 0);
+            bool satisfied = (op == ">" || op == ">=") ? positive : !positive;
+            if (satisfied)
+                return make_rel(arena, "=", make_sym(arena, "all"), make_sym(arena, "x")); // all x
+            else
+                return nullptr; // no solution
+        }
+
+        // One root (double): a*(x-r)^2 > 0 → x != r (if a>0 and strict)
+        if (roots.size() == 1) {
+            bool a_pos = (a->num > 0);
+            if ((op == ">" && a_pos) || (op == "<" && !a_pos))
+                return make_rel(arena, "!=", make_sym(arena, var), roots[0]);
+            if ((op == ">=" && a_pos) || (op == "<=" && !a_pos))
+                return make_rel(arena, "=", make_sym(arena, "all"), make_sym(arena, "x"));
+            return nullptr;
+        }
+
+        // Two roots: sort them
+        if (roots.size() == 2 && roots[0]->is_num() && roots[1]->is_num()) {
+            Expr* r1 = roots[0];
+            Expr* r2 = roots[1];
+            if (r1->num_val() > r2->num_val()) std::swap(r1, r2);
+
+            bool a_pos = (a->num > 0);
+            // a > 0: parabola opens up, positive outside roots
+            // a < 0: parabola opens down, positive between roots
+            if ((op == ">" || op == ">=") && a_pos) {
+                // x < r1 or x > r2
+                std::string s_op = (op == ">") ? "<" : "<=";
+                std::string g_op = op;
+                Expr* left = make_rel(arena, s_op, make_sym(arena, var), r1);
+                Expr* right = make_rel(arena, g_op, make_sym(arena, var), r2);
+                return make_rel(arena, "or", left, right);
+            }
+            if ((op == ">" || op == ">=") && !a_pos) {
+                // r1 < x < r2
+                return make_rel(arena, op == ">" ? "<" : "<=",
+                    make_rel(arena, op == ">" ? "<" : "<=", r1, make_sym(arena, var)),
+                    r2);
+            }
+            if ((op == "<" || op == "<=") && a_pos) {
+                // r1 < x < r2
+                std::string inner_op = (op == "<") ? "<" : "<=";
+                return make_rel(arena, inner_op,
+                    make_rel(arena, inner_op, r1, make_sym(arena, var)),
+                    r2);
+            }
+            if ((op == "<" || op == "<=") && !a_pos) {
+                // x < r1 or x > r2
+                std::string s_op = (op == "<") ? "<" : "<=";
+                std::string g_op = (op == "<") ? ">" : ">=";
+                Expr* left = make_rel(arena, s_op, make_sym(arena, var), r1);
+                Expr* right = make_rel(arena, g_op, make_sym(arena, var), r2);
+                return make_rel(arena, "or", left, right);
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 } // namespace axion
