@@ -350,4 +350,147 @@ Expr* factor(Arena& arena, Expr* e, const std::string& var) {
     return simplify(arena, make_mul(arena, std::move(factors)));
 }
 
+std::vector<std::pair<std::string, Expr*>> solve_system(Arena& arena, std::vector<Expr*> equations, std::vector<std::string> vars) {
+    int n = static_cast<int>(vars.size());
+    int m = static_cast<int>(equations.size());
+    if (m < n) return {}; // underdetermined
+
+    // Build augmented matrix [A|b] where A*x = b
+    // Each equation: move to LHS form (lhs - rhs = 0), extract linear coefficients
+    // Matrix is (m x (n+1)): coefficients + constant
+    std::vector<std::vector<int64_t>> mat_n(m, std::vector<int64_t>(n + 1, 0));
+    std::vector<std::vector<int64_t>> mat_d(m, std::vector<int64_t>(n + 1, 1));
+
+    for (int i = 0; i < m; ++i) {
+        Expr* eq = equations[i];
+        if (!eq->is_rel() || eq->name != "=") return {};
+        Expr* lhs = make_add(arena, {eq->children[0], make_neg(arena, eq->children[1])});
+        lhs = simplify(arena, lhs);
+
+        // Extract coefficients for each variable
+        std::vector<Expr*> terms;
+        if (lhs->is_add()) terms = lhs->children;
+        else terms.push_back(lhs);
+
+        for (auto* t : terms) {
+            bool matched = false;
+            for (int j = 0; j < n; ++j) {
+                // Check if term contains vars[j]
+                if (t->is_sym() && t->name == vars[j]) {
+                    mat_n[i][j] += 1;
+                    matched = true;
+                } else if (t->is_mul()) {
+                    // Look for coeff * var
+                    for (size_t k = 0; k < t->children.size(); ++k) {
+                        if (t->children[k]->is_sym() && t->children[k]->name == vars[j]) {
+                            // Coefficient is product of other factors
+                            Expr* coeff = make_num(arena, 1);
+                            for (size_t l = 0; l < t->children.size(); ++l) {
+                                if (l != k) coeff = simplify(arena, make_mul(arena, {coeff, t->children[l]}));
+                            }
+                            if (coeff->is_num()) {
+                                mat_n[i][j] += coeff->num * mat_d[i][j];
+                                // Simplify: keep as integer for now
+                            }
+                            matched = true;
+                            break;
+                        }
+                    }
+                } else if (t->is_neg()) {
+                    auto* inner = t->children[0];
+                    if (inner->is_sym() && inner->name == vars[j]) {
+                        mat_n[i][j] -= 1;
+                        matched = true;
+                    }
+                }
+            }
+            // Constant term (no variable)
+            if (!matched && t->is_num()) {
+                mat_n[i][n] += t->num; // move to RHS: negate
+            } else if (!matched && t->is_neg() && t->children[0]->is_num()) {
+                mat_n[i][n] -= t->children[0]->num;
+            }
+        }
+        // Constant goes to RHS (negate)
+        mat_n[i][n] = -mat_n[i][n];
+    }
+
+    // Gaussian elimination with rational arithmetic
+    // Work with numerator/denominator pairs
+    // Simplify: use double for now (exact rational Gauss is complex)
+    std::vector<std::vector<double>> A(n, std::vector<double>(n + 1));
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j <= n; ++j)
+            A[i][j] = static_cast<double>(mat_n[i][j]) / static_cast<double>(mat_d[i][j]);
+
+    // Forward elimination
+    for (int col = 0; col < n; ++col) {
+        // Find pivot
+        int pivot = -1;
+        for (int row = col; row < n; ++row) {
+            if (std::abs(A[row][col]) > 1e-12) { pivot = row; break; }
+        }
+        if (pivot < 0) return {}; // singular
+
+        std::swap(A[col], A[pivot]);
+
+        // Eliminate below
+        for (int row = col + 1; row < n; ++row) {
+            double factor_val = A[row][col] / A[col][col];
+            for (int j = col; j <= n; ++j)
+                A[row][j] -= factor_val * A[col][j];
+        }
+    }
+
+    // Back substitution
+    std::vector<double> solution(n);
+    for (int i = n - 1; i >= 0; --i) {
+        double sum = A[i][n];
+        for (int j = i + 1; j < n; ++j)
+            sum -= A[i][j] * solution[j];
+        solution[i] = sum / A[i][i];
+    }
+
+    // Convert to rational
+    std::vector<std::pair<std::string, Expr*>> result;
+    for (int i = 0; i < n; ++i) {
+        Expr* val = make_num_double(arena, solution[i]);
+        result.push_back({vars[i], val});
+    }
+    return result;
+}
+
+Expr* solve_inequality(Arena& arena, Expr* ineq, const std::string& var) {
+    if (!ineq->is_rel()) return nullptr;
+    std::string op = ineq->name;
+    if (op != "<" && op != ">" && op != "<=" && op != ">=") return nullptr;
+
+    // Move to form: expr > 0 (or <, <=, >=)
+    Expr* lhs = make_add(arena, {ineq->children[0], make_neg(arena, ineq->children[1])});
+    lhs = simplify(arena, lhs);
+
+    // Extract linear: a*x + b
+    PolyCoeffs poly = extract_poly(arena, lhs, var);
+    if (poly.degree != 1) return nullptr; // only linear inequalities
+
+    Expr* a = poly.coeffs[1];
+    Expr* b = poly.coeffs[0];
+
+    if (!a->is_num() || a->num == 0) return nullptr;
+
+    // x > -b/a (if a > 0) or x < -b/a (if a < 0, flip inequality)
+    Expr* bound = simplify(arena, make_mul(arena, {make_neg(arena, b), make_pow(arena, a, make_num(arena, -1))}));
+
+    std::string result_op = op;
+    if (a->num < 0) {
+        // Flip inequality
+        if (op == "<") result_op = ">";
+        else if (op == ">") result_op = "<";
+        else if (op == "<=") result_op = ">=";
+        else if (op == ">=") result_op = "<=";
+    }
+
+    return make_rel(arena, result_op, make_sym(arena, var), bound);
+}
+
 } // namespace axion

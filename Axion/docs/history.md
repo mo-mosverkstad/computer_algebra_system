@@ -380,3 +380,15 @@ factor(x^3 - 6*x^2 + 11*x - 6, x)    → (-1+x)*(-3+x)*(-2+x)
 factor(x^4 - 5*x^2 + 4, x)           → (-1+x)*(-2+x)*(1+x)*(2+x)
 factor(x^2 - 1, x)                    → (-1+x)*(1+x)
 ```
+
+
+### Extended (deferred items completed)
+
+- **Systems of linear equations** via Gaussian elimination
+  - `solve(x + y = 5, x - y = 1, x, y)` → `{x = 3, y = 2}`
+  - Builds augmented matrix, forward elimination, back substitution
+
+- **Linear inequality solving**
+  - `solve(2*x + 1 > 0, x)` → `x > -1/2`
+  - `solve(-x + 5 > 0, x)` → `x < 5` (flips inequality when dividing by negative)
+  - Extracts linear coefficient, computes bound, flips sign if needed

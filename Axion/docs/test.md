@@ -263,3 +263,13 @@ All 52 Phase 1–6 tests: ✅ Pass (no regressions)
 | `solve(x^4 - 5*x^2 + 4 = 0, x)` | {±1, ±2} | {1, 2, -1, -2} | ✅ |
 | `factor(x^3 - 6*x^2 + 11*x - 6, x)` | (x-1)(x-2)(x-3) | (-1+x)(-3+x)(-2+x) | ✅ |
 | `factor(x^4 - 5*x^2 + 4, x)` | 4 factors | 4 factors | ✅ |
+
+
+### Systems & Inequalities
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `solve(2*x + 1 > 0, x)` | x > -1/2 | x > -1/2 | ✅ |
+| `solve(3*x - 6 <= 0, x)` | x <= 2 | x <= 2 | ✅ |
+| `solve(-x + 5 > 0, x)` | x < 5 | x < 5 | ✅ |
+| `solve(x + y = 5, x - y = 1, x, y)` | {x=3, y=2} | {x=3, y=2} | ✅ |

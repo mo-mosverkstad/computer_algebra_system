@@ -241,6 +241,19 @@ int main() {
                 if (fname == "solve" && e->children.size() == 2) {
                     Expr* eq = e->children[0];
                     std::string var = e->children[1]->name;
+
+                    // Check if it's an inequality
+                    if (eq->is_rel() && (eq->name == "<" || eq->name == ">" || eq->name == "<=" || eq->name == ">=")) {
+                        Expr* result = solve_inequality(session.arena, eq, var);
+                        if (result) {
+                            session.last_result = result;
+                            std::cout << print(result) << "\n";
+                        } else {
+                            std::cout << "cannot solve inequality\n";
+                        }
+                        continue;
+                    }
+
                     auto roots = solve(session.arena, eq, var);
                     if (roots.empty()) {
                         std::cout << "no solution found\n";
@@ -257,6 +270,33 @@ int main() {
                         session.last_result = roots[0];
                     }
                     continue;
+                }
+
+                // solve_system: solve([eq1, eq2], [x, y])
+                if (fname == "solve" && e->children.size() >= 3) {
+                    // Collect equations and variables
+                    std::vector<Expr*> eqs;
+                    std::vector<std::string> vars;
+                    // All args except last N that are symbols are vars
+                    // Heuristic: equations are REL nodes, vars are SYM nodes
+                    for (auto* child : e->children) {
+                        if (child->is_rel()) eqs.push_back(child);
+                        else if (child->is_sym()) vars.push_back(child->name);
+                    }
+                    if (eqs.size() >= 2 && vars.size() >= 2) {
+                        auto result = solve_system(session.arena, eqs, vars);
+                        if (result.empty()) {
+                            std::cout << "no solution found\n";
+                        } else {
+                            std::cout << "{";
+                            for (size_t i = 0; i < result.size(); ++i) {
+                                if (i > 0) std::cout << ", ";
+                                std::cout << result[i].first << " = " << print(result[i].second);
+                            }
+                            std::cout << "}\n";
+                        }
+                        continue;
+                    }
                 }
 
                 // factor(expr, var)

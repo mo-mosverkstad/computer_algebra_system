@@ -414,10 +414,10 @@ Axion/
 - [x] Quadratic equations: `solve(a*x^2 + b*x + c = 0, x)`
 - [x] Cubic/quartic/higher via Rational Root Theorem + synthetic division
 - [x] `factor(expr, var)` — polynomial factorization via root-finding (any degree)
-- [ ] Systems of linear equations (deferred)
-- [ ] Inequality solving (deferred)
+- [x] Systems of linear equations: `solve(eq1, eq2, x, y)` (Gaussian elimination)
+- [x] Inequality solving (linear): `solve(2*x + 1 > 0, x)` → `x > -1/2`
 
-**Deliverable:** `solve(x^3 - 6*x^2 + 11*x - 6 = 0, x)` → `{1, 3, 2}`, `factor(x^4 - 5*x^2 + 4, x)` → `(-1+x)*(-2+x)*(1+x)*(2+x)` ✅
+**Deliverable:** `solve(x^3 - 6*x^2 + 11*x - 6 = 0, x)` → `{1, 3, 2}`, `solve(x + y = 5, x - y = 1, x, y)` → `{x = 3, y = 2}` ✅
 
 ### Phase 10 — Pattern Matching & Rewrite Engine (Weeks 47–52)
 
