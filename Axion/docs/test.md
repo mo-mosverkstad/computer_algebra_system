@@ -395,3 +395,28 @@ All 52 Phase 1–12 tests: ✅ Pass (no regressions)
 ### Issues Found
 
 None — all features implemented cleanly.
+
+
+#### Perfect cube recognition
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `x^3 + 3*x^2 + 3*x + 1` | `(1 + x)^3` | `(1 + x)^3` | ✅ |
+| `x^3 + 3*x^2*y + 3*x*y^2 + y^3` | `(x + y)^3` | `(x + y)^3` | ✅ |
+| `x^3 - 3*x^2 + 3*x - 1` | `(-1 + x)^3` | `(-1 + x)^3` | ✅ |
+
+#### Common-factor recognition
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `x*a + x*b` | `x*(a + b)` | `x*(a + b)` | ✅ |
+| `x*a + x*b + x*c` | `x*(a + b + c)` | `x*(a + b + c)` | ✅ |
+| `sin(x)*a + sin(x)*b` | `sin(x)*(a + b)` | `sin(x)*(a + b)` | ✅ |
+
+#### Strategy engine (simplify_smart)
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `x^2 + 2*x + 1` (direct input) | `(1 + x)^2` | `(1 + x)^2` | ✅ (auto-factored) |
+| `expand((x+1)^2)` | `1 + x^2 + 2*x` | `1 + x^2 + 2*x` | ✅ (stays expanded) |
+| `3*x + 5` | `5 + 3*x` | `5 + 3*x` | ✅ (no factoring needed) |

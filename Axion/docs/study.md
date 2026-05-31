@@ -591,13 +591,13 @@ struct MetaRule {
 
 #### Implementation Roadmap for Phase 13
 
-- [ ] Typed wildcards: `_n:num`, `_c:const(var)`, `_f:expr`
-- [ ] Rest-matching: `_...` matches remaining children in ADD/MUL
-- [ ] Recursive markers: `diff(_f)` in replacement triggers recursion
-- [ ] Recognition functions: register C++ functions as "backward rules"
-- [ ] Binomial recognition: detect `(a+b)^n` patterns in expanded sums
-- [ ] Common-factor recognition: detect `a*X + b*X` → `(a+b)*X`
-- [ ] Strategy engine: direction tags, "simplify = try both, pick shorter"
+- [x] Typed wildcards: `_n__num`, `_c__const`, `_v__hasvar`, `_s__sym`, `_f__func`
+- [x] Rest-matching: `_rest` matches remaining children in ADD/MUL
+- [ ] Recursive markers: `diff(_f)` in replacement triggers recursion (deferred to Phase 14)
+- [x] Recognition functions: register C++ functions as "backward rules"
+- [x] Binomial recognition: detect `(a+b)^n` patterns (n=2, n=3)
+- [x] Common-factor recognition: detect `a*X + b*X` → `(a+b)*X`
+- [x] Strategy engine: `simplify_smart()` tries both directions, picks shorter result
 - [ ] User-definable bidirectional rules
 
 **Estimated effort:** 4–8 weeks (research-level complexity)

@@ -680,7 +680,7 @@ int main() {
             }
 
             // Default: simplify and print
-            e = simplify_full(session.arena, e);
+            e = simplify_smart(session.arena, e);
             // Apply user-defined rewrite rules
             if (!session.rules.empty())
                 e = apply_rules(session.arena, e, session.rules);

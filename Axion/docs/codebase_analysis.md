@@ -2090,3 +2090,305 @@ int64_t powmod_val(int64_t base, int64_t exp, int64_t mod) {
 All number theory functions are dispatched in main.cpp by function name.
 They extract integer arguments, call the pure function, and print the result.
 No symbolic manipulation needed — these are purely computational.
+
+---
+
+## Phase 13 — Meta-Rule Engine
+
+---
+
+### 55. Context-Aware Wildcards (`src/modules/rewrite.cpp`)
+
+#### Concept
+
+Standard wildcards (`_x`) match any expression. But for integration and differentiation rules, we need to distinguish between expressions that **contain** a variable and those that are **constant** with respect to it. For example, in `∫ 3*sin(x) dx`, the `3` is constant and `sin(x)` depends on `x`.
+
+Context-aware wildcards solve this by carrying a **match context** — the name of the "active variable" — and checking whether a matched expression contains it.
+
+#### ASCII Diagram
+
+```
+Expression: 3 * sin(x)     Active variable: "x"
+
+Pattern: _c__const * _f__hasvar
+
+_c__const matches 3       ← does NOT contain "x" ✓
+_f__hasvar matches sin(x) ← DOES contain "x" ✓
+```
+
+#### Annotated Code
+
+```cpp
+struct MatchContext {
+    std::string active_var;  // variable of interest
+};
+
+static MatchContext g_match_ctx;  // thread-local context
+
+bool contains_var(const Expr* e, const std::string& var) {
+    if (!e) return false;
+    if (e->is_sym() && e->name == var) return true;
+    for (auto* c : e->children)
+        if (contains_var(c, var)) return true;
+    return false;
+}
+
+bool check_type_constraint(const Expr* expr, const std::string& type) {
+    // ...existing checks...
+    if (type == "const") return !contains_var(expr, g_match_ctx.active_var);
+    if (type == "hasvar") return contains_var(expr, g_match_ctx.active_var);
+    return true;
+}
+```
+
+#### Why It Works
+
+The `contains_var` function recursively walks the expression tree looking for the active variable. If found, the expression "has" the variable; if not, it's "constant" with respect to it. The context is set before matching and restored after, allowing nested matches with different contexts.
+
+---
+
+### 56. Recognition Functions (`src/engine/rules.cpp`)
+
+#### Concept
+
+Pattern matching works **forward** — given a pattern, find expressions that match it. But some mathematical transformations work **backward** — given an expression, recognize that it has a special structure. For example, recognizing that `x² + 6x + 9` is a perfect square `(x+3)²`.
+
+Recognition functions are C++ functions registered as "backward rules." They examine an expression and, if they detect a known pattern, return the simplified form.
+
+#### ASCII Diagram
+
+```
+Input: ADD(x^2, 6*x, 9)
+
+recognize_perfect_square():
+  1. Find square terms: x^2 (base=x), 9 (base=3, since 3²=9)
+  2. Compute expected middle: 2*x*3 = 6*x
+  3. Compare with actual middle: 6*x ✓
+  4. Return: POW(ADD(x, 3), 2)
+
+Output: (x + 3)^2
+```
+
+#### Annotated Code
+
+```cpp
+// Type for recognition functions
+using RecognitionFn = Expr* (*)(Arena& arena, Expr* expr);
+
+// Apply recognizers bottom-up at every subexpression
+Expr* apply_recognizers(Arena& arena, Expr* expr, const std::vector<RecognitionFn>& fns) {
+    for (auto& child : expr->children) {
+        Expr* r = apply_recognizers(arena, child, fns);
+        if (r) child = r;
+    }
+    for (auto fn : fns) {
+        Expr* r = fn(arena, expr);
+        if (r) return r;
+    }
+    return expr;
+}
+```
+
+The perfect square recognizer:
+
+```cpp
+Expr* recognize_perfect_square(Arena& arena, Expr* expr) {
+    if (!expr->is_add() || expr->children.size() != 3) return nullptr;
+
+    // Find two "square" terms (x^2 or numeric perfect squares like 9)
+    std::vector<SquareInfo> squares;
+    for (size_t i = 0; i < 3; ++i) {
+        BaseExp be = get_base_exp(expr->children[i]);
+        if (be.exp_n == 2 && be.exp_d == 1)
+            squares.push_back({be.base, i});
+        else if (t->is_num() && is_perfect_square(t->num))
+            squares.push_back({make_num(arena, sqrt(t->num)), i});
+    }
+    if (squares.size() != 2) return nullptr;
+
+    // Verify middle term = ±2*a*b
+    Expr* pos_mid = simplify(arena, make_mul(arena, {make_num(arena, 2), a, b}));
+    if (print(mid) == print(pos_mid))
+        return make_pow(arena, make_add(arena, {a, b}), make_num(arena, 2));
+}
+```
+
+#### Why It Works
+
+The recognizer uses a **hypothesis-and-verify** approach:
+1. **Hypothesis:** "This 3-term sum might be a perfect square trinomial"
+2. **Extract:** Find the two square terms and compute their roots
+3. **Verify:** Check that the remaining term equals exactly `2*root1*root2`
+4. **Return:** If verified, return the factored form
+
+This cannot be expressed as a flat rewrite rule because it requires arithmetic verification (checking that `6 = 2*1*3`).
+
+---
+
+### 57. Two-Tier Simplification Architecture
+
+#### Concept
+
+The simplification system is split into two tiers:
+
+| Tier | Function | Speed | Rules |
+|------|----------|-------|-------|
+| Fast | `simplify()` | O(n) | Algorithmic: flatten, sort, fold, combine |
+| Full | `simplify_full()` | O(n × rules × iterations) | Algorithmic + identity rule table |
+
+The fast tier handles structural transformations (flattening nested ADD/MUL, sorting children, combining like terms, constant folding). The full tier additionally applies the declarative identity rules from `rules.cpp` via the pattern-matching rewrite engine.
+
+#### ASCII Diagram
+
+```
+simplify(expr):                    simplify_full(expr):
+┌──────────────────┐              ┌──────────────────┐
+│ 1. Recurse       │              │ 1. simplify()    │
+│ 2. Flatten       │              │ 2. init_rules()  │
+│ 3. Sort          │              │ 3. apply_rules() │ ← identity table
+│ 4. Fold constants│              │    (repeat until  │
+│ 5. Combine terms │              │     stable)       │
+│ 6. Eval funcs    │              └──────────────────┘
+│    (sin(0)→0)    │
+└──────────────────┘
+
+Used by:                           Used by:
+- Internal loops                   - User-facing output
+- Intermediate steps               - Module boundaries
+- apply_rules() itself             - REPL final result
+```
+
+#### Why It Works
+
+Separating the tiers prevents infinite recursion: `apply_rules()` calls `simplify()` after each rule application (to normalize the result), but `simplify()` does NOT call `apply_rules()`. If it did, applying a rule would trigger more rule applications, which would trigger more, ad infinitum.
+
+The fast tier is called ~100× more often than the full tier (inside solver loops, matrix operations, series computation), so keeping it lightweight is critical for performance.
+
+---
+
+### 58. Rule Table Design (`src/engine/rules.cpp`)
+
+#### Concept
+
+All mathematical knowledge is centralized in `rules.cpp` as data tables. The tables are initialized once at startup and read by all modules.
+
+#### Table Categories
+
+| Table | Purpose | Consumer |
+|-------|---------|----------|
+| `identities` | Pattern→replacement rules | `simplify_full()` |
+| `diff_rules` | Function derivative table | `calculus.cpp` |
+| `int_rules` | Function antiderivative table | `integration.cpp` |
+| `recognizers` | Backward pattern detectors | `factor()` |
+
+#### Key Design Decision: Pattern Simplification
+
+Rule patterns are `simplify()`-ed at initialization time:
+
+```cpp
+auto add_id = [&](const char* pattern, const char* replacement) {
+    g_rules.identities.push_back({
+        simplify(g_rule_arena, parse(g_rule_arena, pattern)),  // ← simplified!
+        parse(g_rule_arena, replacement), ""
+    });
+};
+```
+
+This ensures patterns are in canonical form and will match expressions that have also been simplified. Without this, `sin(pi/2)` (which parses as `sin(MUL(pi, POW(2,-1)))`) would never match the simplified form `sin(MUL(1/2, pi))`.
+
+#### Adding New Functions
+
+To add a new function (e.g., `sinh`), only `rules.cpp` needs editing:
+
+```cpp
+// Differentiation
+{"sinh", "cosh(_u)"},
+
+// Integration
+{"sinh", "cosh(_u)"},
+
+// Identity (in simplify.cpp for computational eval)
+if (e->name == "sinh") return make_num(arena, 0);  // sinh(0)=0
+```
+
+This validates the data-driven architecture: mathematical knowledge is separated from algorithmic code.
+
+
+---
+
+### 59. Common-Factor Recognition (`src/engine/rules.cpp`)
+
+#### Concept
+
+Given a sum like `a*x + b*x + c*x`, extract the common symbolic factor `x` to produce `x*(a+b+c)`. This is the **reverse** of distribution — it cannot be expressed as a simple rewrite rule because it requires inspecting ALL terms to find what's shared.
+
+#### ASCII Diagram
+
+```
+Input: ADD(MUL(a, x), MUL(b, x), MUL(c, x))
+
+Step 1: Get factors of first term: {a, x}
+Step 2: For candidate "x", check all other terms:
+  - MUL(b, x) contains x ✓
+  - MUL(c, x) contains x ✓
+Step 3: Divide each term by x:
+  - a*x / x = a
+  - b*x / x = b
+  - c*x / x = c
+Step 4: Return MUL(x, ADD(a, b, c))
+
+Output: x*(a + b + c)
+```
+
+#### Why It Works
+
+The algorithm iterates over factors of the first term as candidates. For each non-numeric candidate, it checks whether that factor appears in every other term. If found, it divides each term by the candidate (removing one occurrence) and wraps the result in a product.
+
+---
+
+### 60. Perfect Cube Recognition
+
+#### Concept
+
+Extends the perfect square recognizer to detect `(a+b)³ = a³ + 3a²b + 3ab² + b³`. The algorithm finds two cube terms, then verifies the two middle terms match the expected binomial coefficients.
+
+#### Why It Works
+
+Same hypothesis-verify approach as the square recognizer:
+1. Find terms with exponent 3 (or numeric perfect cubes)
+2. Extract roots `a` and `b`
+3. Compute expected middle terms: `3a²b` and `3ab²`
+4. Compare against actual middle terms using `print()` for canonical comparison
+
+---
+
+### 61. Strategy Engine (`simplify_smart`)
+
+#### Concept
+
+The strategy engine decides **when** to apply backward rules (factoring). The principle: after simplification, try recognizers. If the recognized form is shorter or equal in length, prefer it (factored forms are generally more useful).
+
+#### ASCII Diagram
+
+```
+Input: x^2 + 2*x + 1
+
+simplify_full() → "1 + x^2 + 2*x"  (15 chars)
+                         │
+                         ▼
+apply_recognizers() → "(1 + x)^2"    (9 chars)
+                         │
+                         ▼ shorter!
+Output: (1 + x)^2
+```
+
+```
+Input: expand((x+1)^2)
+
+expand() uses simplify_full() directly → "1 + x^2 + 2*x"
+(bypasses simplify_smart, so no re-factoring)
+```
+
+#### Why It Works
+
+By comparing string lengths of the original vs. recognized form, the engine makes a simple but effective heuristic decision. Factored forms are almost always shorter than expanded forms for perfect powers and common-factor expressions. The `expand()` command deliberately bypasses this to respect the user's intent.

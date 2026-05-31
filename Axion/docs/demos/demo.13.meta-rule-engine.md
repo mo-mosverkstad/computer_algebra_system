@@ -97,3 +97,43 @@ axion> cosh(0)
 ```
 52 tests, all passing.
 ```
+
+
+### Perfect cube recognition
+
+```
+axion> x^3 + 3*x^2 + 3*x + 1
+(1 + x)^3
+
+axion> x^3 + 3*x^2*y + 3*x*y^2 + y^3
+(x + y)^3
+
+axion> x^3 - 3*x^2 + 3*x - 1
+(-1 + x)^3
+```
+
+### Common-factor recognition
+
+```
+axion> x*a + x*b
+x*(a + b)
+
+axion> x*a + x*b + x*c
+x*(a + b + c)
+
+axion> sin(x)*a + sin(x)*b
+sin(x)*(a + b)
+```
+
+### Strategy engine (auto-factoring)
+
+```
+axion> x^2 + 2*x + 1
+(1 + x)^2
+
+axion> expand((x+1)^2)
+1 + x^2 + 2*x
+```
+
+The strategy engine automatically recognizes factorable forms in direct input,
+but `expand()` bypasses it to respect the user's intent.

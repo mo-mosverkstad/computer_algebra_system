@@ -123,6 +123,127 @@ Expr* recognize_perfect_square(Arena& arena, Expr* expr) {
     return nullptr;
 }
 
+// Recognize perfect cube: a³+3a²b+3ab²+b³ → (a+b)³
+Expr* recognize_perfect_cube(Arena& arena, Expr* expr) {
+    if (!expr->is_add() || expr->children.size() != 4) return nullptr;
+
+    // Find cube terms (exponent 3 or numeric perfect cubes)
+    struct CubeInfo { Expr* root; size_t idx; };
+    std::vector<CubeInfo> cubes;
+
+    for (size_t i = 0; i < 4; ++i) {
+        Expr* t = expr->children[i];
+        BaseExp be = get_base_exp(t);
+        if (be.exp_n == 3 && be.exp_d == 1) {
+            cubes.push_back({be.base, i});
+        } else if (t->is_num() && t->den == 1) {
+            int64_t n = std::abs(t->num);
+            int64_t cr = static_cast<int64_t>(std::round(std::cbrt(static_cast<double>(n))));
+            if (cr * cr * cr == n) {
+                int64_t sign = (t->num > 0) ? cr : -cr;
+                cubes.push_back({make_num(arena, sign), i});
+            }
+        }
+    }
+    if (cubes.size() != 2) return nullptr;
+
+    // Try both orderings
+    for (size_t ord = 0; ord < 2; ++ord) {
+        Expr* a = (ord == 0) ? cubes[0].root : cubes[1].root;
+        Expr* b = (ord == 0) ? cubes[1].root : cubes[0].root;
+
+        // Expected middle terms: 3a²b and 3ab²
+        Expr* t1 = simplify(arena, make_mul(arena, {make_num(arena, 3), make_pow(arena, a, make_num(arena, 2)), b}));
+        Expr* t2 = simplify(arena, make_mul(arena, {make_num(arena, 3), a, make_pow(arena, b, make_num(arena, 2))}));
+
+        // Find the two middle terms (not cube terms)
+        std::vector<Expr*> middles;
+        for (size_t i = 0; i < 4; ++i) {
+            if (i != cubes[0].idx && i != cubes[1].idx)
+                middles.push_back(expr->children[i]);
+        }
+        if (middles.size() != 2) continue;
+
+        std::string m0 = print(middles[0]), m1 = print(middles[1]);
+        std::string e1 = print(t1), e2 = print(t2);
+
+        if ((m0 == e1 && m1 == e2) || (m0 == e2 && m1 == e1))
+            return make_pow(arena, make_add(arena, {a, b}), make_num(arena, 3));
+
+        // Try (a-b)^3 = a³ - 3a²b + 3ab² - b³
+        Expr* nt1 = simplify(arena, make_mul(arena, {make_num(arena, -3), make_pow(arena, a, make_num(arena, 2)), b}));
+        Expr* nt2 = simplify(arena, make_mul(arena, {make_num(arena, 3), a, make_pow(arena, b, make_num(arena, 2))}));
+        std::string ne1 = print(nt1), ne2 = print(nt2);
+
+        if ((m0 == ne1 && m1 == ne2) || (m0 == ne2 && m1 == ne1))
+            return make_pow(arena, make_add(arena, {a, make_neg(arena, b)}), make_num(arena, 3));
+    }
+    return nullptr;
+}
+
+// Recognize common factor: a*X + b*X + c*X → (a+b+c)*X
+// Finds the largest common symbolic factor across all terms of an ADD.
+Expr* recognize_common_factor(Arena& arena, Expr* expr) {
+    if (!expr->is_add() || expr->children.size() < 2) return nullptr;
+
+    // Extract factors from each term
+    // For MUL(a, b, c): factors are {a, b, c}
+    // For single expr X: factors are {X}
+    auto get_factors = [](Expr* e) -> std::vector<Expr*> {
+        if (e->is_mul()) return e->children;
+        if (e->is_neg() && e->children[0]->is_mul()) return e->children[0]->children;
+        return {e};
+    };
+
+    // Get factors of first term
+    std::vector<Expr*> first_factors = get_factors(expr->children[0]);
+
+    // For each factor of the first term, check if it appears in ALL other terms
+    for (auto* candidate : first_factors) {
+        if (candidate->is_num()) continue; // skip numeric coefficients
+
+        std::string cand_str = print(candidate);
+        bool common = true;
+
+        for (size_t i = 1; i < expr->children.size(); ++i) {
+            std::vector<Expr*> term_factors = get_factors(expr->children[i]);
+            bool found = false;
+            for (auto* f : term_factors) {
+                if (print(f) == cand_str) { found = true; break; }
+                // Also check if term contains candidate as a power base
+                if (f->is_pow() && print(f->children[0]) == cand_str) { found = true; break; }
+            }
+            if (!found) { common = false; break; }
+        }
+
+        if (common) {
+            // Factor out: divide each term by candidate
+            std::vector<Expr*> quotients;
+            for (auto* term : expr->children) {
+                std::vector<Expr*> factors = get_factors(term);
+                std::vector<Expr*> remaining;
+                bool removed = false;
+                int sign = 1;
+                if (term->is_neg()) { sign = -1; factors = get_factors(term->children[0]); }
+
+                for (auto* f : factors) {
+                    if (!removed && print(f) == cand_str) { removed = true; continue; }
+                    remaining.push_back(f);
+                }
+                Expr* q;
+                if (remaining.empty()) q = make_num(arena, sign);
+                else if (remaining.size() == 1) q = remaining[0];
+                else q = make_mul(arena, std::move(remaining));
+                if (sign == -1 && !remaining.empty()) q = make_neg(arena, q);
+                quotients.push_back(q);
+            }
+            Expr* sum = simplify(arena, make_add(arena, std::move(quotients)));
+            return simplify(arena, make_mul(arena, {candidate, sum}));
+        }
+    }
+    return nullptr;
+}
+
 void init_rules(Arena& arena) {
     if (g_initialized) return;
     g_initialized = true;
@@ -203,7 +324,22 @@ void init_rules(Arena& arena) {
 
     g_rules.recognizers = {
         recognize_perfect_square,
+        recognize_perfect_cube,
+        recognize_common_factor,
     };
+}
+
+Expr* simplify_smart(Arena& arena, Expr* expr) {
+    expr = simplify_full(arena, expr);
+
+    // Try recognizers — if result is shorter or equal, prefer factored form
+    Expr* recognized = apply_recognizers(arena, expr, get_rules().recognizers);
+    if (recognized) {
+        Expr* r = simplify(arena, recognized);
+        if (print(r).size() <= print(expr).size())
+            return r;
+    }
+    return expr;
 }
 
 } // namespace axion

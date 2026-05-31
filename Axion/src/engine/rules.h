@@ -36,4 +36,7 @@ struct RuleTables {
 RuleTables& get_rules();
 void init_rules(Arena& arena);
 
+// Strategy: try recognizers and pick shorter result if beneficial
+Expr* simplify_smart(Arena& arena, Expr* expr);
+
 } // namespace axion

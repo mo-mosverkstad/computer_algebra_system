@@ -534,8 +534,16 @@ All 52 previous tests: ✅ Pass
   - `RecognitionFn` type: C++ functions registered as backward rules
   - `apply_recognizers(arena, expr, fns)` — applies recognizers bottom-up
   - Perfect square trinomial recognizer: `a²+2ab+b² → (a+b)²`, `a²-2ab+b² → (a-b)²`
-  - Handles numeric perfect squares: `x²+6x+9 → (3+x)²`
+  - Perfect cube recognizer: `a³+3a²b+3ab²+b³ → (a+b)³`
+  - Common-factor recognizer: `a*X+b*X+c*X → (a+b+c)*X`
+  - Handles numeric perfect squares/cubes: `x²+6x+9 → (3+x)²`
   - Integrated into `factor()` command (tries recognizers before root-finding)
+
+- **Strategy engine (`simplify_smart`)**
+  - Applies `simplify_full()` then tries recognizers
+  - Picks factored form if result is shorter or equal length
+  - Used as default REPL output path
+  - `expand()` bypasses strategy (stays expanded as user requested)
 
 - **Pattern simplification on rule definition**
   - Patterns are now `simplify()`-ed before storage to ensure flattened ADD/MUL
@@ -566,6 +574,9 @@ log(2) + log(3) + log(5)      → log(30)
 factor(a^2 + 2*a*b + b^2, a)  → (a + b)^2
 factor(x^2 + 6*x + 9, x)     → (3 + x)^2
 factor(x^2 - 2*x + 1, x)     → (1 - x)^2
+
+x^3 + 3*x^2 + 3*x + 1        → (1 + x)^3   (auto-recognized)
+x*a + x*b + x*c               → x*(a + b + c) (common factor)
 
 diff(sinh(x^2), x)            → 2*x*cosh(x^2)
 int(cosh(x), x)               → sinh(x)
