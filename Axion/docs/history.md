@@ -317,3 +317,36 @@ int(3*x^2 + 2*x, x)  → x^3 + x^2
 int(x^2, x, 0, 1)    → 1/3
 int(sin(x), x, 0, pi) → 2
 ```
+
+
+---
+
+## Phase 8 — Matrices & Vectors (2026-05-31)
+
+### Added
+
+- **Matrix module** (`src/modules/matrix.h/.cpp`)
+  - Matrix stored as FUNC node with name `__matrix__RxC` and flattened elements
+  - `make_matrix`, `is_matrix`, `matrix_rows`, `matrix_cols`, `matrix_at`
+  - `matrix_add`, `matrix_mul`, `matrix_scalar_mul`
+  - `matrix_transpose`, `matrix_det` (cofactor expansion, any size)
+  - `matrix_inverse` (2×2 via adjugate/det)
+  - `vector_dot`, `vector_cross`
+  - `print_matrix` for display
+
+- **Parser extension**
+  - `[a, b, c]` → vector (1×3 matrix)
+  - `[[1,2],[3,4]]` → 2×2 matrix
+  - Bracket parsing in Pratt parser prefix
+
+- **REPL commands**
+  - `det(M)`, `transpose(M)`, `dot(v1, v2)`, `cross(v1, v2)`, `inverse(M)`/`inv(M)`
+
+### Key Results
+
+```
+det([[1,2],[3,4]])         → -2
+dot([1,2,3],[4,5,6])       → 32
+cross([1,0,0],[0,1,0])     → [0, 0, 1]
+transpose([[1,2],[3,4]])   → [[1, 3], [2, 4]]
+```

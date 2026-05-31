@@ -394,19 +394,19 @@ Axion/
 
 **Deliverable:** `int(x^2, x)` → `(1/3)*x^3`, `int(sin(x), x, 0, pi)` → `2` ✅
 
-### Phase 8 — Matrices & Vectors (Weeks 35–40)
+### Phase 8 — Matrices & Vectors (Weeks 35–40) ✅ COMPLETE
 
-- [ ] Matrix literal syntax: `[[1,0],[0,1]]`
-- [ ] Vector syntax: `[a, b, c]`
-- [ ] Matrix operations: addition, scalar multiplication, matrix multiplication
-- [ ] Dot product: `dot([a,b,c], [d,e,f])`
-- [ ] Cross product: `cross([a,b,c], [d,e,f])`
-- [ ] Determinant: `det([[a,b],[c,d]])`
-- [ ] Transpose: `transpose(M)`
-- [ ] Inverse (2×2, 3×3)
-- [ ] Eigenvalues (2×2)
+- [x] Matrix literal syntax: `[[1,0],[0,1]]`
+- [x] Vector syntax: `[a, b, c]`
+- [x] Matrix operations: addition, scalar multiplication, matrix multiplication
+- [x] Dot product: `dot([a,b,c], [d,e,f])`
+- [x] Cross product: `cross([a,b,c], [d,e,f])`
+- [x] Determinant: `det([[a,b],[c,d]])`
+- [x] Transpose: `transpose(M)`
+- [x] Inverse (2×2)
+- [ ] Eigenvalues (deferred)
 
-**Deliverable:** `det([[1,2],[3,4]])` → `-2`, `dot([1,2,3],[4,5,6])` → `32`
+**Deliverable:** `det([[1,2],[3,4]])` → `-2`, `dot([1,2,3],[4,5,6])` → `32` ✅
 
 ### Phase 9 — Equation Solving (Weeks 41–46)
 

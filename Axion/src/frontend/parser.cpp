@@ -13,6 +13,7 @@ const std::unordered_set<std::string> KNOWN_FUNCS = {
     "integrate", "int", "solve", "factor", "collect",
     "taylor", "approx", "binom", "gcd", "lcm",
     "det", "transpose", "dot", "cross", "simp",
+    "inverse", "inv",
 };
 
 class Parser {
@@ -134,7 +135,55 @@ class Parser {
             return inner;
         }
 
+        // Matrix/vector literal: [...]
+        if (t.type == TokenType::LBRACKET) {
+            advance();
+            return parse_bracket();
+        }
+
         throw std::runtime_error("Unexpected token: " + t.text);
+    }
+
+    Expr* parse_bracket() {
+        // Check if first element is another bracket → matrix [[...],[...]]
+        if (peek().type == TokenType::LBRACKET) {
+            // Matrix: [[a,b],[c,d]]
+            std::vector<Expr*> all_elems;
+            int rows = 0, cols = -1;
+            while (true) {
+                expect(TokenType::LBRACKET);
+                int this_cols = 0;
+                while (true) {
+                    all_elems.push_back(expr());
+                    this_cols++;
+                    if (!match(TokenType::COMMA)) break;
+                }
+                expect(TokenType::RBRACKET);
+                if (cols == -1) cols = this_cols;
+                rows++;
+                if (!match(TokenType::COMMA)) break;
+            }
+            expect(TokenType::RBRACKET);
+            // Build matrix FUNC node
+            auto* e = arena_.create<Expr>();
+            e->type = NodeType::FUNC;
+            e->name = "__matrix__" + std::to_string(rows) + "x" + std::to_string(cols);
+            e->children = std::move(all_elems);
+            return e;
+        }
+        // Vector: [a, b, c]
+        std::vector<Expr*> elems;
+        while (true) {
+            elems.push_back(expr());
+            if (!match(TokenType::COMMA)) break;
+        }
+        expect(TokenType::RBRACKET);
+        int n = static_cast<int>(elems.size());
+        auto* e = arena_.create<Expr>();
+        e->type = NodeType::FUNC;
+        e->name = "__matrix__1x" + std::to_string(n);
+        e->children = std::move(elems);
+        return e;
     }
 
     Expr* parse_func_call(const std::string& name) {

@@ -19,6 +19,7 @@ extern "C" {
 #include "modules/series.h"
 #include "modules/limits.h"
 #include "modules/integration.h"
+#include "modules/matrix.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -235,6 +236,54 @@ int main() {
                     continue;
                 }
 
+                // det(matrix)
+                if (fname == "det" && e->children.size() == 1 && is_matrix(e->children[0])) {
+                    Expr* result = matrix_det(session.arena, e->children[0]);
+                    if (result) {
+                        session.last_result = result;
+                        std::cout << print(result) << "\n";
+                    } else { std::cout << "Error: invalid matrix for det\n"; }
+                    continue;
+                }
+
+                // transpose(matrix)
+                if (fname == "transpose" && e->children.size() == 1 && is_matrix(e->children[0])) {
+                    Expr* result = matrix_transpose(session.arena, e->children[0]);
+                    session.last_result = result;
+                    std::cout << print_matrix(result) << "\n";
+                    continue;
+                }
+
+                // dot(vec, vec)
+                if (fname == "dot" && e->children.size() == 2) {
+                    Expr* result = vector_dot(session.arena, e->children[0], e->children[1]);
+                    if (result) {
+                        session.last_result = result;
+                        std::cout << print(result) << "\n";
+                    } else { std::cout << "Error: invalid vectors for dot\n"; }
+                    continue;
+                }
+
+                // cross(vec, vec)
+                if (fname == "cross" && e->children.size() == 2) {
+                    Expr* result = vector_cross(session.arena, e->children[0], e->children[1]);
+                    if (result) {
+                        session.last_result = result;
+                        std::cout << print_matrix(result) << "\n";
+                    } else { std::cout << "Error: invalid vectors for cross\n"; }
+                    continue;
+                }
+
+                // inverse(matrix)
+                if ((fname == "inverse" || fname == "inv") && e->children.size() == 1 && is_matrix(e->children[0])) {
+                    Expr* result = matrix_inverse(session.arena, e->children[0]);
+                    if (result) {
+                        session.last_result = result;
+                        std::cout << print_matrix(result) << "\n";
+                    } else { std::cout << "Error: matrix not invertible\n"; }
+                    continue;
+                }
+
                 // eval(expr, x=val, ...)
                 if (fname == "eval" && e->children.size() >= 2) {
                     Expr* expr = simplify(session.arena, e->children[0]);
@@ -287,7 +336,10 @@ int main() {
             // Default: simplify and print
             e = simplify(session.arena, e);
             session.last_result = e;
-            std::cout << print(e) << "\n";
+            if (is_matrix(e))
+                std::cout << print_matrix(e) << "\n";
+            else
+                std::cout << print(e) << "\n";
 
         } catch (const std::exception& ex) {
             std::cerr << "Error: " << ex.what() << "\n";

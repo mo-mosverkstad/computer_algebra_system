@@ -1097,3 +1097,183 @@ if (e->is_func() && e->name == "cos" && e->children[0]->is_mul()) {
     }
 }
 ```
+
+
+---
+
+## Phase 8 — Matrices & Vectors
+
+---
+
+### 27. Matrix Representation (`src/modules/matrix.h`, `src/modules/matrix.cpp`)
+
+#### Concept
+
+A **matrix** is a 2D grid of numbers (or expressions). A **vector** is a 1D list.
+In Axion, matrices are stored as a special FUNC node with a name encoding the dimensions
+and children being the elements in row-major order (left to right, top to bottom).
+
+#### How Matrices Are Stored in the AST
+
+```
+[[1, 2], [3, 4]]  →  FUNC node:
+                        name = "__matrix__2x2"
+                        children = [NUM(1), NUM(2), NUM(3), NUM(4)]
+
+[5, 6, 7]         →  FUNC node:
+                        name = "__matrix__1x3"
+                        children = [NUM(5), NUM(6), NUM(7)]
+```
+
+The name `__matrix__RxC` encodes rows (R) and columns (C). To access element at
+row i, column j: `children[i * cols + j]`.
+
+#### Why This Design?
+
+We reuse the existing FUNC node type instead of adding a new NodeType. This means:
+- No changes needed to the simplifier, printer, or evaluator for basic handling
+- Matrix-specific operations are in their own module
+- The `__matrix__` prefix prevents collision with user-defined functions
+
+#### ASCII Diagram — Matrix Multiplication
+
+```
+A = [[1,2],[3,4]]    B = [[5,6],[7,8]]
+
+A * B:
+  result[0][0] = 1*5 + 2*7 = 19
+  result[0][1] = 1*6 + 2*8 = 22
+  result[1][0] = 3*5 + 4*7 = 43
+  result[1][1] = 3*6 + 4*8 = 50
+
+  = [[19, 22], [43, 50]]
+```
+
+#### Annotated Code: Determinant (Cofactor Expansion)
+
+```cpp
+Expr* matrix_det(Arena& arena, Expr* m) {
+    int n = matrix_rows(m);
+
+    // Base case: 1×1 matrix
+    if (n == 1) return matrix_at(m, 0, 0);
+
+    // Base case: 2×2 matrix → ad - bc
+    if (n == 2) {
+        Expr* ad = make_mul(arena, {matrix_at(m, 0, 0), matrix_at(m, 1, 1)});
+        Expr* bc = make_mul(arena, {matrix_at(m, 0, 1), matrix_at(m, 1, 0)});
+        return simplify(arena, make_add(arena, {ad, make_neg(arena, bc)}));
+    }
+
+    // General case: expand along first row
+    // det = Σ (-1)^j * a[0][j] * det(minor[0][j])
+    std::vector<Expr*> terms;
+    for (int j = 0; j < n; ++j) {
+        // Build (n-1)×(n-1) minor by removing row 0 and column j
+        std::vector<Expr*> minor_elems;
+        for (int r = 1; r < n; ++r)        // skip row 0
+            for (int c = 0; c < n; ++c)
+                if (c != j)                  // skip column j
+                    minor_elems.push_back(matrix_at(m, r, c));
+
+        Expr* minor = make_matrix(arena, n-1, n-1, std::move(minor_elems));
+        Expr* cofactor = make_mul(arena, {matrix_at(m, 0, j), matrix_det(arena, minor)});
+        if (j % 2 == 1) cofactor = make_neg(arena, cofactor);  // alternating sign
+        terms.push_back(cofactor);
+    }
+    return simplify(arena, make_add(arena, std::move(terms)));
+}
+```
+
+**How cofactor expansion works:**
+1. Pick any row (we use row 0)
+2. For each element in that row, compute the "minor" (the matrix without that row and column)
+3. Multiply the element by the determinant of its minor
+4. Alternate signs: +, -, +, -, ...
+5. Sum all terms
+
+This is recursive: a 3×3 det calls three 2×2 dets, a 4×4 calls four 3×3 dets, etc.
+
+#### Annotated Code: Dot Product
+
+```cpp
+Expr* vector_dot(Arena& arena, Expr* a, Expr* b) {
+    int n = a->children.size();
+    // dot([a1,a2,a3], [b1,b2,b3]) = a1*b1 + a2*b2 + a3*b3
+    std::vector<Expr*> terms;
+    for (int i = 0; i < n; ++i)
+        terms.push_back(make_mul(arena, {a->children[i], b->children[i]}));
+    return simplify(arena, make_add(arena, std::move(terms)));
+}
+```
+
+#### Annotated Code: Cross Product
+
+```cpp
+Expr* vector_cross(Arena& arena, Expr* a, Expr* b) {
+    // Only defined for 3D vectors
+    // [a1,a2,a3] × [b1,b2,b3] = [a2*b3 - a3*b2, a3*b1 - a1*b3, a1*b2 - a2*b1]
+    std::vector<Expr*> elems = {
+        simplify(arena, a[1]*b[2] - a[2]*b[1]),  // i component
+        simplify(arena, a[2]*b[0] - a[0]*b[2]),  // j component
+        simplify(arena, a[0]*b[1] - a[1]*b[0]),  // k component
+    };
+    return make_matrix(arena, 1, 3, std::move(elems));
+}
+```
+
+**Memory trick:** The cross product formula comes from the determinant of:
+```
+| i   j   k  |
+| a1  a2  a3 |
+| b1  b2  b3 |
+```
+
+#### Annotated Code: 2×2 Inverse
+
+```cpp
+Expr* matrix_inverse(Arena& arena, Expr* m) {
+    Expr* det = matrix_det(arena, m);
+    if (det->is_num() && det->num == 0) return nullptr;  // singular!
+
+    // For [[a,b],[c,d]], inverse = (1/det) * [[d,-b],[-c,a]]
+    Expr* inv_det = make_pow(arena, det, make_num(arena, -1));  // 1/det
+    std::vector<Expr*> elems = {
+        matrix_at(m, 1, 1),              //  d
+        make_neg(arena, matrix_at(m, 0, 1)),  // -b
+        make_neg(arena, matrix_at(m, 1, 0)),  // -c
+        matrix_at(m, 0, 0),              //  a
+    };
+    Expr* adj = make_matrix(arena, 2, 2, std::move(elems));
+    return matrix_scalar_mul(arena, simplify(arena, inv_det), adj);
+}
+```
+
+**Example:** `inverse([[1,2],[3,4]])`
+- det = 1×4 - 2×3 = -2
+- adjugate = [[4, -2], [-3, 1]]
+- inverse = (1/-2) × [[4, -2], [-3, 1]] = [[-2, 1], [3/2, -1/2]]
+
+Note how rational arithmetic gives exact results: `3/2` and `-1/2` instead of `1.5` and `-0.5`.
+
+---
+
+### 28. Matrix Parsing
+
+#### How `[[1,2],[3,4]]` Is Parsed
+
+The Pratt parser's `prefix()` function recognizes `[` as the start of a bracket expression:
+
+```cpp
+if (t.type == TokenType::LBRACKET) {
+    advance();
+    return parse_bracket();
+}
+```
+
+`parse_bracket()` then checks:
+- If next token is `[` → it's a matrix `[[...],[...]]`
+- Otherwise → it's a vector `[a, b, c]`
+
+For matrices, it reads each row as a comma-separated list inside `[...]`,
+counts rows and columns, and builds the `__matrix__RxC` FUNC node.
