@@ -322,3 +322,107 @@ A Read-Eval-Print Loop that reads user input, parses and simplifies it, and prin
 ## Build Warning Fixed
 
 During initial build, the compiler flagged an unused `prec_of()` function in `printer.cpp`. It was a leftover from an earlier design. Removed to satisfy `-Werror`.
+
+---
+
+## Phase 2 — Calculus Module
+
+---
+
+### 10. Symbolic Differentiation (`src/modules/calculus.h`, `src/modules/calculus.cpp`)
+
+#### Concept
+
+Symbolic differentiation computes the derivative of an expression **as a formula**, not a number. It applies the rules of calculus recursively on the AST. Each node type has a corresponding differentiation rule.
+
+#### Rules Implemented
+
+| Expression | Derivative | Rule Name |
+|-----------|-----------|-----------|
+| `c` (constant) | `0` | Constant rule |
+| `x` (the variable) | `1` | Identity |
+| `y` (other variable) | `0` | Constant rule |
+| `f + g` | `f' + g'` | Sum rule |
+| `f * g` | `f'*g + f*g'` | Product rule |
+| `f^n` (n constant) | `n * f^(n-1) * f'` | Power + chain rule |
+| `f^g` (general) | `f^g * (g'*ln(f) + g*f'/f)` | Logarithmic differentiation |
+| `sin(u)` | `cos(u) * u'` | Chain rule |
+| `cos(u)` | `-sin(u) * u'` | Chain rule |
+| `exp(u)` | `exp(u) * u'` | Chain rule |
+| `ln(u)` | `u'/u` | Chain rule |
+
+#### ASCII Diagram — Differentiating `sin(x^2)`
+
+```
+Input AST:          FUNC("sin")
+                        │
+                      POW
+                     /   \
+                   SYM(x) NUM(2)
+
+Apply chain rule: d/dx sin(u) = cos(u) * u'
+  where u = x^2, u' = 2*x^1*1 = 2*x
+
+Result AST:         MUL
+                   /   \
+              FUNC("cos")  MUL
+                  │       /   \
+                POW    NUM(2) SYM(x)
+               /   \
+             SYM(x) NUM(2)
+
+After simplification: 2*x*cos(x^2)
+```
+
+#### Annotated Code (power rule with chain rule)
+
+```cpp
+case NodeType::POW: {
+    Expr* base = e->children[0];
+    Expr* exp = e->children[1];
+
+    if (exp->is_num()) {
+        // d/dx(f^n) = n * f^(n-1) * f'
+        Expr* f_prime = differentiate(arena, base, var);
+        return make_mul(arena, {
+            make_num(arena, exp->num),           // n
+            make_pow(arena, base, make_num(arena, exp->num - 1)),  // f^(n-1)
+            f_prime                              // f' (chain rule)
+        });
+    }
+    // ... general case
+}
+```
+
+#### Why It Works
+
+The recursive structure mirrors the mathematical rules exactly. Each node dispatches to its rule, and the chain rule is handled naturally: when differentiating `sin(u)`, we compute `u'` by recursing into `u`. The simplifier then cleans up the result (e.g., `x^1` → `x`, `1*x` → `x`).
+
+#### Key Design Decision
+
+Differentiation always produces an unsimplified result. The caller must run `simplify()` afterward. This keeps the differentiation code clean and focused on correctness, while the simplifier handles canonicalization.
+
+---
+
+### 11. Bug Fix: MUL(-1, f) → NEG(f)
+
+#### Symptom
+
+`diff(cos(x), x)` produced `-1*sin(x)` instead of `-sin(x)`.
+
+#### Investigation
+
+The cos derivative rule creates `NEG(sin(x))`. During simplification, NEG was being converted to `MUL(-1, sin(x))`. But the MUL simplifier didn't convert it back.
+
+#### Root Cause
+
+The simplifier had a rule `NEG(x) → MUL(-1, x)` for canonical form, but no reverse rule in MUL to emit NEG when the coefficient is exactly -1.
+
+#### Fix
+
+1. Removed the `NEG → MUL(-1, x)` conversion (NEG stays as NEG)
+2. Added a check in MUL simplification: if result is `MUL(-1, x)`, emit `NEG(x)` instead
+
+#### Lesson
+
+Canonical form conversions must be bidirectional or avoided. If you convert A→B, you need B→A or you lose information about the original intent.

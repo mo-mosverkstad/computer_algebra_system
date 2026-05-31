@@ -112,8 +112,8 @@ Expr* simplify(Arena& arena, Expr* e) {
         Expr* inner = e->children[0];
         if (inner->is_num()) return make_num(arena, -inner->num);
         if (inner->is_neg()) return inner->children[0]; // --x = x
-        // Convert NEG to MUL(-1, x) for canonical form
-        return simplify(arena, make_mul(arena, {make_num(arena, -1), inner}));
+        // Keep as NEG for clean output
+        return e;
     }
 
     // ADD simplification
@@ -218,6 +218,12 @@ Expr* simplify(Arena& arena, Expr* e) {
                   result.end(), expr_less);
 
         if (result.size() == 1) return result[0];
+
+        // Convert MUL(-1, x) to NEG(x)
+        if (result.size() == 2 && result[0]->is_num() && result[0]->num == -1.0) {
+            return make_neg(arena, result[1]);
+        }
+
         return make_mul(arena, std::move(result));
     }
 

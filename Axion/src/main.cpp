@@ -9,6 +9,7 @@
 #include "frontend/parser.h"
 #include "engine/simplify.h"
 #include "engine/eval.h"
+#include "modules/calculus.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -36,8 +37,8 @@ std::unordered_map<std::string, double> parse_env(const std::string& s) {
 } // anonymous namespace
 
 int main() {
-    std::cout << "Axion CAS v0.1 (Phase 1)\n";
-    std::cout << "Type expressions to simplify. Commands: eval(expr, x=val), quit\n\n";
+    std::cout << "Axion CAS v0.2 (Phase 2)\n";
+    std::cout << "Commands: diff(expr, var), eval(expr, x=val), quit\n\n";
 
     Arena arena;
 
@@ -58,8 +59,29 @@ int main() {
         if (input == "quit" || input == "exit") break;
 
         try {
+            // Check for diff command: diff(expr, var)
+            if (input.substr(0, 5) == "diff(") {
+                auto close = input.rfind(')');
+                std::string inner = input.substr(5, close - 5);
+                // Find last comma — variable name is after it
+                auto comma = inner.rfind(',');
+                if (comma == std::string::npos) {
+                    std::cerr << "Error: diff requires variable, e.g. diff(x^2, x)\n";
+                    continue;
+                }
+                std::string expr_str = inner.substr(0, comma);
+                std::string var = inner.substr(comma + 1);
+                while (!var.empty() && var.front() == ' ') var.erase(var.begin());
+                while (!var.empty() && var.back() == ' ') var.pop_back();
+
+                Expr* e = parse(arena, expr_str);
+                e = simplify(arena, e);
+                e = differentiate(arena, e, var);
+                e = simplify(arena, e);
+                std::cout << print(e) << "\n";
+            }
             // Check for eval command: eval(expr, x=val, ...)
-            if (input.substr(0, 5) == "eval(") {
+            else if (input.substr(0, 5) == "eval(") {
                 // Find the split between expression and assignments
                 // Format: eval(expr, x=2, y=3)
                 auto close = input.rfind(')');

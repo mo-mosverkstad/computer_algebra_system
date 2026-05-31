@@ -12,6 +12,8 @@ set(AXION_SOURCES
     src/frontend/parser.cpp
     src/engine/simplify.cpp
     src/engine/eval.cpp
+    src/modules/calculus.cpp
+    src/modules/polynomial.cpp
     src/output/printer.cpp
 )
 
@@ -27,6 +29,7 @@ add_executable(axion_tests
     tests/test_lexer.cpp
     tests/test_parser.cpp
     tests/test_simplify.cpp
+    tests/test_calculus.cpp
     tests/test_eval.cpp
     ${AXION_SOURCES}
 )
