@@ -236,3 +236,48 @@ prod(k, k, 1, 5)        → 120
 sum(1/k, k, 1, 4)       → 25/12  (exact rational!)
 collect(x^2+2*x+3*x+1, x) → 1 + 5*x + x^2
 ```
+
+
+---
+
+## Phase 6 — Limits (2026-05-31)
+
+### Added
+
+- **Limits module** (`src/modules/limits.h/.cpp`)
+  - `compute_limit(arena, expr, var, point, direction)` 
+  - Direct substitution for continuous functions
+  - L'Hôpital's rule for 0/0 indeterminate forms (recursive, max depth 5)
+  - Detects quotient structure in MUL(numerator, POW(denominator, -1))
+
+- **Simplifier enhancement**
+  - `sin(0)` → `0`, `cos(0)` → `1`, `tan(0)` → `0`
+  - `exp(0)` → `1`, `exp(1)` → `e`, `ln(1)` → `0`
+
+- **REPL command**
+  - `lim(expr, var, point)` — two-sided limit
+  - `lim(expr, var, point, right)` / `lim(expr, var, point, left)` — one-sided
+
+### Key Results
+
+```
+lim(x^2, x, 3)              → 9   (direct substitution)
+lim((x^2-1)/(x-1), x, 1)   → 2   (L'Hôpital: 2x/1 at x=1)
+lim(sin(x)/x, x, 0)         → 1   (L'Hôpital: cos(x)/1 at x=0)
+lim((x^3-8)/(x-2), x, 2)   → 12  (L'Hôpital: 3x²/1 at x=2)
+```
+
+### Bugs Found and Fixed
+
+1. **`lim((x^2-1)/(x-1), x, 1)` returned 0 instead of 2**
+   - Cause: direct substitution ran first, simplifier computed `0 * (1/0) = 0`
+   - Fix: try L'Hôpital before direct substitution
+
+2. **`sin(0)` did not simplify to 0**
+   - Cause: simplifier only evaluated `abs()` for numeric FUNC args
+   - Fix: added sin(0)→0, cos(0)→1, exp(0)→1, ln(1)→0 rules
+
+### Known Limitations
+
+- Limits at infinity not yet implemented
+- Complex numbers deferred to future phase

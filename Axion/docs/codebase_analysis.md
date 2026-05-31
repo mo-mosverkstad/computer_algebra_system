@@ -780,3 +780,70 @@ are combined into `5*x`).
 The simplifier already combines `2*x + 3*x` → `5*x`. But `collect` is explicit
 about which variable to group by, which matters for multivariate expressions where
 you might want to collect by `x` or by `y`.
+
+
+---
+
+## Phase 6 — Limits
+
+---
+
+### 24. Limit Computation (`src/modules/limits.h`, `src/modules/limits.cpp`)
+
+#### Concept
+
+A **limit** asks: "what value does f(x) approach as x approaches a point?"
+If direct substitution gives a valid number, that's the limit. If it gives
+an indeterminate form like 0/0, we apply L'Hôpital's rule.
+
+#### Algorithm
+
+```
+compute_limit(expr, var, point):
+  1. Simplify expr
+  2. Check if expr is a quotient (f/g form)
+     - If f(point)=0 AND g(point)=0:
+       Apply L'Hôpital: lim(f/g) = lim(f'/g')
+       Recurse (max 5 times)
+  3. Try direct substitution: replace var with point, simplify
+  4. If result is a valid number, return it
+  5. Otherwise: "undefined"
+```
+
+#### ASCII Diagram — L'Hôpital on sin(x)/x at x=0
+
+```
+sin(x)/x at x=0:
+  sin(0) = 0, denominator = 0  → 0/0 indeterminate!
+
+Apply L'Hôpital:
+  d/dx sin(x) = cos(x)
+  d/dx x = 1
+
+  lim cos(x)/1 at x=0 = cos(0)/1 = 1/1 = 1 ✓
+```
+
+#### Annotated Code
+
+```cpp
+// Check 0/0 form
+bool num_zero = eval_is_zero(arena, numerator, var, point);
+bool den_zero = eval_is_zero(arena, denominator, var, point);
+
+if (num_zero && den_zero) {
+    // L'Hôpital: differentiate top and bottom
+    Expr* f_prime = differentiate(arena, numerator, var);
+    Expr* g_prime = differentiate(arena, denominator, var);
+    // Build f'/g' and try again
+    Expr* new_expr = make_mul(arena, {f_prime, make_pow(arena, g_prime, make_num(arena, -1))});
+    Expr* result = try_direct(arena, new_expr, var, point);
+    if (result) return result;
+    return try_lhopital(arena, new_expr, var, point, depth + 1);  // recurse
+}
+```
+
+#### Why It Works
+
+L'Hôpital's rule states that if lim f(x)/g(x) is 0/0 or ∞/∞, then
+lim f(x)/g(x) = lim f'(x)/g'(x) (provided the latter exists). By differentiating
+and re-evaluating, we often resolve the indeterminate form in 1–2 iterations.

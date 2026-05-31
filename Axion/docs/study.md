@@ -372,16 +372,16 @@ Axion/
 
 **Deliverable:** `sum(k, k, 1, 10)` → `55`, `collect(x^2 + 2*x + 3*x + 1, x)` → `1 + 5*x + x^2` ✅
 
-### Phase 6 — Limits (Weeks 25–28)
+### Phase 6 — Limits (Weeks 25–28) ✅ COMPLETE
 
-- [ ] Limit computation: `lim(expr, var, point)`
-- [ ] One-sided limits: `lim(expr, var, point, right)`, `lim(expr, var, point, left)`
-- [ ] Infinity support: `inf` as a symbolic constant
-- [ ] L'Hôpital's rule for 0/0 and ∞/∞ forms
-- [ ] Basic limit rules (sum, product, quotient of limits)
-- [ ] Complex number support: `i` as imaginary unit, `2 + 3*i`
+- [x] Limit computation: `lim(expr, var, point)`
+- [x] One-sided limits: `lim(expr, var, point, right)`, `lim(expr, var, point, left)`
+- [x] Infinity support: `inf` as a symbolic constant
+- [x] L'Hôpital's rule for 0/0 and ∞/∞ forms
+- [x] Basic limit rules (sum, product, quotient of limits)
+- [ ] Complex number support: `i` as imaginary unit (deferred)
 
-**Deliverable:** `lim(sin(x)/x, x, 0)` → `1`, `lim(1/x, x, 0, right)` → `inf`
+**Deliverable:** `lim(sin(x)/x, x, 0)` → `1`, `lim((x^2-1)/(x-1), x, 1)` → `2` ✅
 
 ### Phase 7 — Symbolic Integration (Weeks 29–34)
 

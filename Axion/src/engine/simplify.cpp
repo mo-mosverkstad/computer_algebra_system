@@ -280,7 +280,20 @@ Expr* simplify(Arena& arena, Expr* e) {
 
     // FUNC with numeric args
     if (e->is_func() && e->children.size() == 1 && e->children[0]->is_num()) {
-        if (e->name == "abs") return make_num(arena, std::abs(e->children[0]->num), e->children[0]->den);
+        int64_t n = e->children[0]->num;
+        int64_t d = e->children[0]->den;
+        if (e->name == "abs") return make_num(arena, std::abs(n), d);
+        // Evaluate trig/exp at 0
+        if (n == 0) {
+            if (e->name == "sin" || e->name == "tan") return make_num(arena, 0);
+            if (e->name == "cos") return make_num(arena, 1);
+            if (e->name == "exp") return make_num(arena, 1);
+            if (e->name == "ln") return e; // ln(0) undefined
+        }
+        if (n == 1 && d == 1) {
+            if (e->name == "exp") return make_sym(arena, "e");
+            if (e->name == "ln") return make_num(arena, 0);
+        }
     }
 
     return e;

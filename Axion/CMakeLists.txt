@@ -23,6 +23,7 @@ set(AXION_SOURCES
     src/modules/calculus.cpp
     src/modules/polynomial.cpp
     src/modules/series.cpp
+    src/modules/limits.cpp
     src/output/printer.cpp
 )
 

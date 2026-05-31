@@ -17,6 +17,7 @@ extern "C" {
 #include "modules/calculus.h"
 #include "modules/polynomial.h"
 #include "modules/series.h"
+#include "modules/limits.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -182,6 +183,26 @@ int main() {
                     expr = collect(session.arena, expr, var);
                     session.last_result = expr;
                     std::cout << print(expr) << "\n";
+                    continue;
+                }
+
+                // lim(expr, var, point) or lim(expr, var, point, direction)
+                if (fname == "lim" && e->children.size() >= 3) {
+                    Expr* expr = e->children[0];
+                    std::string var = e->children[1]->name;
+                    Expr* point = simplify(session.arena, e->children[2]);
+                    int dir = 0;
+                    if (e->children.size() >= 4 && e->children[3]->is_sym()) {
+                        if (e->children[3]->name == "right") dir = 1;
+                        else if (e->children[3]->name == "left") dir = -1;
+                    }
+                    Expr* result = compute_limit(session.arena, expr, var, point, dir);
+                    if (result) {
+                        session.last_result = result;
+                        std::cout << print(result) << "\n";
+                    } else {
+                        std::cout << "undefined (limit could not be computed)\n";
+                    }
                     continue;
                 }
 

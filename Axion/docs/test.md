@@ -199,3 +199,22 @@ All 46 Phase 1–4 tests: ✅ Pass (no regressions)
 ### Issues Found
 
 None.
+
+
+---
+
+## Phase 6 — Limits
+
+### Regression Test
+
+All 52 Phase 1–5 tests: ✅ Pass (no regressions)
+
+### Limits Verification (manual REPL tests)
+
+| Input | Expected | Actual | Method | Verdict |
+|-------|----------|--------|--------|---------|
+| `lim(x^2, x, 3)` | 9 | 9 | Direct substitution | ✅ |
+| `lim((x^2-1)/(x-1), x, 1)` | 2 | 2 | L'Hôpital (0/0) | ✅ |
+| `lim(sin(x)/x, x, 0)` | 1 | 1 | L'Hôpital (0/0) | ✅ |
+| `lim((x^3-8)/(x-2), x, 2)` | 12 | 12 | L'Hôpital (0/0) | ✅ |
+| `lim(x+1, x, 5)` | 6 | 6 | Direct substitution | ✅ |
