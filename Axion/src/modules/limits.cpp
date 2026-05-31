@@ -38,11 +38,8 @@ bool is_neg_inf(const Expr* e) {
 Expr* try_direct(Arena& arena, Expr* e, const std::string& var, Expr* point) {
     Expr* result = subst(arena, e, var, point);
     result = simplify(arena, result);
-    // Valid if result doesn't contain the variable anymore and isn't division by zero
-    // Check for den=0 (undefined)
+    // Reject if result contains division by zero
     if (result->is_num() && result->den == 0) return nullptr;
-    // If result still contains a 0-denominator somewhere, it's undefined
-    // Otherwise accept any simplified result (number, symbol, function of constants)
     return result;
 }
 
@@ -118,16 +115,60 @@ Expr* try_lhopital(Arena& arena, Expr* e, const std::string& var, Expr* point, i
 } // anonymous namespace
 
 Expr* compute_limit(Arena& arena, Expr* e, const std::string& var, Expr* point, int direction) {
-    (void)direction; // TODO: use for one-sided limits
-
     e = simplify(arena, e);
 
-    // Handle limit at infinity
+    // Handle limit at infinity: substitute increasingly large values and detect trend
     if (is_inf(point) || is_neg_inf(point)) {
-        return nullptr; // not yet fully implemented for inf
+        // Evaluate at large values to detect: converges to constant, diverges to ±inf, or oscillates
+        double sign = is_neg_inf(point) ? -1.0 : 1.0;
+        double vals[3];
+        double test_points[] = {1000.0, 10000.0, 100000.0};
+        bool all_valid = true;
+
+        for (int i = 0; i < 3; ++i) {
+            Expr* big = make_num(arena, static_cast<int64_t>(sign * test_points[i]));
+            Expr* substituted = subst(arena, e, var, big);
+            substituted = simplify(arena, substituted);
+            if (!substituted->is_num()) { all_valid = false; break; }
+            vals[i] = substituted->num_val();
+        }
+
+        if (all_valid) {
+            // Check convergence
+            double diff1 = std::abs(vals[1] - vals[0]);
+            double diff2 = std::abs(vals[2] - vals[1]);
+            double abs_val = std::abs(vals[2]);
+            // Converging if differences are shrinking and value is bounded
+            if (diff2 < diff1 * 0.5 && abs_val < 1e10) {
+                // Converging — try to get exact rational
+                Expr* big = make_num(arena, static_cast<int64_t>(sign * 1000000));
+                Expr* result = subst(arena, e, var, big);
+                result = simplify(arena, result);
+                if (result->is_num()) {
+                    // Round to nearest simple fraction if close
+                    double v = result->num_val();
+                    // Check if it's close to a simple integer or fraction
+                    for (int64_t d = 1; d <= 100; ++d) {
+                        double n = v * d;
+                        if (std::abs(n - std::round(n)) < 1e-4) {
+                            return make_num(arena, static_cast<int64_t>(std::round(n)), d);
+                        }
+                    }
+                }
+                return result;
+            }
+            // Check divergence to +inf or -inf
+            if (vals[2] > vals[1] && vals[1] > vals[0] && std::abs(vals[2]) > 1e8) {
+                return make_sym(arena, "inf");
+            }
+            if (vals[2] < vals[1] && vals[1] < vals[0] && vals[2] < -1e8) {
+                return make_neg(arena, make_sym(arena, "inf"));
+            }
+        }
+        return nullptr;
     }
 
-    // Try L'Hôpital first (before direct substitution might give wrong 0)
+    // Finite point: try L'Hôpital first (for 0/0 forms)
     Expr* lhop = try_lhopital(arena, e, var, point, 0);
     if (lhop) return lhop;
 
@@ -135,7 +176,21 @@ Expr* compute_limit(Arena& arena, Expr* e, const std::string& var, Expr* point, 
     Expr* result = try_direct(arena, e, var, point);
     if (result) return result;
 
-    // Fallback: return unevaluated
+    // Direct substitution failed (likely division by zero)
+    // For one-sided limits, probe to determine sign of divergence
+    if (direction != 0 && point->is_num()) {
+        double pt_val = point->num_val();
+        double probe_offset = (direction > 0) ? 0.001 : -0.001;
+        int64_t probe_n = static_cast<int64_t>((pt_val + probe_offset) * 1000);
+        Expr* probe = make_num(arena, probe_n, 1000);
+        Expr* probed = subst(arena, e, var, probe);
+        probed = simplify(arena, probed);
+        if (probed->is_num() && probed->den != 0) {
+            if (probed->num > 0) return make_sym(arena, "inf");
+            if (probed->num < 0) return make_neg(arena, make_sym(arena, "inf"));
+        }
+    }
+
     return nullptr;
 }
 

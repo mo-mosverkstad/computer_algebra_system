@@ -279,5 +279,4 @@ lim((x^3-8)/(x-2), x, 2)   → 12  (L'Hôpital: 3x²/1 at x=2)
 
 ### Known Limitations
 
-- Limits at infinity not yet implemented
 - Complex numbers deferred to future phase
