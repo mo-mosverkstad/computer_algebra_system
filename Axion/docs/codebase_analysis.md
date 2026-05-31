@@ -1438,3 +1438,289 @@ current_degree--;
 | `solve(x^4 - 5*x^2 + 4 = 0, x)` | {±1, ±2} | {1, 2, -1, -2} | ✅ |
 | `factor(x^3 - 6*x^2 + 11*x - 6, x)` | (x-1)(x-2)(x-3) | (-1+x)(-3+x)(-2+x) | ✅ |
 | `factor(x^4 - 5*x^2 + 4, x)` | (x-1)(x+1)(x-2)(x+2) | (-1+x)(-2+x)(1+x)(2+x) | ✅ |
+
+
+---
+
+## Phase 10 — Pattern Matching & Rewrite Engine
+
+---
+
+### 31. File Structure
+
+Phase 10 adds two files:
+- `src/modules/rewrite.h` — public API (5 functions + 2 types)
+- `src/modules/rewrite.cpp` — implementation (~130 lines)
+
+The module has **no dependencies** on other modules except `simplify.h` (called after
+each rewrite to re-canonicalize). It does not modify the parser, lexer, or AST.
+
+---
+
+### 32. Data Structures
+
+#### `RewriteRule` (rewrite.h, line 12)
+
+```cpp
+struct RewriteRule {
+    Expr* pattern;       // AST tree with wildcards (e.g. sin(_x)^2 + cos(_x)^2)
+    Expr* replacement;   // AST tree with same wildcards (e.g. NUM(1))
+    std::string name;    // display name ("rule1", "rule2", ...)
+};
+```
+
+A rule is just two AST trees. The pattern tree contains wildcard symbols (`_x`, `_y`).
+The replacement tree uses the same wildcards — they get substituted with whatever
+the pattern matched.
+
+**Storage:** Rules live in `Session::rules` (a `std::vector<RewriteRule>`) in main.cpp.
+When the user types `rule(pattern, replacement)`, the REPL parses both arguments as
+normal expressions and stores them as a new RewriteRule.
+
+#### `Bindings` (rewrite.h, line 20)
+
+```cpp
+using Bindings = std::unordered_map<std::string, Expr*>;
+```
+
+A map from wildcard name (e.g. `"_x"`) to the expression it matched.
+Created empty at the start of each match attempt, filled during matching.
+
+---
+
+### 33. Implementation: `is_wildcard` (rewrite.cpp, line 8)
+
+```cpp
+bool is_wildcard(const Expr* e) {
+    return e->is_sym() && !e->name.empty() && e->name[0] == '_';
+}
+```
+
+A wildcard is any SYM node whose name starts with underscore. This is a convention —
+the parser doesn't treat `_x` specially; it's just a normal symbol. The rewrite engine
+gives it special meaning during matching.
+
+**Design choice:** Using a naming convention (prefix `_`) instead of a new NodeType
+means no changes to the parser, printer, or simplifier. The downside: users can't
+have variables named `_x` (they'd be treated as wildcards in rules).
+
+---
+
+### 34. Implementation: `expr_equal` (rewrite.cpp, line 12)
+
+```cpp
+bool expr_equal(const Expr* a, const Expr* b) {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a->type != b->type) return false;
+    if (a->is_num()) return a->num == b->num && a->den == b->den;
+    if (a->is_sym()) return a->name == b->name;
+    if (a->name != b->name) return false;
+    if (a->children.size() != b->children.size()) return false;
+    for (size_t i = 0; i < a->children.size(); ++i)
+        if (!expr_equal(a->children[i], b->children[i])) return false;
+    return true;
+}
+```
+
+Deep recursive equality. Used when a wildcard appears twice in a pattern —
+the second occurrence must match the exact same tree as the first.
+
+Example: In `sin(_x)^2 + cos(_x)^2`, `_x` appears twice. If the first match
+binds `_x = a`, the second match checks `expr_equal(a, a)` → true.
+But `sin(a)^2 + cos(b)^2` would fail because `expr_equal(a, b)` → false.
+
+---
+
+### 35. Implementation: `pattern_match` (rewrite.cpp, line 73)
+
+This is the core function. It walks two trees in parallel:
+
+```cpp
+bool pattern_match(const Expr* expr, const Expr* pattern, Bindings& bindings) {
+```
+
+**Case 1: Wildcard** (line 77)
+```cpp
+    if (is_wildcard(pattern)) {
+        auto it = bindings.find(pattern->name);
+        if (it != bindings.end())
+            return expr_equal(expr, it->second);  // already bound: must match same
+        bindings[pattern->name] = const_cast<Expr*>(expr);  // new binding
+        return true;
+    }
+```
+If the pattern node is `_x`, either bind it (first time) or verify consistency (second time).
+
+**Case 2: Literal number** (line 86)
+```cpp
+    if (pattern->is_num())
+        return expr->is_num() && expr->num == pattern->num && expr->den == pattern->den;
+```
+Numbers must match exactly. `2` in pattern only matches `2` in expression.
+
+**Case 3: Named symbol** (line 91)
+```cpp
+    if (pattern->is_sym())
+        return expr->is_sym() && expr->name == pattern->name;
+```
+Non-wildcard symbols (like `x` or `pi`) must match by name.
+
+**Case 4: Commutative nodes** (line 97)
+```cpp
+    if (expr->is_add() || expr->is_mul())
+        return match_commutative(expr->children, pattern->children, bindings);
+```
+ADD and MUL are commutative — `a + b` equals `b + a`. So we try permutations.
+
+**Case 5: Everything else** (line 101)
+```cpp
+    if (expr->children.size() != pattern->children.size()) return false;
+    for (size_t i = 0; i < expr->children.size(); ++i)
+        if (!pattern_match(expr->children[i], pattern->children[i], bindings))
+            return false;
+    return true;
+```
+POW, FUNC, NEG, etc. — match children in order (not commutative).
+
+---
+
+### 36. Implementation: `match_commutative` (rewrite.cpp, line 30)
+
+The challenge: `ADD(sin(a)^2, cos(a)^2)` must match pattern `ADD(sin(_x)^2, cos(_x)^2)`
+regardless of child order.
+
+```cpp
+bool match_commutative(const vector<Expr*>& expr_children,
+                       const vector<Expr*>& pat_children,
+                       Bindings& bindings) {
+    if (expr_children.size() != pat_children.size()) return false;
+```
+
+**Optimization for 2 children** (most common case):
+```cpp
+    // Try in-order first
+    Bindings trial = bindings;
+    if (match all in order) { bindings = trial; return true; }
+
+    // Try swapped
+    trial = bindings;
+    if (match(expr[0], pat[1]) && match(expr[1], pat[0])) { bindings = trial; return true; }
+```
+
+**General case (3-4 children):** Uses `std::next_permutation` to try all orderings.
+The `trial = bindings` save/restore pattern ensures failed attempts don't corrupt
+the binding state.
+
+**Why limit to 4?** Permutations grow as n! (24 for 4, 120 for 5). Patterns with
+5+ terms in a single ADD/MUL are rare in practice.
+
+---
+
+### 37. Implementation: `apply_bindings` (rewrite.cpp, line 108)
+
+After matching succeeds, we have bindings like `{_x → a, _y → b}`.
+Now we build the replacement by copying the template and substituting wildcards:
+
+```cpp
+Expr* apply_bindings(Arena& arena, const Expr* tmpl, const Bindings& bindings) {
+    if (is_wildcard(tmpl)) {
+        auto it = bindings.find(tmpl->name);
+        if (it != bindings.end()) return it->second;  // substitute!
+        return const_cast<Expr*>(tmpl);
+    }
+    // Deep copy everything else
+    auto* n = arena.create<Expr>();
+    n->type = tmpl->type; n->num = tmpl->num; n->den = tmpl->den; n->name = tmpl->name;
+    for (auto* c : tmpl->children)
+        n->children.push_back(apply_bindings(arena, c, bindings));
+    return n;
+}
+```
+
+Example: template `log(_x * _y)` with bindings `{_x→2, _y→3}` produces `log(2*3)`.
+After simplification: `log(6)`.
+
+---
+
+### 38. Implementation: `apply_rule_recursive` (rewrite.cpp, line 126)
+
+A rule might match deep inside an expression. This function walks the tree top-down:
+
+```cpp
+Expr* apply_rule_recursive(Arena& arena, Expr* expr, const RewriteRule& rule) {
+    // Try at current node first (top-down priority)
+    Expr* result = apply_rule(arena, expr, rule);
+    if (result) return result;
+
+    // Try in each child
+    bool changed = false;
+    for (auto& child : expr->children) {
+        Expr* new_child = apply_rule_recursive(arena, child, rule);
+        if (new_child) {
+            child = new_child;   // mutate in place
+            changed = true;
+        }
+    }
+    return changed ? expr : nullptr;
+}
+```
+
+**Note:** This mutates the tree in place (sets `child = new_child`). This is safe
+because we're in the arena — old nodes aren't freed, just abandoned.
+
+---
+
+### 39. Implementation: `apply_rules` (rewrite.cpp, line 140)
+
+The outer loop that applies all rules repeatedly:
+
+```cpp
+Expr* apply_rules(Arena& arena, Expr* expr, const vector<RewriteRule>& rules, int max_iter) {
+    for (int iter = 0; iter < max_iter; ++iter) {
+        bool changed = false;
+        for (const auto& rule : rules) {
+            Expr* result = apply_rule_recursive(arena, expr, rule);
+            if (result) {
+                expr = simplify(arena, result);  // re-simplify after rewrite
+                changed = true;
+                break;  // restart from first rule
+            }
+        }
+        if (!changed) break;  // fixed point reached
+    }
+    return expr;
+}
+```
+
+**Key design decisions:**
+1. **`break` after first match** — restart from rule 1 because a rewrite may enable earlier rules
+2. **`simplify` after each rewrite** — ensures canonical form before next match attempt
+3. **`max_iter = 100`** — prevents infinite loops from circular rules (e.g. `rule(a, b)` + `rule(b, a)`)
+
+---
+
+### 40. Integration with REPL (main.cpp)
+
+**Defining a rule** (main.cpp, ~line 315):
+```cpp
+if (fname == "rule" && e->children.size() == 2) {
+    RewriteRule r;
+    r.pattern = e->children[0];      // first arg is the pattern
+    r.replacement = e->children[1];  // second arg is the replacement
+    session.rules.push_back(r);      // store in session
+}
+```
+
+**Applying rules** (main.cpp, ~line 437):
+```cpp
+// After normal simplification, apply user rules
+e = simplify(session.arena, e);
+if (!session.rules.empty())
+    e = apply_rules(session.arena, e, session.rules);
+```
+
+Rules are applied **after** the built-in simplifier. This means the simplifier
+canonicalizes the expression first (sorting terms, combining like terms), which
+makes pattern matching more reliable — the pattern only needs to match one
+canonical form, not all equivalent orderings.

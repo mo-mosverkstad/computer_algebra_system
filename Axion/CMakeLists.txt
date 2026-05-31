@@ -27,6 +27,7 @@ set(AXION_SOURCES
     src/modules/integration.cpp
     src/modules/matrix.cpp
     src/modules/solver.cpp
+    src/modules/rewrite.cpp
     src/output/printer.cpp
 )
 

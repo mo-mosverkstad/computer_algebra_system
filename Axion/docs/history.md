@@ -392,3 +392,34 @@ factor(x^2 - 1, x)                    → (-1+x)*(1+x)
   - `solve(2*x + 1 > 0, x)` → `x > -1/2`
   - `solve(-x + 5 > 0, x)` → `x < 5` (flips inequality when dividing by negative)
   - Extracts linear coefficient, computes bound, flips sign if needed
+
+
+---
+
+## Phase 10 — Pattern Matching & Rewrite Engine (2026-05-31)
+
+### Added
+
+- **Rewrite module** (`src/modules/rewrite.h/.cpp`)
+  - `pattern_match(expr, pattern, bindings)` — structural matching with wildcards
+  - `apply_bindings(arena, template, bindings)` — substitute wildcards in replacement
+  - `apply_rule_recursive(arena, expr, rule)` — try rule at every subexpression
+  - `apply_rules(arena, expr, rules)` — apply all rules repeatedly until stable
+  - Commutative matching for ADD/MUL (tries permutations)
+  - Wildcards: any symbol starting with `_` (e.g. `_x`, `_a`, `_expr`)
+
+- **REPL commands**
+  - `rule(pattern, replacement)` — define a rewrite rule
+  - `rules()` — list all defined rules
+  - Rules applied automatically after simplification
+
+### Key Results
+
+```
+rule(sin(_x)^2 + cos(_x)^2, 1)
+sin(a)^2 + cos(a)^2           → 1
+sin(t)^2 + cos(t)^2           → 1
+
+rule(log(_x) + log(_y), log(_x * _y))
+log(2) + log(3)                → log(6)
+```

@@ -21,6 +21,7 @@ extern "C" {
 #include "modules/integration.h"
 #include "modules/matrix.h"
 #include "modules/solver.h"
+#include "modules/rewrite.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -32,6 +33,7 @@ struct Session {
     std::unordered_map<std::string, Expr*> vars;        // variable bindings
     std::unordered_map<std::string, Expr*> func_bodies; // f(x) := expr
     std::unordered_map<std::string, std::vector<std::string>> func_params;
+    std::vector<RewriteRule> rules;                     // user-defined rewrite rules
     Expr* last_result = nullptr;
 
     Session() {
@@ -309,6 +311,30 @@ int main() {
                     continue;
                 }
 
+                // rule(pattern, replacement) — define a rewrite rule
+                if (fname == "rule" && e->children.size() == 2) {
+                    RewriteRule r;
+                    r.pattern = e->children[0];
+                    r.replacement = e->children[1];
+                    r.name = "rule" + std::to_string(session.rules.size() + 1);
+                    session.rules.push_back(r);
+                    std::cout << "Rule defined: " << print(r.pattern) << " → " << print(r.replacement) << "\n";
+                    continue;
+                }
+
+                // rules() — list all rules
+                if (fname == "rules") {
+                    if (session.rules.empty()) {
+                        std::cout << "No rules defined.\n";
+                    } else {
+                        for (size_t i = 0; i < session.rules.size(); ++i) {
+                            std::cout << (i+1) << ": " << print(session.rules[i].pattern)
+                                      << " → " << print(session.rules[i].replacement) << "\n";
+                        }
+                    }
+                    continue;
+                }
+
                 // det(matrix)
                 if (fname == "det" && e->children.size() == 1 && is_matrix(e->children[0])) {
                     Expr* result = matrix_det(session.arena, e->children[0]);
@@ -408,6 +434,9 @@ int main() {
 
             // Default: simplify and print
             e = simplify(session.arena, e);
+            // Apply user-defined rewrite rules
+            if (!session.rules.empty())
+                e = apply_rules(session.arena, e, session.rules);
             session.last_result = e;
             if (is_matrix(e))
                 std::cout << print_matrix(e) << "\n";
