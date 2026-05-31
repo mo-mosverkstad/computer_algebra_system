@@ -146,3 +146,32 @@ All 34 Phase 1+2 tests: ✅ Pass (no regressions)
    - Root cause: `extract_coeff` returned nullptr base for 3+ child MUL nodes
    - Fix: strip numeric child and return remaining MUL as base
    - Lesson: coefficient extraction must handle all MUL arities
+
+---
+
+## Phase 4 — Extended Operators & Relations
+
+### Regression Test
+
+All 40 Phase 1–3 tests rewritten for new rational AST: ✅ Pass (no regressions)
+
+### New Tests (6 additional, 46 total)
+
+| Test | Input | Expected | Actual | Verdict |
+|------|-------|----------|--------|---------|
+| Lexer.Factorial | `5!` | BANG token | BANG token | ✅ Pass |
+| Lexer.Relational | `x <= 3` | LEQ token | LEQ token | ✅ Pass |
+| Lexer.Assignment | `a := 5` | ASSIGN token | ASSIGN token | ✅ Pass |
+| Lexer.Subscript | `x_1 + x_(12)` | "x_1", "x_(12)" | "x_1", "x_(12)" | ✅ Pass |
+| Parser.Factorial | `5!` | FACTORIAL node | FACTORIAL node | ✅ Pass |
+| Parser.Relational | `x = 3` | REL("=") node | REL("=") node | ✅ Pass |
+| Parser.MultiArgFunc | `diff(x^2, x)` | FUNC, 2 children | FUNC, 2 children | ✅ Pass |
+| Simplify.Factorial | `5!` → `120`, `0!` → `1` | 120, 1 | 120, 1 | ✅ Pass |
+| Simplify.RationalAdd | `1/3 + 1/6` → `1/2` | `1/2` | `1/2` | ✅ Pass |
+| Simplify.RationalMul | `(2/3) * (3/4)` → `1/2` | `1/2` | `1/2` | ✅ Pass |
+| Eval.Factorial | `5!` → 120.0 | 120.0 | 120.0 | ✅ Pass |
+| Eval.Rational | `1/3 + 1/6` → 0.5 | 0.5 | 0.5 | ✅ Pass |
+
+### Issues Found
+
+None.

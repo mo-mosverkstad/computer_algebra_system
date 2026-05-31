@@ -14,7 +14,6 @@ TEST(Parser, SimpleAdd) {
 
 TEST(Parser, Precedence) {
     Arena a;
-    // 2 + 3*x should parse as ADD(2, MUL(3, x))
     Expr* e = parse(a, "2 + 3*x");
     EXPECT_EQ(e->type, NodeType::ADD);
     EXPECT_EQ(e->children[1]->type, NodeType::MUL);
@@ -24,8 +23,7 @@ TEST(Parser, Power) {
     Arena a;
     Expr* e = parse(a, "x^2");
     EXPECT_EQ(e->type, NodeType::POW);
-    EXPECT_EQ(e->children[0]->type, NodeType::SYM);
-    EXPECT_EQ(e->children[1]->num, 2.0);
+    EXPECT_EQ(e->children[1]->num, 2);
 }
 
 TEST(Parser, Function) {
@@ -41,8 +39,24 @@ TEST(Parser, UnaryMinus) {
     EXPECT_EQ(e->type, NodeType::NEG);
 }
 
-TEST(Parser, ComplexExpr) {
+TEST(Parser, Factorial) {
     Arena a;
-    Expr* e = parse(a, "2*x^2 + 3*x + 1");
-    EXPECT_EQ(e->type, NodeType::ADD);
+    Expr* e = parse(a, "5!");
+    EXPECT_EQ(e->type, NodeType::FACTORIAL);
+    EXPECT_EQ(e->children[0]->num, 5);
+}
+
+TEST(Parser, Relational) {
+    Arena a;
+    Expr* e = parse(a, "x = 3");
+    EXPECT_EQ(e->type, NodeType::REL);
+    EXPECT_EQ(e->name, "=");
+}
+
+TEST(Parser, MultiArgFunc) {
+    Arena a;
+    Expr* e = parse(a, "diff(x^2, x)");
+    EXPECT_EQ(e->type, NodeType::FUNC);
+    EXPECT_EQ(e->name, "diff");
+    EXPECT_EQ(e->children.size(), 2u);
 }

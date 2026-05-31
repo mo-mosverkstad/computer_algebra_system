@@ -568,3 +568,137 @@ Linenoise is a minimal line-editing library (single C file) that provides readli
 #### Why the Switch
 
 GNU Readline requires `libreadline-dev` as a system dependency. Linenoise is bundled directly in the project (`third_party/linenoise/`), making the build self-contained — only a C/C++ compiler and CMake are needed.
+
+
+---
+
+## Phase 4 — Extended Operators & Rational Arithmetic
+
+---
+
+### 16. Rational Number Representation
+
+#### Concept
+
+Instead of storing numbers as `double` (which loses precision: `1/3` becomes `0.333...`),
+Axion stores every number as an exact fraction `num/den` (two `int64_t` values). After
+every arithmetic operation, the fraction is reduced by dividing both by their GCD.
+
+#### ASCII Diagram
+
+```
+Before (Phase 1–3):          After (Phase 4):
+  Expr.num = 0.333...          Expr.num = 1
+  (double, lossy)              Expr.den = 3
+                               (exact rational)
+
+  1/3 + 1/6                   1/3 + 1/6
+  = 0.333 + 0.166             = (1*6 + 1*3) / (3*6)
+  = 0.5 (lucky)               = 9/18
+                               = 1/2 (reduced by GCD=9)
+```
+
+#### Annotated Code
+
+```cpp
+void reduce_fraction(int64_t& num, int64_t& den) {
+    if (den < 0) { num = -num; den = -den; }  // normalize sign
+    if (num == 0) { den = 1; return; }         // 0/n = 0/1
+    int64_t g = gcd_val(num, den);             // find GCD
+    num /= g; den /= g;                       // reduce
+}
+```
+
+#### Why It Works
+
+Rational arithmetic is closed: adding, multiplying, or dividing two rationals always
+produces another rational. By reducing after every operation, we keep fractions in
+lowest terms and can detect exact equality (e.g., `2/4 == 1/2` after reduction).
+
+---
+
+### 17. Factorial Operator
+
+#### Concept
+
+Factorial `n!` is a postfix operator: `5!` = 120. It's parsed as a new AST node type
+`FACTORIAL` and simplified to an integer when the operand is a non-negative integer ≤ 20.
+
+#### Implementation
+
+```cpp
+// Parser: after parsing a primary expression, check for trailing '!'
+while (peek().type == TokenType::BANG) {
+    advance();
+    left = make_factorial(arena_, left);
+}
+
+// Simplifier: compute if possible
+if (e->is_factorial() && inner->is_num() && inner->den == 1 && inner->num >= 0)
+    return make_num(arena, factorial_val(inner->num));
+```
+
+---
+
+### 18. Session Variables & User Functions
+
+#### Concept
+
+The REPL maintains a session with persistent variable bindings and user-defined functions.
+`:=` creates a binding that persists across inputs.
+
+#### Examples
+
+```
+a := 3          → stores a=3 in session
+a + 1           → substitutes a=3, simplifies to 4
+f(x) := x^2    → stores function definition
+f(5)            → substitutes x=5 into body, returns 25
+```
+
+#### Implementation
+
+The session stores:
+- `vars`: map of name → Expr* (variable bindings)
+- `func_bodies`: map of name → Expr* (function body)
+- `func_params`: map of name → vector<string> (parameter names)
+
+Before simplification, all symbols are substituted with their session values.
+
+---
+
+### 19. Subscript Identifiers
+
+#### Concept
+
+Variables like `x_1`, `x_(12)`, `a_ij` are parsed as single identifier strings.
+The `_` character is part of the name, not a separate operator.
+
+#### Lexer Rule
+
+```cpp
+// Allow _ in identifiers, with optional (multi-char) subscript
+if (std::isalpha(c) || c == '_') {
+    while (std::isalnum(input[i]) || input[i] == '_') ++i;
+    if (input[i] == '(' && input[i-1] == '_') {
+        // consume x_(12) as one token
+        ++i; while (input[i] != ')') ++i; ++i;
+    }
+}
+```
+
+---
+
+### 20. Constants & Numeric Approximation
+
+#### Concept
+
+`pi` and `e` are symbolic constants — they remain as symbols during algebraic
+manipulation but can be evaluated numerically with `approx()`.
+
+```
+pi + pi         → 2*pi (symbolic)
+approx(pi)     → 3.14159265358979 (numeric)
+```
+
+The `approx` command substitutes `pi=3.14159...` and `e=2.71828...` then evaluates.

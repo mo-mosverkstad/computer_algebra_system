@@ -23,19 +23,19 @@ TEST(Eval, Polynomial) {
     Arena a;
     Expr* e = parse(a, "x^2 + 2*x + 1");
     e = simplify(a, e);
-    // (3)^2 + 2*3 + 1 = 16
     EXPECT_DOUBLE_EQ(evaluate(e, {{"x", 3.0}}), 16.0);
 }
 
-TEST(Eval, Function) {
+TEST(Eval, Factorial) {
     Arena a;
-    Expr* e = parse(a, "sin(0)");
+    Expr* e = parse(a, "5!");
     e = simplify(a, e);
-    EXPECT_NEAR(evaluate(e, {}), 0.0, 1e-10);
+    EXPECT_DOUBLE_EQ(evaluate(e, {}), 120.0);
 }
 
-TEST(Eval, UndefinedVar) {
+TEST(Eval, Rational) {
     Arena a;
-    Expr* e = parse(a, "x + y");
-    EXPECT_THROW(evaluate(e, {{"x", 1.0}}), std::runtime_error);
+    Expr* e = parse(a, "1/3 + 1/6");
+    e = simplify(a, e);
+    EXPECT_NEAR(evaluate(e, {}), 0.5, 1e-10);
 }

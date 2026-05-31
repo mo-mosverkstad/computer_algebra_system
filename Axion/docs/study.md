@@ -339,19 +339,19 @@ Axion/
 
 **Deliverable:** `expand((x+1)*(x+2))` → `2 + x^2 + 3*x` ✅
 
-### Phase 4 — Extended Operators & Relations (Weeks 17–20)
+### Phase 4 — Extended Operators & Relations (Weeks 17–20) ✅ COMPLETE
 
-- [ ] Relational operators: `=`, `!=`, `<`, `>`, `<=`, `>=`
-- [ ] Assignment operator: `:=` (session variable binding)
-- [ ] User-defined functions: `f(x) := x^2`
-- [ ] Factorial operator: `n!`
-- [ ] Absolute value: `abs(x)`
-- [ ] Subscript identifiers: `x_1`, `x_(12)`
-- [ ] Mathematical constants: `pi`, `e` (symbolic, evaluate with `approx`)
-- [ ] Previous result: `%` refers to last output
-- [ ] Numeric approximation: `approx(expr)` or `approx(expr, digits)`
-- [ ] Rational arithmetic: `1/3` stays exact (not 0.333...)
-- [ ] Short aliases: `int` for `integrate`, `simp` for `simplify`
+- [x] Relational operators: `=`, `!=`, `<`, `>`, `<=`, `>=`
+- [x] Assignment operator: `:=` (session variable binding)
+- [x] User-defined functions: `f(x) := x^2`
+- [x] Factorial operator: `n!`
+- [x] Absolute value: `abs(x)`
+- [x] Subscript identifiers: `x_1`, `x_(12)`
+- [x] Mathematical constants: `pi`, `e` (symbolic, evaluate with `approx`)
+- [x] Previous result: `%` refers to last output
+- [x] Numeric approximation: `approx(expr)` or `approx(expr, digits)`
+- [x] Rational arithmetic: `1/3` stays exact (not 0.333...)
+- [x] Short aliases: `int` for `integrate`, `simp` for `simplify`
 
 **Syntax decisions locked:**
 - `=` means equality/equation; `:=` means assignment

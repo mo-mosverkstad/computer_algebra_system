@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <iomanip>
+#include <unordered_map>
+#include <cmath>
 
 extern "C" {
 #include "linenoise.h"
@@ -19,29 +22,40 @@ using namespace axion;
 
 namespace {
 
-std::unordered_map<std::string, double> parse_env(const std::string& s) {
-    std::unordered_map<std::string, double> env;
-    std::istringstream iss(s);
-    std::string pair;
-    while (std::getline(iss, pair, ',')) {
-        auto eq = pair.find('=');
-        if (eq == std::string::npos) continue;
-        std::string var = pair.substr(0, eq);
-        while (!var.empty() && var.front() == ' ') var.erase(var.begin());
-        while (!var.empty() && var.back() == ' ') var.pop_back();
-        double val = std::stod(pair.substr(eq + 1));
-        env[var] = val;
+struct Session {
+    Arena arena;
+    std::unordered_map<std::string, Expr*> vars;        // variable bindings
+    std::unordered_map<std::string, Expr*> func_bodies; // f(x) := expr
+    std::unordered_map<std::string, std::vector<std::string>> func_params;
+    Expr* last_result = nullptr;
+
+    Session() {
+        // Constants
+        vars["pi"] = make_sym(arena, "pi");
+        vars["e"] = make_sym(arena, "e");
     }
-    return env;
+};
+
+Expr* substitute(Arena& arena, Expr* e, const std::unordered_map<std::string, Expr*>& vars) {
+    if (!e) return e;
+    if (e->is_sym()) {
+        if (e->name == "%") return nullptr;
+        auto it = vars.find(e->name);
+        if (it != vars.end()) return it->second;
+        return e;
+    }
+    for (auto& c : e->children)
+        c = substitute(arena, c, vars);
+    return e;
 }
 
 } // anonymous namespace
 
 int main() {
-    std::cout << "Axion CAS v0.3 (Phase 3)\n";
-    std::cout << "Commands: diff(expr, var), expand(expr), eval(expr, x=val), quit\n\n";
+    std::cout << "Axion CAS v0.4 (Phase 4)\n";
+    std::cout << "Commands: diff, expand, eval, approx, quit | := for assignment\n\n";
 
-    Arena arena;
+    Session session;
     linenoiseSetMultiLine(1);
     linenoiseHistorySetMaxLen(100);
 
@@ -61,63 +75,123 @@ int main() {
         if (input == "quit" || input == "exit") break;
 
         try {
-            if (input.substr(0, 5) == "diff(") {
-                auto close = input.rfind(')');
-                std::string inner = input.substr(5, close - 5);
-                auto comma = inner.rfind(',');
-                if (comma == std::string::npos) {
-                    std::cerr << "Error: diff requires variable, e.g. diff(x^2, x)\n";
-                    continue;
-                }
-                std::string expr_str = inner.substr(0, comma);
-                std::string var = inner.substr(comma + 1);
-                while (!var.empty() && var.front() == ' ') var.erase(var.begin());
-                while (!var.empty() && var.back() == ' ') var.pop_back();
-
-                Expr* e = parse(arena, expr_str);
-                e = simplify(arena, e);
-                e = differentiate(arena, e, var);
-                e = simplify(arena, e);
-                std::cout << print(e) << "\n";
-            } else if (input.substr(0, 7) == "expand(") {
-                auto close = input.rfind(')');
-                std::string expr_str = input.substr(7, close - 7);
-                Expr* e = parse(arena, expr_str);
-                e = expand(arena, e);
-                e = simplify(arena, e);
-                std::cout << print(e) << "\n";
-            } else if (input.substr(0, 5) == "eval(") {
-                auto close = input.rfind(')');
-                std::string inner = input.substr(5, close - 5);
-
-                size_t split = std::string::npos;
-                for (size_t i = 0; i < inner.size(); ++i) {
-                    if (inner[i] == '=') {
-                        for (size_t j = i; j > 0; --j) {
-                            if (inner[j] == ',') { split = j; break; }
-                        }
-                        break;
+            // Assignment: name := expr or f(x) := expr
+            if (has_assignment(input)) {
+                auto a = parse_assignment(session.arena, input);
+                Expr* val = simplify(session.arena, a.value);
+                if (a.params.empty()) {
+                    session.vars[a.name] = val;
+                    std::cout << a.name << " := " << print(val) << "\n";
+                } else {
+                    session.func_bodies[a.name] = val;
+                    session.func_params[a.name] = a.params;
+                    std::cout << a.name << "(";
+                    for (size_t i = 0; i < a.params.size(); ++i) {
+                        if (i) std::cout << ", ";
+                        std::cout << a.params[i];
                     }
+                    std::cout << ") := " << print(val) << "\n";
                 }
+                continue;
+            }
 
-                if (split == std::string::npos) {
-                    std::cerr << "Error: eval requires variable assignments, e.g. eval(x^2, x=3)\n";
+            // Parse
+            Expr* e = parse(session.arena, input);
+
+            // Replace % with last result
+            if (session.last_result) {
+                // Simple substitution for %
+                std::unordered_map<std::string, Expr*> subs = session.vars;
+                subs["%"] = session.last_result;
+                e = substitute(session.arena, e, subs);
+            } else {
+                e = substitute(session.arena, e, session.vars);
+            }
+
+            // Handle commands
+            if (e->is_func()) {
+                const std::string& fname = e->name;
+
+                // diff(expr, var) or diff(expr, var, order)
+                if (fname == "diff" && e->children.size() >= 2) {
+                    Expr* expr = simplify(session.arena, e->children[0]);
+                    std::string var = e->children[1]->name;
+                    int order = 1;
+                    if (e->children.size() >= 3 && e->children[2]->is_num())
+                        order = static_cast<int>(e->children[2]->num);
+                    for (int i = 0; i < order; ++i) {
+                        expr = differentiate(session.arena, expr, var);
+                        expr = simplify(session.arena, expr);
+                    }
+                    session.last_result = expr;
+                    std::cout << print(expr) << "\n";
                     continue;
                 }
 
-                std::string expr_str = inner.substr(0, split);
-                std::string env_str = inner.substr(split + 1);
+                // expand(expr)
+                if (fname == "expand" && e->children.size() >= 1) {
+                    Expr* expr = e->children[0];
+                    expr = expand(session.arena, expr);
+                    expr = simplify(session.arena, expr);
+                    session.last_result = expr;
+                    std::cout << print(expr) << "\n";
+                    continue;
+                }
 
-                Expr* e = parse(arena, expr_str);
-                e = simplify(arena, e);
-                auto env = parse_env(env_str);
-                double result = evaluate(e, env);
-                std::cout << result << "\n";
-            } else {
-                Expr* e = parse(arena, input);
-                e = simplify(arena, e);
-                std::cout << print(e) << "\n";
+                // eval(expr, x=val, ...)
+                if (fname == "eval" && e->children.size() >= 2) {
+                    Expr* expr = simplify(session.arena, e->children[0]);
+                    std::unordered_map<std::string, double> env;
+                    env["pi"] = M_PI;
+                    env["e"] = M_E;
+                    for (size_t i = 1; i < e->children.size(); ++i) {
+                        if (e->children[i]->is_rel() && e->children[i]->name == "=") {
+                            std::string vname = e->children[i]->children[0]->name;
+                            double vval = evaluate(e->children[i]->children[1], env);
+                            env[vname] = vval;
+                        }
+                    }
+                    double result = evaluate(expr, env);
+                    std::cout << result << "\n";
+                    continue;
+                }
+
+                // approx(expr) or approx(expr, digits)
+                if (fname == "approx") {
+                    Expr* expr = simplify(session.arena, e->children[0]);
+                    std::unordered_map<std::string, double> env;
+                    env["pi"] = M_PI;
+                    env["e"] = M_E;
+                    try {
+                        double result = evaluate(expr, env);
+                        std::cout << std::setprecision(15) << result << "\n";
+                    } catch (...) {
+                        std::cout << print(expr) << " (cannot evaluate numerically)\n";
+                    }
+                    continue;
+                }
+
+                // User-defined function call
+                if (session.func_bodies.count(fname)) {
+                    Expr* body = session.func_bodies[fname];
+                    auto& params = session.func_params[fname];
+                    std::unordered_map<std::string, Expr*> local_vars = session.vars;
+                    for (size_t i = 0; i < params.size() && i < e->children.size(); ++i) {
+                        local_vars[params[i]] = simplify(session.arena, e->children[i]);
+                    }
+                    Expr* result = substitute(session.arena, body, local_vars);
+                    result = simplify(session.arena, result);
+                    session.last_result = result;
+                    std::cout << print(result) << "\n";
+                    continue;
+                }
             }
+
+            // Default: simplify and print
+            e = simplify(session.arena, e);
+            session.last_result = e;
+            std::cout << print(e) << "\n";
+
         } catch (const std::exception& ex) {
             std::cerr << "Error: " << ex.what() << "\n";
         }

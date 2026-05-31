@@ -8,16 +8,18 @@ namespace {
 
 std::string print_impl(const Expr* e, int parent_prec, bool is_right_of_minus) {
     if (!e) return "?";
-
     std::ostringstream os;
 
     switch (e->type) {
         case NodeType::NUM: {
-            double v = e->num;
-            if (v == static_cast<int64_t>(v))
-                os << static_cast<int64_t>(v);
-            else
-                os << v;
+            if (e->den == 1) {
+                os << e->num;
+            } else {
+                bool need_parens = parent_prec > 1 || is_right_of_minus;
+                if (need_parens) os << "(";
+                os << e->num << "/" << e->den;
+                if (need_parens) os << ")";
+            }
             break;
         }
         case NodeType::SYM:
@@ -30,9 +32,13 @@ std::string print_impl(const Expr* e, int parent_prec, bool is_right_of_minus) {
             for (size_t i = 0; i < e->children.size(); ++i) {
                 Expr* child = e->children[i];
                 if (i > 0) {
-                    // Check if child is NEG — print as " - X" instead of " + -X"
                     if (child->is_neg()) {
                         os << " - " << print_impl(child->children[0], 1, true);
+                        continue;
+                    }
+                    if (child->is_num() && child->num < 0) {
+                        Expr tmp; tmp.type = NodeType::NUM; tmp.num = -child->num; tmp.den = child->den;
+                        os << " - " << print_impl(&tmp, 1, true);
                         continue;
                     }
                     os << " + ";
@@ -58,19 +64,33 @@ std::string print_impl(const Expr* e, int parent_prec, bool is_right_of_minus) {
             break;
         }
 
-        case NodeType::POW: {
+        case NodeType::POW:
             os << print_impl(e->children[0], 5, false);
             os << "^";
             os << print_impl(e->children[1], 4, false);
             break;
-        }
 
         case NodeType::FUNC:
-            os << e->name << "(" << print_impl(e->children[0], 0, false) << ")";
+            os << e->name << "(";
+            for (size_t i = 0; i < e->children.size(); ++i) {
+                if (i > 0) os << ", ";
+                os << print_impl(e->children[i], 0, false);
+            }
+            os << ")";
             break;
 
         case NodeType::NEG:
             os << "-" << print_impl(e->children[0], 3, false);
+            break;
+
+        case NodeType::FACTORIAL:
+            os << print_impl(e->children[0], 5, false) << "!";
+            break;
+
+        case NodeType::REL:
+            os << print_impl(e->children[0], 0, false);
+            os << " " << e->name << " ";
+            os << print_impl(e->children[1], 0, false);
             break;
     }
 

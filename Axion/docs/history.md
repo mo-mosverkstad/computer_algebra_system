@@ -145,3 +145,62 @@ Chronological record of changes to the Axion CAS project.
 4. **NEG flattening in MUL:** `MUL(x, NEG(y))` → `MUL(-1, x, y)` → `NEG(MUL(x, y))`
    - Extracts -1 from NEG children during MUL simplification
    - Enables `expand((x+y)*(x-y))` → `x^2 - y^2` (terms cancel correctly)
+
+---
+
+## Phase 4 — Extended Operators & Relations (2026-05-31)
+
+### Added
+
+- **Rational arithmetic**
+  - Numbers stored as `int64_t num/den` (exact fractions)
+  - `1/3 + 1/6` → `1/2` (no floating-point loss)
+  - GCD-based reduction after every operation
+  - Printer shows `1/2` for fractions, plain integers otherwise
+
+- **Factorial operator**
+  - Postfix `!` in lexer/parser
+  - `FACTORIAL` node type in AST
+  - Simplifies to integer for n=0..20: `5!` → `120`
+
+- **Relational operators**
+  - `=`, `!=`, `<`, `>`, `<=`, `>=` parsed as `REL` nodes
+  - Used in `eval(expr, x=3)` and future `solve()`
+
+- **Assignment & user functions**
+  - `:=` operator for session variable binding: `a := 3`
+  - User-defined functions: `f(x) := x^2 + 1` then `f(3)` → `10`
+  - Session state persists across REPL inputs
+
+- **Subscript identifiers**
+  - `x_1`, `x_(12)`, `a_ij` parsed as single identifier names
+  - `_` followed by alphanumeric, or `_(...)` for multi-char subscripts
+
+- **Constants & approximation**
+  - `pi` and `e` as symbolic constants
+  - `approx(pi)` → `3.14159265358979`
+  - `approx(expr)` evaluates with pi=π, e=e numerically
+
+- **Previous result**
+  - `%` refers to last computed result
+
+- **Multi-argument function parsing**
+  - `diff(x^3, x)`, `eval(x^2, x=3)` parsed as FUNC with multiple children
+  - Commands handled by REPL dispatcher
+
+- **Tests**
+  - 46 tests total, all passing
+  - New: Lexer (factorial, relational, assignment, subscript), Parser (factorial, relational, multi-arg), Simplify (factorial, rational add/mul), Eval (factorial, rational)
+
+### Changed
+
+- **AST rewrite:** `double num` → `int64_t num, int64_t den` (rational representation)
+- **Lexer rewrite:** supports `!`, `:=`, `<=`, `>=`, `!=`, `=`, `%`, `_` in identifiers
+- **Parser rewrite:** Pratt parser extended with postfix `!`, relational precedence level, multi-arg functions, assignment parsing
+- **Simplifier rewrite:** all arithmetic now uses exact rational operations
+- **Evaluator update:** handles FACTORIAL node, rational num_val()
+- **Printer update:** displays fractions as `n/d`, factorial as `n!`, relational as `a = b`
+
+### Bugs Found and Fixed
+
+None — clean implementation on first build (after fixing missing `<iomanip>` include and removing unused functions).

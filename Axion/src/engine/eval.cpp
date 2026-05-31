@@ -9,7 +9,7 @@ double evaluate(const Expr* e, const std::unordered_map<std::string, double>& en
 
     switch (e->type) {
         case NodeType::NUM:
-            return e->num;
+            return e->num_val();
 
         case NodeType::SYM: {
             auto it = env.find(e->name);
@@ -36,6 +36,15 @@ double evaluate(const Expr* e, const std::unordered_map<std::string, double>& en
         case NodeType::NEG:
             return -evaluate(e->children[0], env);
 
+        case NodeType::FACTORIAL: {
+            double v = evaluate(e->children[0], env);
+            int64_t n = static_cast<int64_t>(v);
+            if (n < 0 || v != n) throw std::runtime_error("Factorial requires non-negative integer");
+            double r = 1;
+            for (int64_t i = 2; i <= n; ++i) r *= i;
+            return r;
+        }
+
         case NodeType::FUNC: {
             double arg = evaluate(e->children[0], env);
             if (e->name == "sin") return std::sin(arg);
@@ -48,6 +57,9 @@ double evaluate(const Expr* e, const std::unordered_map<std::string, double>& en
             if (e->name == "abs") return std::fabs(arg);
             throw std::runtime_error("Unknown function: " + e->name);
         }
+
+        case NodeType::REL:
+            throw std::runtime_error("Cannot evaluate relational expression numerically");
     }
     throw std::runtime_error("Unknown node type");
 }
