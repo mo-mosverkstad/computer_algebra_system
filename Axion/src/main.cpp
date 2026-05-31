@@ -20,6 +20,7 @@ extern "C" {
 #include "modules/limits.h"
 #include "modules/integration.h"
 #include "modules/matrix.h"
+#include "modules/solver.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -233,6 +234,38 @@ int main() {
                             std::cout << "cannot integrate\n";
                         }
                     }
+                    continue;
+                }
+
+                // solve(equation, var)
+                if (fname == "solve" && e->children.size() == 2) {
+                    Expr* eq = e->children[0];
+                    std::string var = e->children[1]->name;
+                    auto roots = solve(session.arena, eq, var);
+                    if (roots.empty()) {
+                        std::cout << "no solution found\n";
+                    } else if (roots.size() == 1) {
+                        session.last_result = roots[0];
+                        std::cout << print(roots[0]) << "\n";
+                    } else {
+                        std::cout << "{";
+                        for (size_t i = 0; i < roots.size(); ++i) {
+                            if (i > 0) std::cout << ", ";
+                            std::cout << print(roots[i]);
+                        }
+                        std::cout << "}\n";
+                        session.last_result = roots[0];
+                    }
+                    continue;
+                }
+
+                // factor(expr, var)
+                if (fname == "factor" && e->children.size() == 2) {
+                    Expr* expr = e->children[0];
+                    std::string var = e->children[1]->name;
+                    Expr* result = factor(session.arena, expr, var);
+                    session.last_result = result;
+                    std::cout << print(result) << "\n";
                     continue;
                 }
 

@@ -350,3 +350,30 @@ dot([1,2,3],[4,5,6])       → 32
 cross([1,0,0],[0,1,0])     → [0, 0, 1]
 transpose([[1,2],[3,4]])   → [[1, 3], [2, 4]]
 ```
+
+
+---
+
+## Phase 9 — Equation Solving (2026-05-31)
+
+### Added
+
+- **Solver module** (`src/modules/solver.h/.cpp`)
+  - `solve(arena, equation, var)` — returns vector of solutions
+  - Linear: `a*x + b = 0` → `x = -b/a`
+  - Quadratic: uses discriminant, returns rational or symbolic roots
+  - `factor(arena, expr, var)` — factors quadratic by finding roots
+
+- **REPL commands**
+  - `solve(equation, var)` — prints solutions as `{r1, r2}` or single value
+  - `factor(expr, var)` — prints factored form
+
+### Key Results
+
+```
+solve(2*x + 6 = 0, x)         → -3
+solve(x^2 - 5*x + 6 = 0, x)  → {3, 2}
+solve(x^2 - 2 = 0, x)         → {(1/2)*sqrt(8), (-1/2)*sqrt(8)}
+factor(x^2 - 5*x + 6, x)     → (-3 + x)*(-2 + x)
+factor(x^2 - 1, x)            → (-1 + x)*(1 + x)
+```

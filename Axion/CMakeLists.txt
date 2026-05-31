@@ -26,6 +26,7 @@ set(AXION_SOURCES
     src/modules/limits.cpp
     src/modules/integration.cpp
     src/modules/matrix.cpp
+    src/modules/solver.cpp
     src/output/printer.cpp
 )
 

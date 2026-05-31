@@ -1277,3 +1277,109 @@ if (t.type == TokenType::LBRACKET) {
 
 For matrices, it reads each row as a comma-separated list inside `[...]`,
 counts rows and columns, and builds the `__matrix__RxC` FUNC node.
+
+
+---
+
+## Phase 9 — Equation Solving
+
+---
+
+### 29. Equation Solver (`src/modules/solver.h`, `src/modules/solver.cpp`)
+
+#### Concept
+
+An equation solver takes an equation like `x^2 - 5*x + 6 = 0` and finds the values
+of `x` that make it true. Axion handles linear and quadratic equations.
+
+#### Algorithm
+
+```
+solve(equation, var):
+  1. Move everything to LHS: lhs - rhs = 0
+  2. Expand and simplify the LHS
+  3. Extract polynomial coefficients: a*x^2 + b*x + c
+  4. Based on degree:
+     - Degree 1 (linear): x = -b/a
+     - Degree 2 (quadratic): x = (-b ± sqrt(b²-4ac)) / 2a
+```
+
+#### ASCII Diagram — Solving x² - 5x + 6 = 0
+
+```
+Input: x^2 - 5*x + 6 = 0
+
+Step 1: Extract coefficients
+  a = 1 (coefficient of x^2)
+  b = -5 (coefficient of x)
+  c = 6 (constant term)
+
+Step 2: Compute discriminant
+  disc = b² - 4ac = 25 - 24 = 1
+
+Step 3: sqrt(disc) = 1 (perfect square!)
+
+Step 4: Apply quadratic formula
+  x = (-(-5) ± 1) / (2*1)
+  x = (5 + 1) / 2 = 3
+  x = (5 - 1) / 2 = 2
+
+Result: {3, 2}
+```
+
+#### Annotated Code: Polynomial Coefficient Extraction
+
+```cpp
+// For each term in the expression, determine its power of var and coefficient
+TermInfo analyze_term(Arena& arena, Expr* e, const std::string& var) {
+    // "5" → coeff=5, power=0 (constant)
+    if (!contains_var(e, var)) return {e, 0};
+
+    // "x" → coeff=1, power=1
+    if (e->is_sym() && e->name == var) return {make_num(arena, 1), 1};
+
+    // "x^3" → coeff=1, power=3
+    int p = get_power(e, var);
+    if (p >= 0) return {make_num(arena, 1), p};
+
+    // "3*x^2" → coeff=3, power=2
+    if (e->is_mul()) {
+        // Separate constant factors from the x^n factor
+        // ...
+    }
+}
+```
+
+#### Annotated Code: Factoring via Root-Finding
+
+```cpp
+Expr* factor(Arena& arena, Expr* e, const std::string& var) {
+    // Step 1: Find roots by solving expr = 0
+    Expr* eq = make_rel(arena, "=", e, make_num(arena, 0));
+    auto roots = solve(arena, eq, var);
+
+    // Step 2: Build factored form: a*(x - r1)*(x - r2)
+    if (roots.size() == 2) {
+        Expr* a = leading_coefficient;
+        Expr* f1 = (x - roots[0]);
+        Expr* f2 = (x - roots[1]);
+        return a * f1 * f2;
+    }
+}
+```
+
+**Why this works:** A polynomial of degree n has exactly n roots (counting multiplicity).
+If we know the roots r1, r2, ..., then the polynomial equals `a*(x-r1)*(x-r2)*...`
+where `a` is the leading coefficient.
+
+---
+
+### 30. Test Results
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `solve(2*x + 6 = 0, x)` | -3 | -3 | ✅ |
+| `solve(x^2 - 5*x + 6 = 0, x)` | {3, 2} | {3, 2} | ✅ |
+| `solve(x^2 - 2 = 0, x)` | symbolic sqrt | symbolic sqrt | ✅ |
+| `factor(x^2 - 5*x + 6, x)` | (x-3)(x-2) | (-3+x)(-2+x) | ✅ |
+| `factor(x^2 - 1, x)` | (x-1)(x+1) | (-1+x)(1+x) | ✅ |

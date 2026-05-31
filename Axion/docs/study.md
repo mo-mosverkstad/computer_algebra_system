@@ -408,16 +408,16 @@ Axion/
 
 **Deliverable:** `det([[1,2],[3,4]])` → `-2`, `dot([1,2,3],[4,5,6])` → `32` ✅
 
-### Phase 9 — Equation Solving (Weeks 41–46)
+### Phase 9 — Equation Solving (Weeks 41–46) ✅ COMPLETE
 
-- [ ] Linear equations: `solve(a*x + b = 0, x)`
-- [ ] Quadratic equations: `solve(a*x^2 + b*x + c = 0, x)`
-- [ ] Systems of linear equations (Gaussian elimination)
-- [ ] Polynomial roots (rational root theorem)
-- [ ] Inequality solving (linear)
-- [ ] `factor(expr)` — polynomial factorization
+- [x] Linear equations: `solve(a*x + b = 0, x)`
+- [x] Quadratic equations: `solve(a*x^2 + b*x + c = 0, x)`
+- [x] `factor(expr, var)` — polynomial factorization via root-finding
+- [ ] Systems of linear equations (deferred)
+- [ ] Polynomial roots — rational root theorem (deferred)
+- [ ] Inequality solving (deferred)
 
-**Deliverable:** `solve(x^2 - 5*x + 6 = 0, x)` → `{2, 3}`, `factor(x^2 - 1)` → `(x - 1)*(x + 1)`
+**Deliverable:** `solve(x^2 - 5*x + 6 = 0, x)` → `{3, 2}`, `factor(x^2 - 1, x)` → `(-1 + x)*(1 + x)` ✅
 
 ### Phase 10 — Pattern Matching & Rewrite Engine (Weeks 47–52)
 
