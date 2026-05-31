@@ -1,5 +1,6 @@
 #include "modules/limits.h"
 #include "engine/simplify.h"
+#include "engine/eval.h"
 #include "modules/calculus.h"
 #include <cmath>
 #include <unordered_map>
@@ -117,20 +118,24 @@ Expr* try_lhopital(Arena& arena, Expr* e, const std::string& var, Expr* point, i
 Expr* compute_limit(Arena& arena, Expr* e, const std::string& var, Expr* point, int direction) {
     e = simplify(arena, e);
 
-    // Handle limit at infinity: substitute increasingly large values and detect trend
+    // Handle limit at infinity: evaluate at large values to detect trend
     if (is_inf(point) || is_neg_inf(point)) {
-        // Evaluate at large values to detect: converges to constant, diverges to ±inf, or oscillates
         double sign = is_neg_inf(point) ? -1.0 : 1.0;
         double vals[3];
         double test_points[] = {1000.0, 10000.0, 100000.0};
         bool all_valid = true;
 
         for (int i = 0; i < 3; ++i) {
-            Expr* big = make_num(arena, static_cast<int64_t>(sign * test_points[i]));
-            Expr* substituted = subst(arena, e, var, big);
-            substituted = simplify(arena, substituted);
-            if (!substituted->is_num()) { all_valid = false; break; }
-            vals[i] = substituted->num_val();
+            std::unordered_map<std::string, double> env;
+            env[var] = sign * test_points[i];
+            env["pi"] = M_PI;
+            env["e"] = M_E;
+            try {
+                vals[i] = evaluate(e, env);
+            } catch (...) {
+                all_valid = false;
+                break;
+            }
         }
 
         if (all_valid) {
@@ -140,22 +145,16 @@ Expr* compute_limit(Arena& arena, Expr* e, const std::string& var, Expr* point, 
             double abs_val = std::abs(vals[2]);
             // Converging if differences are shrinking and value is bounded
             if (diff2 < diff1 * 0.5 && abs_val < 1e10) {
-                // Converging — try to get exact rational
-                Expr* big = make_num(arena, static_cast<int64_t>(sign * 1000000));
-                Expr* result = subst(arena, e, var, big);
-                result = simplify(arena, result);
-                if (result->is_num()) {
-                    // Round to nearest simple fraction if close
-                    double v = result->num_val();
-                    // Check if it's close to a simple integer or fraction
-                    for (int64_t d = 1; d <= 100; ++d) {
-                        double n = v * d;
-                        if (std::abs(n - std::round(n)) < 1e-4) {
-                            return make_num(arena, static_cast<int64_t>(std::round(n)), d);
-                        }
+                // Converging — find the limit value
+                double v = vals[2];
+                for (int64_t d = 1; d <= 100; ++d) {
+                    double n = v * d;
+                    if (std::abs(n - std::round(n)) < 1e-4) {
+                        return make_num(arena, static_cast<int64_t>(std::round(n)), d);
                     }
                 }
-                return result;
+                // Return as approximate rational
+                return make_num_double(arena, v);
             }
             // Check divergence to +inf or -inf
             if (vals[2] > vals[1] && vals[1] > vals[0] && std::abs(vals[2]) > 1e8) {
@@ -180,15 +179,16 @@ Expr* compute_limit(Arena& arena, Expr* e, const std::string& var, Expr* point, 
     // For one-sided limits, probe to determine sign of divergence
     if (direction != 0 && point->is_num()) {
         double pt_val = point->num_val();
-        double probe_offset = (direction > 0) ? 0.001 : -0.001;
-        int64_t probe_n = static_cast<int64_t>((pt_val + probe_offset) * 1000);
-        Expr* probe = make_num(arena, probe_n, 1000);
-        Expr* probed = subst(arena, e, var, probe);
-        probed = simplify(arena, probed);
-        if (probed->is_num() && probed->den != 0) {
-            if (probed->num > 0) return make_sym(arena, "inf");
-            if (probed->num < 0) return make_neg(arena, make_sym(arena, "inf"));
-        }
+        double probe_offset = (direction > 0) ? 1e-8 : -1e-8;
+        std::unordered_map<std::string, double> env;
+        env[var] = pt_val + probe_offset;
+        env["pi"] = M_PI;
+        env["e"] = M_E;
+        try {
+            double val = evaluate(e, env);
+            if (val > 1e6) return make_sym(arena, "inf");
+            if (val < -1e6) return make_neg(arena, make_sym(arena, "inf"));
+        } catch (...) {}
     }
 
     return nullptr;

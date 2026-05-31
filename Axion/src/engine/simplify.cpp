@@ -136,6 +136,13 @@ Expr* simplify(Arena& arena, Expr* e) {
             }
         }
 
+        // Infinity check: inf + anything = inf
+        for (auto* t : terms) {
+            if (t->is_sym() && t->name == "inf") return make_sym(arena, "inf");
+            if (t->is_neg() && t->children[0]->is_sym() && t->children[0]->name == "inf")
+                return make_neg(arena, make_sym(arena, "inf"));
+        }
+
         struct Group { int64_t cn; int64_t cd; Expr* base; };
         std::vector<Group> groups;
         int64_t num_n = 0, num_d = 1;
@@ -205,6 +212,13 @@ Expr* simplify(Arena& arena, Expr* e) {
 
         if (num_n == 0) return make_num(arena, 0);
 
+        // Infinity in MUL: n * inf = inf (or -inf)
+        for (auto* f : non_num) {
+            if (f->is_sym() && f->name == "inf") {
+                return (num_n > 0) ? make_sym(arena, "inf") : make_neg(arena, make_sym(arena, "inf"));
+            }
+        }
+
         // Collect like bases into powers
         struct BasePow { Expr* base; int64_t exp_n; int64_t exp_d; };
         std::vector<BasePow> collected;
@@ -255,6 +269,9 @@ Expr* simplify(Arena& arena, Expr* e) {
     if (e->is_pow()) {
         Expr* base = e->children[0];
         Expr* exp = e->children[1];
+        // inf^n = inf for n > 0
+        if (base->is_sym() && base->name == "inf" && exp->is_num() && exp->num > 0)
+            return make_sym(arena, "inf");
         if (exp->is_num()) {
             if (exp->num == 0) return make_num(arena, 1);
             if (exp->num == 1 && exp->den == 1) return base;
@@ -283,17 +300,52 @@ Expr* simplify(Arena& arena, Expr* e) {
         int64_t n = e->children[0]->num;
         int64_t d = e->children[0]->den;
         if (e->name == "abs") return make_num(arena, std::abs(n), d);
-        // Evaluate trig/exp at 0
         if (n == 0) {
             if (e->name == "sin" || e->name == "tan") return make_num(arena, 0);
             if (e->name == "cos") return make_num(arena, 1);
             if (e->name == "exp") return make_num(arena, 1);
-            if (e->name == "ln") return e; // ln(0) undefined
         }
         if (n == 1 && d == 1) {
             if (e->name == "exp") return make_sym(arena, "e");
             if (e->name == "ln") return make_num(arena, 0);
         }
+        // For sqrt: if perfect square, simplify
+        if (e->name == "sqrt" && d == 1 && n >= 0) {
+            int64_t root = static_cast<int64_t>(std::sqrt(static_cast<double>(n)));
+            if (root * root == n) return make_num(arena, root);
+        }
+    }
+
+    // Infinity arithmetic
+    auto has_inf_sym = [](const Expr* x) {
+        return x->is_sym() && x->name == "inf";
+    };
+    auto has_neg_inf_sym = [](const Expr* x) {
+        return x->is_neg() && x->children[0]->is_sym() && x->children[0]->name == "inf";
+    };
+
+    if (e->is_add()) {
+        for (auto* c : e->children) {
+            if (has_inf_sym(c)) return make_sym(arena, "inf");
+            if (has_neg_inf_sym(c)) return make_neg(arena, make_sym(arena, "inf"));
+        }
+    }
+    if (e->is_mul()) {
+        bool has_inf = false;
+        int64_t sign = 1;
+        for (auto* c : e->children) {
+            if (has_inf_sym(c)) { has_inf = true; }
+            else if (has_neg_inf_sym(c)) { has_inf = true; sign *= -1; }
+            else if (c->is_num() && c->num < 0) { sign *= -1; }
+        }
+        if (has_inf) {
+            if (sign > 0) return make_sym(arena, "inf");
+            return make_neg(arena, make_sym(arena, "inf"));
+        }
+    }
+    if (e->is_pow() && has_inf_sym(e->children[0])) {
+        if (e->children[1]->is_num() && e->children[1]->num > 0)
+            return make_sym(arena, "inf");
     }
 
     return e;
