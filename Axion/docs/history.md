@@ -90,3 +90,58 @@ Chronological record of changes to the Axion CAS project.
 - Division represented as `x * y^(-1)` — no dedicated DIV node
 - Simplifier does not yet handle `x*x` → `x^2`
 - Canonical ordering puts constants before terms: `1 + 2*x` not `2*x + 1`
+
+---
+
+## Phase 3 — Algebra (2026-05-31)
+
+### Added
+
+- **Polynomial module**
+  - `src/modules/polynomial.h/.cpp` — `expand()` function
+  - Distributes products over sums: `(x+1)*(x+2)` → `x^2 + 3x + 2`
+  - Expands integer powers of compound expressions: `(x+1)^3`
+  - Deep-copies base before repeated multiplication to avoid aliasing
+  - Distributes NEG over ADD: `-(a+b)` → `-a + -b`
+
+- **Linenoise integration**
+  - Replaced GNU Readline with bundled linenoise (`third_party/linenoise/`)
+  - Removes `libreadline-dev` system dependency
+  - Supports line editing, history, multi-line input
+
+- **REPL update**
+  - `expand(expr)` command added
+  - Version bumped to v0.3
+
+- **Tests**
+  - `tests/test_polynomial.cpp` — 6 new tests (simple product, square, cube, diff of squares, multivariate, no-expansion)
+  - Total: 40 tests, all passing
+
+### Changed
+
+- **CMakeLists.txt** — now builds linenoise as static C library, removed readline link
+- **`extract_coeff` fix** — now correctly handles MUL nodes with 3+ children (e.g. `MUL(2, x, x)`) by stripping the numeric coefficient and returning the remaining factors as base
+
+### Bugs Found and Fixed
+
+1. **`(x+1)^3` produced wrong result (21 instead of 27 at x=2)**
+   - Cause: `expand` reused the same `base` pointer across iterations; `simplify` mutated shared nodes
+   - Fix: deep-copy base before each multiplication iteration
+
+2. **`MUL(2, x, x)` treated as pure number 2 in like-term combination**
+   - Cause: `extract_coeff` returned `{2.0, nullptr}` for MUL with 3+ children, and `nullptr` base was added to `num_sum`
+   - Fix: strip numeric first child from the MUL node and return remaining children as base
+
+### Known Limitations
+
+- Canonical ordering puts constants before terms: `2 + x^2 + 3*x` not `x^2 + 3*x + 2`
+
+### Additional Fixes (completing Phase 3 checklist)
+
+3. **Power collection:** `x*x` → `x^2`, `x*x*x` → `x^3`
+   - Added like-base grouping in MUL simplifier: factors with same base have exponents summed
+   - `MUL(x, x)` → `POW(x, 2)`, `MUL(x, POW(x, 2))` → `POW(x, 3)`
+
+4. **NEG flattening in MUL:** `MUL(x, NEG(y))` → `MUL(-1, x, y)` → `NEG(MUL(x, y))`
+   - Extracts -1 from NEG children during MUL simplification
+   - Enables `expand((x+y)*(x-y))` → `x^2 - y^2` (terms cancel correctly)

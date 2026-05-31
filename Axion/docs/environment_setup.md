@@ -25,6 +25,7 @@ sudo apt install -y build-essential gcc g++
 sudo apt install -y cmake
 
 # Install GNU Readline (for REPL line editing and history)
+# Replaced by linenoise later, it is not needed.
 sudo apt install -y libreadline-dev
 
 # Install Google Test (unit testing framework)
@@ -201,8 +202,12 @@ cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 |-----------|---------|---------|
 | GCC/G++ | `build-essential` | C/C++ compiler |
 | CMake | `cmake` | Build system |
-| GNU Readline | `libreadline-dev` | REPL line editing, history, tab completion |
+| GNU Readline | `libreadline-dev` | REPL line editing, history, tab completion, replaced by Linenoise |
 | Google Test | `libgtest-dev` | Unit testing |
 | Git | `git` | Version control |
+| Linenoise | bundled (`third_party/`) | REPL line editing, history |
 
-All dependencies are available from the default Ubuntu APT repositories. No third-party PPAs or manual compilation required (except possibly GTest on older Ubuntu).
+
+[DEPRECATED]: All dependencies are available from the default Ubuntu APT repositories. No third-party PPAs or manual compilation required (except possibly GTest on older Ubuntu).
+
+All dependencies are available from the default Ubuntu APT repositories. Linenoise is bundled in the source tree — no external installation needed.

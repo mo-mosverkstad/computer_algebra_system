@@ -20,11 +20,27 @@
 | Polynomial expansion | ✅ High | 2 weeks |
 | Pretty printer (text) | ✅ High | 1 week |
 | CLI REPL | ✅ High | 1 week |
+| Relational operators & factorial | ✅ High | 1–2 weeks |
+| Subscript/indexed variables | ✅ High | 1 week |
+| Finite summation/product | ✅ High | 2–3 weeks |
+| Closed-form sums | 🟡 Medium | 2–3 weeks |
+| Limits (basic rules, L'Hôpital) | 🟡 Medium | 3–4 weeks |
+| Table-based integration | 🟡 Medium | 3–4 weeks |
+| Integration by substitution | 🟡 Medium | 4–6 weeks |
+| Matrix operations | ✅ High | 3–4 weeks |
+| Determinant & inverse | ✅ High | 2 weeks |
+| Linear equation solving | ✅ High | 2 weeks |
+| Quadratic equation solving | ✅ High | 1–2 weeks |
+| Systems of equations | 🟡 Medium | 3–4 weeks |
 | Term canonicalization | 🟡 Medium | 3–4 weeks |
 | Pattern-matching rewrite engine | 🟡 Medium | 4–6 weeks |
+| Taylor series | 🟡 Medium | 2–3 weeks |
+| Partial derivatives & vector calculus | 🟡 Medium | 3–4 weeks |
 | Basic factorization | 🟡 Medium | 4–6 weeks |
+| Number theory (GCD, binomial) | ✅ High | 2–3 weeks |
 | General symbolic integration | 🔴 Low (research-level) | months+ |
 | General equation solving | 🔴 Low | months+ |
+| Differential equations | 🔴 Low | months+ |
 
 ### 2.2 Risk Analysis
 
@@ -75,12 +91,15 @@ Building a CAS with parsing, simplification, differentiation, polynomial algebra
 The central data structure. All modules operate on this.
 
 ```cpp
-enum class NodeType { NUM, SYM, ADD, MUL, POW, FUNC };
+enum class NodeType { NUM, SYM, ADD, MUL, POW, FUNC, NEG,
+                      REL, FACTORIAL, ABS, SUBSCRIPT,
+                      SUM, PROD, LIM, INTEGRAL,
+                      MATRIX, VECTOR, EQUATION };
 
 struct Expr {
     NodeType type;
     double num_val;              // for NUM
-    std::string name;           // for SYM / FUNC
+    std::string name;           // for SYM / FUNC / REL operator
     std::vector<Expr*> children;
 };
 ```
@@ -142,6 +161,11 @@ Symbolic differentiation via recursive rules:
 - `d/dx(cos(f)) = -sin(f)*f'`
 - `d/dx(ln(f)) = f'/f`
 
+Symbolic integration (Phase 7):
+- Table lookup for standard forms
+- Linearity rule
+- Basic substitution via pattern matching
+
 Always followed by simplification.
 
 ### 4.7 Polynomial Module (`src/modules/polynomial.h`)
@@ -158,7 +182,39 @@ Substitutes numeric values for symbols and computes result:
 double evaluate(const Expr* e, const std::unordered_map<std::string, double>& env);
 ```
 
-### 4.9 Pretty Printer (`src/output/printer.h`)
+### 4.9 Summation & Product Module (`src/modules/series.h`)
+
+Handles finite and symbolic sums/products:
+- `sum(expr, var, lower, upper)` — evaluate finite sums, recognize closed forms
+- `prod(expr, var, lower, upper)` — evaluate finite products
+- Known closed forms: arithmetic series, geometric series, sum of squares/cubes
+
+### 4.10 Limits Module (`src/modules/limits.h`)
+
+Computes limits symbolically:
+- Direct substitution
+- L'Hôpital's rule for indeterminate forms (0/0, ∞/∞)
+- One-sided limits
+- Limits at infinity
+
+### 4.11 Matrix Module (`src/modules/matrix.h`)
+
+Matrix and vector algebra:
+- Matrix literal representation (2D vector of Expr*)
+- Addition, scalar multiplication, matrix multiplication
+- Determinant (cofactor expansion)
+- Transpose, inverse
+- Eigenvalues for small matrices
+
+### 4.12 Equation Solver (`src/modules/solver.h`)
+
+Solves equations symbolically:
+- Linear: isolate variable
+- Quadratic: quadratic formula
+- Systems: Gaussian elimination
+- Polynomial: rational root theorem
+
+### 4.13 Pretty Printer (`src/output/printer.h`)
 
 Converts AST back to human-readable string with correct precedence and minimal parentheses.
 
@@ -171,6 +227,13 @@ Commands:
 - `diff(expr, x)` → differentiate
 - `eval(expr, x=2)` → numeric evaluation
 - `expand(expr)` → polynomial expansion
+- `sum(expr, var, lo, hi)` → summation
+- `prod(expr, var, lo, hi)` → product
+- `lim(expr, var, point)` → limit
+- `integrate(expr, var)` → indefinite integral
+- `integrate(expr, var, a, b)` → definite integral
+- `solve(equation, var)` → equation solving
+- `det(matrix)` → determinant
 - `quit` / `exit`
 
 ---
@@ -183,7 +246,13 @@ Axion/
 ├── docs/
 │   ├── ideas.md
 │   ├── study.md
-│   └── environment_setup.md
+│   ├── environment_setup.md
+│   ├── docs_guide.md
+│   ├── workflow.md
+│   ├── history.md
+│   ├── test.md
+│   ├── codebase_analysis.md
+│   └── demos/
 ├── src/
 │   ├── main.cpp
 │   ├── core/
@@ -198,7 +267,11 @@ Axion/
 │   │   └── eval.h / eval.cpp
 │   ├── modules/
 │   │   ├── calculus.h / calculus.cpp
-│   │   └── polynomial.h / polynomial.cpp
+│   │   ├── polynomial.h / polynomial.cpp
+│   │   ├── series.h / series.cpp
+│   │   ├── limits.h / limits.cpp
+│   │   ├── matrix.h / matrix.cpp
+│   │   └── solver.h / solver.cpp
 │   └── output/
 │       └── printer.h / printer.cpp
 └── tests/
@@ -206,7 +279,12 @@ Axion/
     ├── test_parser.cpp
     ├── test_simplify.cpp
     ├── test_calculus.cpp
-    └── test_eval.cpp
+    ├── test_eval.cpp
+    ├── test_polynomial.cpp
+    ├── test_series.cpp
+    ├── test_limits.cpp
+    ├── test_matrix.cpp
+    └── test_solver.cpp
 ```
 
 ---
@@ -224,46 +302,135 @@ Axion/
 
 ## 7. Implementation Roadmap
 
-### Phase 1 — MVP (Weeks 1–6)
+### Phase 1 — MVP (Weeks 1–6) ✅ COMPLETE
 
 - [x] Project setup (CMake, directory structure)
-- [ ] Arena allocator
-- [ ] AST definition
-- [ ] Lexer
-- [ ] Parser (Pratt)
-- [ ] Pretty printer
-- [ ] Basic simplification (identity rules, constant folding, flattening)
-- [ ] Numeric evaluation
-- [ ] REPL with readline
+- [x] Arena allocator
+- [x] AST definition
+- [x] Lexer
+- [x] Parser (Pratt)
+- [x] Pretty printer
+- [x] Basic simplification (identity rules, constant folding, flattening)
+- [x] Numeric evaluation
+- [x] REPL with readline
 
 **Deliverable:** User types `2*x + 3*x`, gets `5*x`.
 
-### Phase 2 — Calculus (Weeks 7–10)
+### Phase 2 — Calculus (Weeks 7–10) ✅ COMPLETE
 
-- [ ] Symbolic differentiation
-- [ ] Chain rule, product rule
-- [ ] Trigonometric derivatives
-- [ ] Post-differentiation simplification
+- [x] Symbolic differentiation
+- [x] Chain rule, product rule
+- [x] Trigonometric derivatives
+- [x] Post-differentiation simplification
 
 **Deliverable:** `diff(sin(x^2), x)` → `2*x*cos(x^2)`
 
-### Phase 3 — Algebra (Weeks 11–16)
+### Phase 3 — Algebra (Weeks 11–16) ✅ COMPLETE
 
-- [ ] Polynomial representation
-- [ ] Expand: `(x+1)^3`
-- [ ] Collect terms
-- [ ] Canonical form improvements
-- [ ] Like-term combination for multivariate expressions
+- [x] Polynomial representation
+- [x] Expand: `(x+1)^3`
+- [x] Collect terms
+- [x] Canonical form improvements
+- [x] Like-term combination for multivariate expressions
+- [x] Replace GNU Readline with linenoise (copy from NordDB/third_party/linenoise)
+  - Removes `libreadline-dev` dependency
+  - Supports line editing, history, multi-line input
+  - Bundled as `third_party/linenoise/` (linenoise.c, linenoise.h)
 
-**Deliverable:** `expand((x+1)*(x+2))` → `x^2 + 3*x + 2`
+**Deliverable:** `expand((x+1)*(x+2))` → `2 + x^2 + 3*x` ✅
 
-### Phase 4 — Advanced (Future)
+### Phase 4 — Extended Operators & Relations (Weeks 17–20)
 
-- [ ] Pattern-matching rewrite engine
-- [ ] Basic factorization (GCD-based)
-- [ ] Rational expressions
-- [ ] Equation solving (linear, quadratic)
-- [ ] Limited symbolic integration (table-based)
+- [ ] Relational operators: `=`, `!=`, `<`, `>`, `<=`, `>=`
+- [ ] Assignment/definition operator: `:=`
+- [ ] Approximate equality: `~=`
+- [ ] Factorial operator: `n!`
+- [ ] Absolute value: `|x|` or `abs(x)`
+- [ ] Subscript notation for indexed variables: `a_1`, `x_n`
+- [ ] Arrow notation: `->` (for limits, mappings)
+
+**Deliverable:** `5!` → `120`, `|x|` with x=-3 evaluates to 3, `a_1 + a_2` parsed correctly.
+
+### Phase 5 — Summation & Product (Weeks 21–24)
+
+- [ ] Symbolic summation: `sum(expr, var, lower, upper)`
+- [ ] Symbolic product: `prod(expr, var, lower, upper)`
+- [ ] Evaluate finite sums/products numerically
+- [ ] Known closed-form sums (arithmetic, geometric series)
+- [ ] Summation simplification rules
+
+**Deliverable:** `sum(k, k, 1, 10)` → `55`, `sum(k^2, k, 1, n)` → `n*(n+1)*(2*n+1)/6`
+
+### Phase 6 — Limits (Weeks 25–28)
+
+- [ ] Limit computation: `lim(expr, var, point)`
+- [ ] One-sided limits: `lim(expr, var, point+)`, `lim(expr, var, point-)`
+- [ ] Infinity support: `inf` as a symbolic constant
+- [ ] L'Hôpital's rule for 0/0 and ∞/∞ forms
+- [ ] Basic limit rules (sum, product, quotient of limits)
+
+**Deliverable:** `lim((sin(x))/x, x, 0)` → `1`, `lim((1+1/x)^x, x, inf)` → `e`
+
+### Phase 7 — Symbolic Integration (Weeks 29–34)
+
+- [ ] Table-based integration (power, trig, exp, ln)
+- [ ] Linearity: `∫(a*f + b*g) = a*∫f + b*∫g`
+- [ ] Substitution (basic pattern matching)
+- [ ] Integration by parts (heuristic)
+- [ ] Definite integrals: `integrate(expr, var, a, b)`
+
+**Deliverable:** `integrate(x^2, x)` → `x^3/3`, `integrate(sin(x), x, 0, pi)` → `2`
+
+### Phase 8 — Matrices & Vectors (Weeks 35–40)
+
+- [ ] Matrix literal syntax: `[[1,0],[0,1]]`
+- [ ] Vector syntax: `[a, b, c]`
+- [ ] Matrix operations: addition, scalar multiplication, matrix multiplication
+- [ ] Determinant: `det([[a,b],[c,d]])`
+- [ ] Transpose: `transpose(M)`
+- [ ] Inverse (2×2, 3×3)
+- [ ] Eigenvalues (2×2)
+
+**Deliverable:** `det([[1,2],[3,4]])` → `-2`, `[[1,2],[3,4]] * [x, y]` → `[x+2*y, 3*x+4*y]`
+
+### Phase 9 — Equation Solving (Weeks 41–46)
+
+- [ ] Linear equations: `solve(a*x + b = 0, x)`
+- [ ] Quadratic equations: `solve(a*x^2 + b*x + c = 0, x)`
+- [ ] Systems of linear equations (Gaussian elimination)
+- [ ] Polynomial roots (rational root theorem)
+- [ ] Inequality solving (linear)
+
+**Deliverable:** `solve(x^2 - 5*x + 6 = 0, x)` → `{2, 3}`
+
+### Phase 10 — Pattern Matching & Rewrite Engine (Weeks 47–52)
+
+- [ ] Pattern language: wildcards, typed placeholders
+- [ ] Rule definition: `rule(pattern, replacement)`
+- [ ] User-defined simplification rules
+- [ ] Conditional rules (with guards)
+- [ ] Rule ordering and priority
+
+**Deliverable:** User defines `rule(sin(x)^2 + cos(x)^2, 1)` and it applies automatically.
+
+### Phase 11 — Advanced Calculus (Future)
+
+- [ ] Partial derivatives: `diff(f, x, y)` (mixed partials)
+- [ ] Gradient, divergence, curl (vector calculus)
+- [ ] Taylor/Maclaurin series expansion: `taylor(expr, var, point, order)`
+- [ ] Differential equations (basic separable, first-order linear)
+
+**Deliverable:** `taylor(sin(x), x, 0, 5)` → `x - x^3/6 + x^5/120`
+
+### Phase 12 — Number Theory & Discrete Math (Future)
+
+- [ ] Integer factorization
+- [ ] GCD, LCM
+- [ ] Modular arithmetic
+- [ ] Binomial coefficients: `binom(n, k)`
+- [ ] Combinatorial functions: permutations, combinations
+
+**Deliverable:** `binom(10, 3)` → `120`, `gcd(48, 18)` → `6`
 
 ---
 

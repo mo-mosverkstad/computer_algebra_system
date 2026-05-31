@@ -87,9 +87,15 @@ CoeffTerm extract_coeff(Expr* e) {
         if (e->children.size() == 2) {
             return {c, e->children[1]};
         }
-        // Multiple non-numeric factors: create a MUL of the rest
-        // We'll just return the whole thing with coeff extracted
-        return {c, nullptr}; // handled below
+        // Multiple non-numeric factors: base is a MUL of children[1:]
+        // Reuse the existing node but shift children
+        // We build a fake Expr on the arena would be ideal but we don't have arena here
+        // Instead, modify in place: remove the numeric child, return coeff separately
+        // Safe because simplify owns this tree
+        Expr* base = e;
+        base->children.erase(base->children.begin());
+        if (base->children.size() == 1) return {c, base->children[0]};
+        return {c, base};
     }
     if (e->is_num()) {
         return {e->num, nullptr}; // pure number
@@ -198,6 +204,10 @@ Expr* simplify(Arena& arena, Expr* e) {
         for (auto* f : factors) {
             if (f->is_num()) {
                 num_prod *= f->num;
+            } else if (f->is_neg()) {
+                // Flatten NEG inside MUL: x * (-y) = -(x*y)
+                num_prod *= -1.0;
+                non_num.push_back(f->children[0]);
             } else {
                 non_num.push_back(f);
             }
@@ -205,6 +215,41 @@ Expr* simplify(Arena& arena, Expr* e) {
 
         // x * 0 = 0
         if (num_prod == 0.0) return make_num(arena, 0.0);
+
+        // Collect like bases into powers: x*x -> x^2, x*x^2 -> x^3
+        struct BasePow { Expr* base; double exp; };
+        std::vector<BasePow> collected;
+        for (auto* f : non_num) {
+            Expr* b = f;
+            double e_val = 1.0;
+            if (f->is_pow() && f->children[1]->is_num()) {
+                b = f->children[0];
+                e_val = f->children[1]->num;
+            }
+            std::string k = expr_key(b);
+            bool found = false;
+            for (auto& bp : collected) {
+                if (expr_key(bp.base) == k) {
+                    bp.exp += e_val;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                collected.push_back({b, e_val});
+            }
+        }
+
+        // Rebuild non-numeric factors from collected powers
+        non_num.clear();
+        for (auto& bp : collected) {
+            if (bp.exp == 0.0) continue;
+            if (bp.exp == 1.0) {
+                non_num.push_back(bp.base);
+            } else {
+                non_num.push_back(make_pow(arena, bp.base, make_num(arena, bp.exp)));
+            }
+        }
 
         // Rebuild
         std::vector<Expr*> result;

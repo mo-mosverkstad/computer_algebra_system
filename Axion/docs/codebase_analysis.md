@@ -426,3 +426,145 @@ The simplifier had a rule `NEG(x) → MUL(-1, x)` for canonical form, but no rev
 #### Lesson
 
 Canonical form conversions must be bidirectional or avoided. If you convert A→B, you need B→A or you lose information about the original intent.
+
+---
+
+## Phase 3 — Polynomial Expansion
+
+---
+
+### 12. Polynomial Expansion (`src/modules/polynomial.h`, `src/modules/polynomial.cpp`)
+
+#### Concept
+
+Polynomial expansion takes a factored expression like `(x+1)*(x+2)` and distributes all products to produce a sum of terms: `x^2 + 3x + 2`. This is the inverse of factoring.
+
+#### Algorithm
+
+The expansion works by repeated distribution:
+
+1. For `(a+b)*(c+d)`: multiply every term of the left by every term of the right
+2. For `(expr)^n`: repeatedly multiply the expanded result by a fresh copy of the base
+
+#### ASCII Diagram — Expanding `(x+1)*(x+2)`
+
+```
+    MUL
+   /   \
+ ADD   ADD
+ / \   / \
+x   1 x   2
+
+Distribute:
+  x*x, x*2, 1*x, 1*2
+
+Result:
+  ADD(MUL(x,x), MUL(x,2), MUL(1,x), MUL(1,2))
+
+After simplification:
+  x*x + 3*x + 2
+```
+
+#### Annotated Code
+
+```cpp
+Expr* mul_expand(Arena& arena, Expr* a, Expr* b) {
+    // Collect terms from each side
+    std::vector<Expr*> a_terms = a->is_add() ? a->children : std::vector{a};
+    std::vector<Expr*> b_terms = b->is_add() ? b->children : std::vector{b};
+
+    // Distribute: each term of a * each term of b
+    std::vector<Expr*> result;
+    for (auto* at : a_terms)
+        for (auto* bt : b_terms)
+            result.push_back(make_mul(arena, {at, bt}));
+
+    if (result.size() == 1) return result[0];
+    return make_add(arena, std::move(result));
+}
+```
+
+#### Why It Works
+
+Distribution is the fundamental algebraic identity `a*(b+c) = a*b + a*c` applied recursively. By collecting all terms from both sides and forming every pairwise product, we get the fully expanded form.
+
+---
+
+### 13. Deep Copy for Safe Expansion
+
+#### Symptom
+
+`expand((x+1)^3)` produced `3 + 3x + x³ + x²` (wrong) instead of `1 + 3x + 3x² + x³`.
+
+#### Investigation
+
+The expansion loop `result = mul_expand(result, base)` followed by `simplify(result)` was corrupting the `base` tree because `simplify` modifies children in-place.
+
+#### Root Cause
+
+AST nodes are shared by pointer. When `mul_expand` builds new MUL nodes containing pointers to `base`'s children, and then `simplify` rearranges those children, subsequent iterations see a corrupted base.
+
+#### Fix
+
+Deep-copy the base before each multiplication:
+
+```cpp
+Expr* deep_copy(Arena& arena, const Expr* e) {
+    auto* n = arena.create<Expr>();
+    n->type = e->type; n->num = e->num; n->name = e->name;
+    for (auto* c : e->children)
+        n->children.push_back(deep_copy(arena, c));
+    return n;
+}
+```
+
+#### Lesson
+
+In an arena-allocated AST where "immutability" is by convention, any operation that reuses subtrees must deep-copy them first if any subsequent operation might mutate the tree.
+
+---
+
+### 14. Coefficient Extraction Fix for N-ary MUL
+
+#### Symptom
+
+`expand((x+1)^3)` still produced wrong results after the deep-copy fix.
+
+#### Investigation
+
+After expansion, terms like `MUL(2, x, x)` were being treated as the pure number `2` during like-term combination.
+
+#### Root Cause
+
+`extract_coeff` returned `{2.0, nullptr}` for MUL nodes with 3+ children. The `nullptr` base caused the term to be added to `num_sum` instead of being grouped with other `x*x` terms.
+
+#### Fix
+
+Strip the numeric first child from the MUL and return the remaining children as the base:
+
+```cpp
+if (e->children.size() > 2) {
+    e->children.erase(e->children.begin()); // remove numeric
+    if (e->children.size() == 1) return {c, e->children[0]};
+    return {c, e};  // MUL of remaining factors
+}
+```
+
+#### Lesson
+
+Coefficient extraction must handle all arities of MUL nodes, not just the binary case.
+
+---
+
+### 15. Linenoise Integration
+
+#### Concept
+
+Linenoise is a minimal line-editing library (single C file) that provides readline-like functionality without external dependencies. It supports:
+- Line editing (arrow keys, backspace, delete)
+- Command history (up/down arrows)
+- Multi-line editing
+
+#### Why the Switch
+
+GNU Readline requires `libreadline-dev` as a system dependency. Linenoise is bundled directly in the project (`third_party/linenoise/`), making the build self-contained — only a C/C++ compiler and CMake are needed.

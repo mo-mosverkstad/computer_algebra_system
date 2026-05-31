@@ -115,3 +115,34 @@ All 22 Phase 1 tests: ✅ Pass (no regressions)
    - Root cause: canonical ordering sorts numbers before symbols (correct behavior)
    - Fix: Updated test expectation to match canonical output
    - Not a bug — correct behavior
+
+---
+
+## Phase 3 — Algebra
+
+### Regression Test
+
+All 34 Phase 1+2 tests: ✅ Pass (no regressions)
+
+### New Polynomial Tests (6/6 passed)
+
+| Test | Input | Verification | Verdict |
+|------|-------|-------------|---------|
+| ExpandSimpleProduct | `(x+1)*(x+2)` | eval at x=5 → 42 | ✅ Pass |
+| ExpandSquare | `(x+1)^2` | eval at x=3 → 16 | ✅ Pass |
+| ExpandCube | `(x+1)^3` | eval at x=2 → 27 | ✅ Pass |
+| ExpandDiffOfSquares | `(x+1)*(x-1)` | eval at x=4 → 15 | ✅ Pass |
+| ExpandMultivar | `(x+y)*(x-y)` | eval at x=3,y=2 → 5 | ✅ Pass |
+| NoExpansionNeeded | `x^2 + 1` | output = `1 + x^2` | ✅ Pass |
+
+### Issues Found
+
+1. **`(x+1)^3` gave wrong numeric result (21 instead of 27)**
+   - Root cause: `expand` reused same base pointer; `simplify` mutated shared nodes
+   - Fix: deep-copy base before each multiplication
+   - Lesson: immutable AST requires explicit copying when reusing subtrees
+
+2. **`MUL(2, x, x)` lost during like-term combination**
+   - Root cause: `extract_coeff` returned nullptr base for 3+ child MUL nodes
+   - Fix: strip numeric child and return remaining MUL as base
+   - Lesson: coefficient extraction must handle all MUL arities
