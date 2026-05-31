@@ -342,14 +342,24 @@ Axion/
 ### Phase 4 — Extended Operators & Relations (Weeks 17–20)
 
 - [ ] Relational operators: `=`, `!=`, `<`, `>`, `<=`, `>=`
-- [ ] Assignment/definition operator: `:=`
-- [ ] Approximate equality: `~=`
+- [ ] Assignment operator: `:=` (session variable binding)
+- [ ] User-defined functions: `f(x) := x^2`
 - [ ] Factorial operator: `n!`
-- [ ] Absolute value: `|x|` or `abs(x)`
-- [ ] Subscript notation for indexed variables: `a_1`, `x_n`
-- [ ] Arrow notation: `->` (for limits, mappings)
+- [ ] Absolute value: `abs(x)`
+- [ ] Subscript identifiers: `x_1`, `x_(12)`
+- [ ] Mathematical constants: `pi`, `e` (symbolic, evaluate with `approx`)
+- [ ] Previous result: `%` refers to last output
+- [ ] Numeric approximation: `approx(expr)` or `approx(expr, digits)`
+- [ ] Rational arithmetic: `1/3` stays exact (not 0.333...)
+- [ ] Short aliases: `int` for `integrate`, `simp` for `simplify`
 
-**Deliverable:** `5!` → `120`, `|x|` with x=-3 evaluates to 3, `a_1 + a_2` parsed correctly.
+**Syntax decisions locked:**
+- `=` means equality/equation; `:=` means assignment
+- `diff(f, x, 2)` for 2nd derivative; `diff(f, [x, y])` for mixed partials
+- `lim(f, x, 0, right)` / `lim(f, x, 0, left)` for one-sided limits
+- `x_1` and `x_(12)` are single identifier names
+
+**Deliverable:** `5!` → `120`, `a := 3` then `a + 1` → `4`, `approx(pi)` → `3.14159265358979`, `1/3 + 1/6` → `1/2`
 
 ### Phase 5 — Summation & Product (Weeks 21–24)
 
@@ -358,40 +368,45 @@ Axion/
 - [ ] Evaluate finite sums/products numerically
 - [ ] Known closed-form sums (arithmetic, geometric series)
 - [ ] Summation simplification rules
+- [ ] `collect(expr, var)` — group terms by powers of a variable
 
-**Deliverable:** `sum(k, k, 1, 10)` → `55`, `sum(k^2, k, 1, n)` → `n*(n+1)*(2*n+1)/6`
+**Deliverable:** `sum(k, k, 1, 10)` → `55`, `collect(x^2 + 2*x*y + x, x)` → `x^2 + x*(1 + 2*y)`
 
 ### Phase 6 — Limits (Weeks 25–28)
 
 - [ ] Limit computation: `lim(expr, var, point)`
-- [ ] One-sided limits: `lim(expr, var, point+)`, `lim(expr, var, point-)`
+- [ ] One-sided limits: `lim(expr, var, point, right)`, `lim(expr, var, point, left)`
 - [ ] Infinity support: `inf` as a symbolic constant
 - [ ] L'Hôpital's rule for 0/0 and ∞/∞ forms
 - [ ] Basic limit rules (sum, product, quotient of limits)
+- [ ] Complex number support: `i` as imaginary unit, `2 + 3*i`
 
-**Deliverable:** `lim((sin(x))/x, x, 0)` → `1`, `lim((1+1/x)^x, x, inf)` → `e`
+**Deliverable:** `lim(sin(x)/x, x, 0)` → `1`, `lim(1/x, x, 0, right)` → `inf`
 
 ### Phase 7 — Symbolic Integration (Weeks 29–34)
 
 - [ ] Table-based integration (power, trig, exp, ln)
-- [ ] Linearity: `∫(a*f + b*g) = a*∫f + b*∫g`
+- [ ] Linearity: `int(a*f + b*g) = a*int(f) + b*int(g)`
 - [ ] Substitution (basic pattern matching)
 - [ ] Integration by parts (heuristic)
-- [ ] Definite integrals: `integrate(expr, var, a, b)`
+- [ ] Definite integrals: `integrate(expr, var, a, b)` / `int(expr, var, a, b)`
+- [ ] Partial fraction decomposition: `apart(expr, var)`
 
-**Deliverable:** `integrate(x^2, x)` → `x^3/3`, `integrate(sin(x), x, 0, pi)` → `2`
+**Deliverable:** `int(x^2, x)` → `x^3/3`, `int(sin(x), x, 0, pi)` → `2`
 
 ### Phase 8 — Matrices & Vectors (Weeks 35–40)
 
 - [ ] Matrix literal syntax: `[[1,0],[0,1]]`
 - [ ] Vector syntax: `[a, b, c]`
 - [ ] Matrix operations: addition, scalar multiplication, matrix multiplication
+- [ ] Dot product: `dot([a,b,c], [d,e,f])`
+- [ ] Cross product: `cross([a,b,c], [d,e,f])`
 - [ ] Determinant: `det([[a,b],[c,d]])`
 - [ ] Transpose: `transpose(M)`
 - [ ] Inverse (2×2, 3×3)
 - [ ] Eigenvalues (2×2)
 
-**Deliverable:** `det([[1,2],[3,4]])` → `-2`, `[[1,2],[3,4]] * [x, y]` → `[x+2*y, 3*x+4*y]`
+**Deliverable:** `det([[1,2],[3,4]])` → `-2`, `dot([1,2,3],[4,5,6])` → `32`
 
 ### Phase 9 — Equation Solving (Weeks 41–46)
 
@@ -400,8 +415,9 @@ Axion/
 - [ ] Systems of linear equations (Gaussian elimination)
 - [ ] Polynomial roots (rational root theorem)
 - [ ] Inequality solving (linear)
+- [ ] `factor(expr)` — polynomial factorization
 
-**Deliverable:** `solve(x^2 - 5*x + 6 = 0, x)` → `{2, 3}`
+**Deliverable:** `solve(x^2 - 5*x + 6 = 0, x)` → `{2, 3}`, `factor(x^2 - 1)` → `(x - 1)*(x + 1)`
 
 ### Phase 10 — Pattern Matching & Rewrite Engine (Weeks 47–52)
 
@@ -410,17 +426,23 @@ Axion/
 - [ ] User-defined simplification rules
 - [ ] Conditional rules (with guards)
 - [ ] Rule ordering and priority
+- [ ] Configurable Pratt parser: data-driven precedence table and handler registration
+  - Users can define custom operators at runtime
+  - Keeps O(n) performance of Pratt parsing
+  - No PEG overhead or backtracking
 
 **Deliverable:** User defines `rule(sin(x)^2 + cos(x)^2, 1)` and it applies automatically.
 
 ### Phase 11 — Advanced Calculus (Future)
 
-- [ ] Partial derivatives: `diff(f, x, y)` (mixed partials)
+- [ ] Partial derivatives: `diff(f, [x, y])` (mixed partials)
+- [ ] Higher-order: `diff(f, x, 2)` for d²f/dx²
 - [ ] Gradient, divergence, curl (vector calculus)
 - [ ] Taylor/Maclaurin series expansion: `taylor(expr, var, point, order)`
+- [ ] Trigonometric simplification: `trigsimp(expr)`
 - [ ] Differential equations (basic separable, first-order linear)
 
-**Deliverable:** `taylor(sin(x), x, 0, 5)` → `x - x^3/6 + x^5/120`
+**Deliverable:** `taylor(sin(x), x, 0, 5)` → `x - x^3/6 + x^5/120`, `diff(x^2*y, x, 2)` → `2*y`
 
 ### Phase 12 — Number Theory & Discrete Math (Future)
 
