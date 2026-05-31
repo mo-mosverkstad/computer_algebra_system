@@ -2505,3 +2505,413 @@ The differentiation engine (`calculus.cpp`) has NO knowledge of `cot`. It:
 5. Returns `MUL(-sin(x^2)^-2, 2*x)` → simplifies to `-2*x*sin(x^2)^-2`
 
 Zero lines of algorithmic code were touched. The mathematical knowledge is pure data.
+
+
+---
+
+# Appendix A — Full Architecture Layout
+
+---
+
+## A.1 System Overview
+
+Axion is a **hybrid rule-engine / algorithmic CAS**. Mathematical knowledge is stored as
+data (rule tables), while structural algorithms handle the recursive/iterative work that
+cannot be expressed as flat pattern→replacement rules.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              USER                                        │
+│                         (types expression)                               │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │ input string
+┌───────────────────────────────▼─────────────────────────────────────────┐
+│                           REPL (main.cpp)                                │
+│                                                                          │
+│  • Linenoise line editing & history                                      │
+│  • Command dispatch (diff, expand, solve, int, lim, ...)                 │
+│  • Session state (variables, user functions, user rules)                  │
+│  • Calls simplify_smart() for default output                             │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │ raw string
+┌───────────────────────────────▼─────────────────────────────────────────┐
+│                     FRONTEND (lexer.cpp, parser.cpp)                      │
+│                                                                          │
+│  Lexer: string → tokens (NUMBER, SYMBOL, operators, brackets)            │
+│  Parser: tokens → AST (Pratt parser, precedence-based)                   │
+│                                                                          │
+│  Handles: +,-,*,/,^,!,:=,=,!=,<,>,<=,>=,[,],subscripts,multi-arg funcs  │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │ Expr* (AST)
+┌───────────────────────────────▼─────────────────────────────────────────┐
+│                        CORE (ast.cpp, arena.cpp)                         │
+│                                                                          │
+│  Expr node: {type, num/den, name, children[]}                            │
+│  Types: NUM, SYM, ADD, MUL, POW, FUNC, NEG, FACTORIAL, REL              │
+│  Arena allocator: 64KB blocks, bump allocation, bulk free                │
+│  Factory functions: make_num, make_sym, make_add, make_mul, ...          │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+            ┌───────────────────┼───────────────────┐
+            ▼                   ▼                   ▼
+┌───────────────────┐ ┌─────────────────┐ ┌─────────────────────────────┐
+│  SIMPLIFY ENGINE  │ │  REWRITE ENGINE │ │      RULE DATABASE          │
+│  (simplify.cpp)   │ │  (rewrite.cpp)  │ │      (rules.cpp)            │
+│                   │ │                 │ │                             │
+│ ALGORITHMIC:      │ │ PATTERN-BASED:  │ │ DATA TABLES:               │
+│ • Flatten ADD/MUL │ │ • Wildcards     │ │ • Identity rules           │
+│ • Canonical sort  │ │ • Typed: __num  │ │ • Diff rules (func→deriv)  │
+│ • Constant fold   │ │ • Context: const│ │ • Int rules (func→antider) │
+│ • Like-term combo │ │ • Rest-matching │ │ • FuncEval (f(n)→value)    │
+│ • Like-base power │ │ • Commutative   │ │ • FuncSym (f(sym)→value)   │
+│ • Table lookup    │ │ • Recursive app │ │ • Recognizers (backward)   │
+│   (func_eval,     │ │ • apply_rules() │ │                             │
+│    func_sym)      │ │                 │ │ LOADED FROM:               │
+│                   │ │                 │ │ • Hardcoded in init_rules() │
+│ TWO TIERS:        │ │                 │ │ • External .rules files     │
+│ simplify() = fast │ │                 │ │                             │
+│ simplify_full()   │ │                 │ │ RECOGNITION FUNCTIONS:     │
+│   = fast + rules  │ │                 │ │ • Perfect square (n=2)     │
+│ simplify_smart()  │ │                 │ │ • Perfect cube (n=3)       │
+│   = full + recog  │ │                 │ │ • Common factor            │
+└───────────────────┘ └─────────────────┘ └─────────────────────────────┘
+            │                   │                   │
+            └───────────────────┼───────────────────┘
+                                │ used by
+┌───────────────────────────────▼─────────────────────────────────────────┐
+│                        DOMAIN MODULES                                    │
+│                                                                          │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐   │
+│  │  calculus    │ │ integration  │ │   solver     │ │   matrix     │   │
+│  │             │ │              │ │              │ │              │   │
+│  │ ALGORITHMIC:│ │ ALGORITHMIC: │ │ ALGORITHMIC: │ │ ALGORITHMIC: │   │
+│  │ • Sum rule  │ │ • Linearity  │ │ • Linear     │ │ • Add/Mul    │   │
+│  │ • Product   │ │ • Const pull │ │ • Quadratic  │ │ • Determinant│   │
+│  │ • Chain rule│ │ • Linear sub │ │ • Rational   │ │ • Transpose  │   │
+│  │ • Power rule│ │              │ │   root thm   │ │ • Inverse    │   │
+│  │             │ │ TABLE LOOKUP:│ │ • Gaussian   │ │ • Dot/Cross  │   │
+│  │ TABLE LOOKUP│ │ • int_rules  │ │   elimination│ │              │   │
+│  │ • diff_rules│ │              │ │ • Inequality │ │              │   │
+│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘   │
+│                                                                          │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐   │
+│  │   series     │ │   limits     │ │  polynomial  │ │ number_theory│   │
+│  │             │ │              │ │              │ │              │   │
+│  │ • Finite sum│ │ • Direct sub │ │ • Expand     │ │ • GCD/LCM    │   │
+│  │ • Finite    │ │ • L'Hôpital  │ │ • Distribute │ │ • Binomial   │   │
+│  │   product   │ │ • Inf limits │ │              │ │ • Factorize  │   │
+│  │ • Collect   │ │              │ │              │ │ • Mod/Powmod │   │
+│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼─────────────────────────────────────────┐
+│                     OUTPUT (printer.cpp, eval.cpp)                        │
+│                                                                          │
+│  Printer: AST → string (minimal parentheses, subtraction display)        │
+│  Evaluator: AST + env → double (numeric computation)                     │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## A.2 Data Flow
+
+### Default expression input
+
+```
+"x^2 + 2*x + 1"
+    │
+    ▼ tokenize()
+[SYM(x), CARET, NUM(2), PLUS, NUM(2), STAR, SYM(x), PLUS, NUM(1)]
+    │
+    ▼ parse()
+ADD(POW(x,2), MUL(2,x), 1)
+    │
+    ▼ substitute() — replace session variables, %
+ADD(POW(x,2), MUL(2,x), 1)
+    │
+    ▼ simplify_smart()
+    │   ├── simplify_full()
+    │   │     ├── simplify() — flatten, sort, combine → ADD(1, x^2, 2*x)
+    │   │     └── apply_rules(identities) — no match
+    │   └── apply_recognizers()
+    │         └── recognize_perfect_square() → POW(ADD(1,x), 2)
+    │
+    ▼ print()
+"(1 + x)^2"
+```
+
+### Differentiation
+
+```
+"diff(sin(x^2), x)"
+    │
+    ▼ parse()
+FUNC("diff", [FUNC("sin", POW(x,2)), SYM(x)])
+    │
+    ▼ REPL dispatches to differentiate()
+    │
+    ▼ differentiate(sin(x^2), "x")
+      │ type = FUNC → chain rule
+      │ lookup "sin" in diff_rules → "cos(_u)"
+      │ subst _u = x^2 → cos(x^2)
+      │ u' = differentiate(x^2, "x") = 2*x
+      │ return MUL(cos(x^2), 2*x)
+    │
+    ▼ simplify_full()
+"2*x*cos(x^2)"
+```
+
+### External rule loading
+
+```
+load("rules/extra.rules")
+    │
+    ▼ load_rules_file()
+      │ reads file line by line
+      │ "tan(_x) * cos(_x) → sin(_x)"
+      │   → parse LHS, simplify pattern
+      │   → parse RHS
+      │   → append to g_rules.identities
+      │
+      │ "@diff sec(_u) → sec(_u) * tan(_u)"
+      │   → extract func name "sec"
+      │   → append {name="sec", deriv="sec(_u)*tan(_u)"} to diff_rules
+    │
+    ▼ "Loaded 3 rules"
+```
+
+---
+
+## A.3 File Map
+
+```
+Axion/
+├── CMakeLists.txt              Build system (C++17, GTest, linenoise)
+├── .gitignore
+│
+├── src/
+│   ├── main.cpp                REPL + command dispatcher (~700 lines)
+│   │
+│   ├── core/
+│   │   ├── arena.h/.cpp        Arena allocator (64KB blocks)
+│   │   └── ast.h/.cpp          Expr node + factory functions
+│   │
+│   ├── frontend/
+│   │   ├── lexer.h/.cpp        Tokenizer (operators, numbers, symbols)
+│   │   └── parser.h/.cpp       Pratt parser (precedence-based)
+│   │
+│   ├── engine/
+│   │   ├── simplify.h/.cpp     Algorithmic simplification (3 tiers)
+│   │   ├── eval.h/.cpp         Numeric evaluation with environment
+│   │   └── rules.h/.cpp        ★ RULE DATABASE + recognizers + file loader
+│   │
+│   ├── modules/
+│   │   ├── calculus.h/.cpp     Symbolic differentiation (recursive)
+│   │   ├── polynomial.h/.cpp   Expand, distribute
+│   │   ├── integration.h/.cpp  Indefinite/definite integration
+│   │   ├── series.h/.cpp       Finite sum/product, collect
+│   │   ├── limits.h/.cpp       Limits (direct sub, L'Hôpital)
+│   │   ├── matrix.h/.cpp       Matrix ops, det, inverse, dot, cross
+│   │   ├── solver.h/.cpp       Equation solving (linear→quartic, systems)
+│   │   ├── rewrite.h/.cpp      Pattern matching engine (wildcards, _rest)
+│   │   └── number_theory.h/.cpp GCD, LCM, binom, factorize, powmod
+│   │
+│   └── output/
+│       └── printer.h/.cpp      AST → string (minimal parens)
+│
+├── rules/
+│   └── extra.rules             Example external rule file
+│
+├── tests/
+│   ├── test_main.cpp           GTest main
+│   ├── test_lexer.cpp          6 tests
+│   ├── test_parser.cpp         8 tests
+│   ├── test_simplify.cpp       11 tests
+│   ├── test_calculus.cpp       12 tests
+│   ├── test_polynomial.cpp     4 tests (eval-based verification)
+│   ├── test_series.cpp         6 tests
+│   └── test_eval.cpp           5 tests
+│   Total: 52 tests
+│
+├── third_party/
+│   └── linenoise/              Bundled line-editing library (C)
+│
+└── docs/
+    ├── study.md                Feasibility study + phase roadmap
+    ├── history.md              Chronological change log
+    ├── codebase_analysis.md    Deep technical reference (this file)
+    ├── test.md                 Test records per phase
+    ├── workflow.md             Development process
+    ├── docs_guide.md           Documentation standards
+    ├── syntax_manual.md        (Related project syntax reference)
+    ├── ideas.md                Original brainstorm
+    ├── environment_setup.md    Build environment setup
+    └── demos/
+        ├── demo.01–12          Per-phase demo records
+        ├── demo.13.meta-rule-engine.md
+        └── demo.14.rule-driven-architecture.md
+```
+
+---
+
+## A.4 The Hybrid Architecture Explained
+
+### Why Hybrid?
+
+A CAS needs two kinds of transformations:
+
+| Kind | Example | Best expressed as |
+|------|---------|-------------------|
+| **Knowledge** | sin(0)=0, d/dx(sin)=cos | Data (rule table) |
+| **Algorithm** | Combine 2x+3x→5x | Code (iterate, group, sum) |
+| **Recognition** | x²+2x+1 = (x+1)² | Code (hypothesis-verify) |
+
+A pure rule-based system (like Mathematica's kernel) is elegant but hard to make
+performant and debuggable. A pure algorithmic system (like early Maxima) is fast
+but rigid — adding new math requires editing code everywhere.
+
+Axion's hybrid approach:
+- **Rules for knowledge** — easy to add, easy to read, easy to extend
+- **Code for algorithms** — fast, debuggable, handles iteration/recursion
+- **Recognizers for backward rules** — hypothesis-verify pattern, registered as data
+
+### The Three Simplification Tiers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ simplify_smart(expr)                                         │
+│   Purpose: User-facing output (REPL default)                 │
+│   Does: simplify_full + recognizers (pick shorter form)      │
+│                                                              │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │ simplify_full(expr)                                  │   │
+│   │   Purpose: Module boundaries, final results          │   │
+│   │   Does: simplify + apply identity rules              │   │
+│   │                                                      │   │
+│   │   ┌─────────────────────────────────────────────┐   │   │
+│   │   │ simplify(expr)                               │   │   │
+│   │   │   Purpose: Internal loops, hot path          │   │   │
+│   │   │   Does: flatten, sort, fold, combine, eval   │   │   │
+│   │   │   Speed: O(n), no pattern matching           │   │   │
+│   │   └─────────────────────────────────────────────┘   │   │
+│   │                                                      │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Rule Database Organization
+
+```
+rules.cpp::init_rules()
+│
+├── Identity Rules (pattern → replacement)
+│   ├── sin(pi/2) → 1
+│   ├── exp(ln(_x)) → _x
+│   ├── sin(_x)^2 + cos(_x)^2 → 1
+│   ├── ln(_x) + ln(_y) → ln(_x*_y)
+│   └── cosh(_x)^2 - sinh(_x)^2 → 1
+│
+├── Differentiation Rules (function → derivative pattern)
+│   ├── sin → cos(_u)
+│   ├── cos → -sin(_u)
+│   ├── exp → exp(_u)
+│   ├── ln → _u^(-1)
+│   ├── sinh → cosh(_u)
+│   ├── cot → -sin(_u)^(-2)
+│   └── ... (14 total)
+│
+├── Integration Rules (function → antiderivative pattern)
+│   ├── sin → -cos(_u)
+│   ├── cos → sin(_u)
+│   ├── exp → exp(_u)
+│   ├── sinh → cosh(_u)
+│   └── ... (6 total)
+│
+├── Function Evaluation (f(numeric) → value)
+│   ├── sin(0) → 0
+│   ├── cos(0) → 1
+│   ├── exp(0) → 1
+│   ├── exp(1) → e (symbol)
+│   ├── sinh(0) → 0
+│   └── ... (9 total)
+│
+├── Function Symbolic Evaluation (f(symbol) → value)
+│   ├── sin(pi) → 0
+│   ├── cos(pi) → -1
+│   ├── ln(e) → 1
+│   └── tan(pi) → 0
+│
+└── Recognition Functions (backward pattern detectors)
+    ├── recognize_perfect_square: a²+2ab+b² → (a+b)²
+    ├── recognize_perfect_cube: a³+3a²b+3ab²+b³ → (a+b)³
+    └── recognize_common_factor: aX+bX → (a+b)X
+```
+
+### How Modules Consume Rules
+
+```
+calculus.cpp::differentiate()
+    │
+    │ encounters FUNC("sinh", x^2)
+    │
+    ▼ get_rules().find_diff("sinh")
+    │ → returns "cosh(_u)"
+    │
+    ▼ subst_u("cosh(_u)", x^2)
+    │ → cosh(x^2)
+    │
+    ▼ multiply by chain rule: u' = 2*x
+    │
+    ▼ return MUL(cosh(x^2), 2*x)
+```
+
+```
+integration.cpp::integrate()
+    │
+    │ encounters FUNC("cos", x)
+    │
+    ▼ get_rules().find_int("cos")
+    │ → returns "sin(_u)"
+    │
+    ▼ subst_u("sin(_u)", x)
+    │ → sin(x)
+    │
+    ▼ return sin(x)
+```
+
+---
+
+## A.5 Extension Points
+
+To add a new mathematical function to Axion:
+
+| What to add | Where | Example |
+|-------------|-------|---------|
+| Differentiation rule | `rules.cpp` diff_rules | `{"atan2", "..."}` |
+| Integration rule | `rules.cpp` int_rules | `{"atan2", "..."}` |
+| Value at 0 | `rules.cpp` func_eval | `{"atan2", 0, 1, 0, 1, ""}` |
+| Value at symbol | `rules.cpp` func_sym | `{"atan2", "pi", ...}` |
+| Identity | `rules.cpp` add_id() | `add_id("atan(tan(_x))", "_x")` |
+| Runtime rule | `rules/extra.rules` | `@diff atan2(_u) → ...` |
+
+**Zero changes needed in:** `simplify.cpp`, `calculus.cpp`, `integration.cpp`, `parser.cpp`, `main.cpp`.
+
+---
+
+## A.6 Performance Characteristics
+
+| Operation | Complexity | Notes |
+|-----------|-----------|-------|
+| Arena allocation | O(1) | Bump pointer |
+| Lexing | O(n) | Single pass, no backtracking |
+| Parsing | O(n) | Pratt parser, single pass |
+| simplify() | O(n log n) | Sort + linear scan for grouping |
+| simplify_full() | O(n × R × I) | R=rules, I=iterations (max 10) |
+| simplify_smart() | O(n × R × I + n) | + one recognizer pass |
+| differentiate() | O(n) | Single recursive pass |
+| Pattern match | O(n × P!) | P=pattern children (permutations for commutative) |
+| Rule file load | O(lines) | One-time cost |
+
+Where n = expression tree size, R = number of identity rules (~10), I = max iterations (10).
