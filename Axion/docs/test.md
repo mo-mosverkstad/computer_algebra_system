@@ -299,3 +299,30 @@ All 52 Phase 1–10 tests: ✅ Pass (no regressions)
 1. **Taylor initially returned `0` for `sin(x)` at x=0**
    - Cause: `substitute` function mutated the tree in place, corrupting the body for subsequent derivatives
    - Fix: use deep-copy lambda before substitution to avoid aliasing
+
+
+---
+
+## Phase 12 — Number Theory & Discrete Math
+
+### Regression Test
+
+All 52 Phase 1–11 tests: ✅ Pass (no regressions)
+
+### Phase 12 Verification
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `gcd(48, 18)` | 6 | 6 | ✅ |
+| `lcm(12, 8)` | 24 | 24 | ✅ |
+| `binom(10, 3)` | 120 | 120 | ✅ |
+| `binom(5, 2)` | 10 | 10 | ✅ |
+| `perm(5, 3)` | 60 | 60 | ✅ |
+| `mod(17, 5)` | 2 | 2 | ✅ |
+| `powmod(2, 10, 1000)` | 24 | 24 | ✅ |
+| `factorize(360)` | 2^3 * 3^2 * 5 | 2^3 * 3^2 * 5 | ✅ |
+| `factorize(97)` | 97 (prime) | 97 | ✅ |
+
+### Issues Found
+
+None.

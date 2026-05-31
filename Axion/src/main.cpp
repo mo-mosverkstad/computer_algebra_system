@@ -24,6 +24,7 @@ extern "C" {
 #include "modules/matrix.h"
 #include "modules/solver.h"
 #include "modules/rewrite.h"
+#include "modules/number_theory.h"
 #include "output/printer.h"
 
 using namespace axion;
@@ -575,6 +576,82 @@ int main() {
                         expr = apply_rules(session.arena, expr, session.rules);
                     session.last_result = expr;
                     std::cout << print(expr) << "\n";
+                    continue;
+                }
+
+                // gcd(a, b), lcm(a, b)
+                if ((fname == "gcd" || fname == "lcm") && e->children.size() == 2) {
+                    Expr* a = simplify(session.arena, e->children[0]);
+                    Expr* b = simplify(session.arena, e->children[1]);
+                    if (a->is_num() && a->den == 1 && b->is_num() && b->den == 1) {
+                        int64_t result = (fname == "gcd") ? gcd_val(a->num, b->num) : lcm_val(a->num, b->num);
+                        session.last_result = make_num(session.arena, result);
+                        std::cout << result << "\n";
+                    } else { std::cout << "Error: gcd/lcm require integers\n"; }
+                    continue;
+                }
+
+                // binom(n, k)
+                if (fname == "binom" && e->children.size() == 2) {
+                    Expr* n = simplify(session.arena, e->children[0]);
+                    Expr* k = simplify(session.arena, e->children[1]);
+                    if (n->is_num() && n->den == 1 && k->is_num() && k->den == 1) {
+                        int64_t result = binom_val(n->num, k->num);
+                        session.last_result = make_num(session.arena, result);
+                        std::cout << result << "\n";
+                    } else { std::cout << "Error: binom requires integers\n"; }
+                    continue;
+                }
+
+                // perm(n, k) — permutations
+                if (fname == "perm" && e->children.size() == 2) {
+                    Expr* n = simplify(session.arena, e->children[0]);
+                    Expr* k = simplify(session.arena, e->children[1]);
+                    if (n->is_num() && n->den == 1 && k->is_num() && k->den == 1) {
+                        int64_t result = perm_val(n->num, k->num);
+                        session.last_result = make_num(session.arena, result);
+                        std::cout << result << "\n";
+                    } else { std::cout << "Error: perm requires integers\n"; }
+                    continue;
+                }
+
+                // mod(a, m)
+                if (fname == "mod" && e->children.size() == 2) {
+                    Expr* a = simplify(session.arena, e->children[0]);
+                    Expr* m = simplify(session.arena, e->children[1]);
+                    if (a->is_num() && a->den == 1 && m->is_num() && m->den == 1) {
+                        int64_t result = mod_val(a->num, m->num);
+                        session.last_result = make_num(session.arena, result);
+                        std::cout << result << "\n";
+                    } else { std::cout << "Error: mod requires integers\n"; }
+                    continue;
+                }
+
+                // powmod(base, exp, mod)
+                if (fname == "powmod" && e->children.size() == 3) {
+                    Expr* b = simplify(session.arena, e->children[0]);
+                    Expr* ex = simplify(session.arena, e->children[1]);
+                    Expr* m = simplify(session.arena, e->children[2]);
+                    if (b->is_num() && b->den == 1 && ex->is_num() && ex->den == 1 && m->is_num() && m->den == 1) {
+                        int64_t result = powmod_val(b->num, ex->num, m->num);
+                        session.last_result = make_num(session.arena, result);
+                        std::cout << result << "\n";
+                    } else { std::cout << "Error: powmod requires integers\n"; }
+                    continue;
+                }
+
+                // factorize(n) — prime factorization
+                if (fname == "factorize" && e->children.size() == 1) {
+                    Expr* n = simplify(session.arena, e->children[0]);
+                    if (n->is_num() && n->den == 1 && n->num > 1) {
+                        auto factors = prime_factorize(n->num);
+                        for (size_t i = 0; i < factors.size(); ++i) {
+                            if (i > 0) std::cout << " * ";
+                            std::cout << factors[i].first;
+                            if (factors[i].second > 1) std::cout << "^" << factors[i].second;
+                        }
+                        std::cout << "\n";
+                    } else { std::cout << "Error: factorize requires integer > 1\n"; }
                     continue;
                 }
 

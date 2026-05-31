@@ -444,15 +444,155 @@ Axion/
 
 **Deliverable:** `taylor(sin(x), x, 0, 5)` → `x + (-1/6)*x^3 + (1/120)*x^5`, `grad(x^2+y^2+z^2, x, y, z)` → `[2*x, 2*y, 2*z]` ✅
 
-### Phase 12 — Number Theory & Discrete Math (Future)
+### Phase 12 — Number Theory & Discrete Math ✅ COMPLETE
 
-- [ ] Integer factorization
-- [ ] GCD, LCM
-- [ ] Modular arithmetic
-- [ ] Binomial coefficients: `binom(n, k)`
-- [ ] Combinatorial functions: permutations, combinations
+- [x] Integer factorization: `factorize(360)` → `2^3 * 3^2 * 5`
+- [x] GCD, LCM: `gcd(48, 18)` → `6`, `lcm(12, 8)` → `24`
+- [x] Modular arithmetic: `mod(17, 5)` → `2`, `powmod(2, 10, 1000)` → `24`
+- [x] Binomial coefficients: `binom(10, 3)` → `120`
+- [x] Combinatorial functions: `perm(5, 3)` → `60`
 
-**Deliverable:** `binom(10, 3)` → `120`, `gcd(48, 18)` → `6`
+**Deliverable:** `binom(10, 3)` → `120`, `gcd(48, 18)` → `6`, `factorize(360)` → `2^3 * 3^2 * 5` ✅
+
+---
+
+### Phase 13 — Meta-Rule Engine & Bidirectional Rewriting (Future)
+
+This phase addresses the fundamental limitation of simple pattern→replacement rules:
+some mathematical transformations are **bidirectional**, **context-dependent**, or
+require **non-trivial recognition**.
+
+#### The Problem: Bidirectional Rules
+
+The binomial theorem works in BOTH directions:
+
+```
+Forward (expand):   (a + b)^n  →  Σ binom(n,k) * a^k * b^(n-k)
+Backward (factor):  a^2 + 2*a*b + b^2  →  (a + b)^2
+```
+
+The forward direction is straightforward expansion. The backward direction requires
+**recognizing** that a sum of terms happens to match the binomial pattern — this is
+pattern recognition on a variable-length sum where terms may be in any order.
+
+#### Other Bidirectional Examples
+
+| Forward | Backward | Difficulty |
+|---------|----------|-----------|
+| `(a+b)^2 → a²+2ab+b²` | `a²+2ab+b² → (a+b)^2` | Must recognize coefficients match binomial |
+| `sin(a+b) → sin(a)cos(b)+cos(a)sin(b)` | Reverse: recognize sum-product pattern | Must match across multiple terms |
+| `ln(a*b) → ln(a)+ln(b)` | `ln(a)+ln(b) → ln(a*b)` | Easy forward, backward needs grouping |
+| `a*(b+c) → a*b+a*c` | `a*b+a*c → a*(b+c)` | Backward = factoring common terms |
+
+#### Why Simple Rewrite Rules Can't Handle This
+
+1. **Variable-length matching:** `a²+2ab+b²` has 3 terms, but `(a+b)^3` expansion has 4 terms. The pattern length depends on the exponent.
+
+2. **Coefficient verification:** To recognize `x²+6x+9` as `(x+3)²`, you must verify that `6 = 2*1*3` and `9 = 3²`. This is arithmetic, not pattern matching.
+
+3. **Ambiguity:** `x²+5x+6` could be `(x+2)(x+3)` but NOT `(x+a)²` for any `a`. The system must try multiple factoring strategies.
+
+4. **Direction choice:** Given `a²+2ab+b²`, should the system factor it? Only if the user asks (or if it leads to simplification). Automatic bidirectional rewriting can loop.
+
+#### Proposed Implementation Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│  Layer 1: Simple Rewrite Rules (current)        │
+│  Pattern → Replacement (unidirectional)         │
+│  sin(0) → 0, exp(ln(x)) → x                   │
+└─────────────────────────────────────────────────┘
+         │
+┌─────────────────────────────────────────────────┐
+│  Layer 2: Structural Meta-Rules                 │
+│  Recursive patterns with typed wildcards        │
+│  diff(_f + _g) → diff(_f) + diff(_g)           │
+│  Requires: rest-matching, recursion markers     │
+└─────────────────────────────────────────────────┘
+         │
+┌─────────────────────────────────────────────────┐
+│  Layer 3: Recognition Rules (backward)          │
+│  Algorithmic pattern detectors                  │
+│  "Does this sum match a binomial expansion?"    │
+│  "Can these terms be factored?"                 │
+│  Requires: hypothesis testing, verification     │
+└─────────────────────────────────────────────────┘
+         │
+┌─────────────────────────────────────────────────┐
+│  Layer 4: Strategy Engine                       │
+│  Decides WHEN to apply which direction          │
+│  "User asked to factor" → try Layer 3           │
+│  "User asked to expand" → try Layer 1 forward   │
+│  "Simplify" → try both, pick shorter result     │
+└─────────────────────────────────────────────────┘
+```
+
+#### Layer 3: How Recognition Rules Would Work
+
+Unlike simple pattern matching (which walks one tree), recognition requires **hypothesis generation and verification**:
+
+```
+recognize_binomial_square(expr):
+  1. Check: is expr an ADD with 3 terms?
+  2. Find the two "square" terms: a² and b²
+     - For each term, check if it's X^2 for some X
+  3. Extract a and b from the squares
+  4. Verify: does the remaining term equal 2*a*b?
+  5. If yes: return (a + b)^2
+  6. If no: try (a - b)^2 (check if remaining = -2*a*b)
+```
+
+This is NOT pattern matching — it's a **verification algorithm**. Each recognition rule is a small function that:
+- Generates a hypothesis ("maybe this is (a+b)²")
+- Extracts parameters (a, b)
+- Verifies the hypothesis (check middle term = 2ab)
+
+#### Layer 4: The Strategy Problem
+
+The hardest part: **when** to apply which direction.
+
+```
+Input: x^2 + 2*x + 1
+
+Without context:
+  - Could stay as-is (already simplified)
+  - Could factor to (x+1)^2
+  - Both are valid "simplified" forms
+
+With context:
+  - "factor(...)" → try backward rules → (x+1)^2
+  - "expand(...)" → try forward rules → stays as-is
+  - "simplify(...)" → pick shorter? pick canonical? user preference?
+```
+
+**Proposed solution:** Rules are tagged with a **direction**:
+
+```cpp
+struct MetaRule {
+    std::string name;
+    Direction direction;  // FORWARD, BACKWARD, BOTH
+    // FORWARD: applied during expand()
+    // BACKWARD: applied during factor()/collect()
+    // BOTH: applied during simplify() if result is "simpler"
+};
+```
+
+#### Implementation Roadmap for Phase 13
+
+- [ ] Typed wildcards: `_n:num`, `_c:const(var)`, `_f:expr`
+- [ ] Rest-matching: `_...` matches remaining children in ADD/MUL
+- [ ] Recursive markers: `diff(_f)` in replacement triggers recursion
+- [ ] Recognition functions: register C++ functions as "backward rules"
+- [ ] Binomial recognition: detect `(a+b)^n` patterns in expanded sums
+- [ ] Common-factor recognition: detect `a*X + b*X` → `(a+b)*X`
+- [ ] Strategy engine: direction tags, "simplify = try both, pick shorter"
+- [ ] User-definable bidirectional rules
+
+**Estimated effort:** 4–8 weeks (research-level complexity)
+
+**Key insight:** This is where a CAS transitions from "collection of algorithms" to
+"intelligent mathematical reasoning." Most open-source CAS (Maxima, SymPy) solve this
+with hundreds of hand-written heuristics. A clean data-driven approach would be novel.
 
 ---
 

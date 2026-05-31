@@ -277,13 +277,16 @@ Expr* simplify(Arena& arena, Expr* e) {
         if (exp->is_num()) {
             if (exp->num == 0) return make_num(arena, 1);
             if (exp->num == 1 && exp->den == 1) return base;
-            if (base->is_num() && exp->den == 1 && exp->num > 0 && exp->num <= 20) {
+            if (base->is_num() && exp->den == 1 && exp->num > 0 && exp->num <= 62) {
                 int64_t rn = 1, rd = 1;
+                bool overflow = false;
                 for (int64_t i = 0; i < exp->num; ++i) {
+                    // Check overflow before multiply
+                    if (base->num != 0 && std::abs(rn) > 4e18 / std::abs(base->num)) { overflow = true; break; }
                     rn *= base->num; rd *= base->den;
                     reduce_fraction(rn, rd);
                 }
-                return make_num(arena, rn, rd);
+                if (!overflow) return make_num(arena, rn, rd);
             }
             if (base->is_num() && exp->den == 1 && exp->num < 0 && exp->num >= -20) {
                 int64_t rn = 1, rd = 1;

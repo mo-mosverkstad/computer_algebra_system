@@ -1960,3 +1960,133 @@ iteration over children, or arithmetic on the tree structure, it belongs in code
 | Add a new identity | `rules.cpp` add_id() | `add_id("cosh(0)", "1")` |
 | Add a new trig identity | `rules.cpp` add_id() | `add_id("1 + tan(_x)^2", "sec(_x)^2")` |
 | Add a new structural rule | Module .cpp file | (rare — only if math itself changes) |
+
+
+---
+
+## Phase 12 — Number Theory & Discrete Math
+
+---
+
+### 49. Number Theory Module (`src/modules/number_theory.h`, `src/modules/number_theory.cpp`)
+
+#### What This Module Provides
+
+Pure integer arithmetic functions for number theory and combinatorics.
+All functions operate on `int64_t` — no symbolic expressions, just numbers.
+
+#### File Structure
+
+```
+number_theory.h  — function declarations (7 functions)
+number_theory.cpp — implementations (~60 lines total)
+```
+
+---
+
+### 50. GCD and LCM
+
+#### Implementation
+
+GCD uses the Euclidean algorithm (already in `ast.cpp` as `gcd_val`):
+```cpp
+int64_t gcd_val(int64_t a, int64_t b) {
+    a = std::abs(a); b = std::abs(b);
+    while (b) { a %= b; std::swap(a, b); }
+    return a;
+}
+```
+
+LCM uses the identity `lcm(a,b) = |a*b| / gcd(a,b)`:
+```cpp
+int64_t lcm_val(int64_t a, int64_t b) {
+    return std::abs(a / gcd_val(a, b) * b);  // divide first to avoid overflow
+}
+```
+
+---
+
+### 51. Binomial Coefficient
+
+#### Why Not Use Factorials Directly
+
+`binom(10,3) = 10!/(3!*7!) = 3628800/(6*5040) = 120`
+
+But computing `10!` then dividing risks overflow for large n.
+Instead, use iterative multiplication with early division:
+
+```cpp
+int64_t binom_val(int64_t n, int64_t k) {
+    if (k > n - k) k = n - k;  // binom(10,7) = binom(10,3)
+    int64_t r = 1;
+    for (int64_t i = 0; i < k; ++i)
+        r = r * (n - i) / (i + 1);  // always divides evenly
+    return r;
+}
+```
+
+The division `r * (n-i) / (i+1)` always produces an integer because the
+partial product of k consecutive integers is always divisible by k!.
+
+---
+
+### 52. Prime Factorization
+
+#### Algorithm: Trial Division
+
+```cpp
+std::vector<std::pair<int64_t, int64_t>> prime_factorize(int64_t n) {
+    std::vector<std::pair<int64_t, int64_t>> factors;
+    for (int64_t d = 2; d * d <= n; ++d) {  // only check up to √n
+        if (n % d == 0) {
+            int64_t count = 0;
+            while (n % d == 0) { n /= d; ++count; }  // divide out all copies
+            factors.push_back({d, count});
+        }
+    }
+    if (n > 1) factors.push_back({n, 1});  // remaining prime factor
+    return factors;
+}
+```
+
+**Why trial division is sufficient:** For `int64_t` (max ~9.2×10^18), the largest
+prime factor we need to trial-divide up to is √(9.2×10^18) ≈ 3×10^9. This takes
+at most ~3 billion iterations in the worst case (for a large prime), but in practice
+most numbers factor quickly.
+
+**Output format:** `factorize(360)` prints `2^3 * 3^2 * 5` — human-readable.
+
+---
+
+### 53. Modular Exponentiation
+
+#### Algorithm: Binary (Square-and-Multiply)
+
+Computing `2^10 mod 1000` naively would compute `2^10 = 1024` then mod.
+For large exponents (e.g. `powmod(2, 1000000, 97)`), this overflows.
+
+Binary exponentiation keeps numbers small by reducing mod at each step:
+
+```cpp
+int64_t powmod_val(int64_t base, int64_t exp, int64_t mod) {
+    int64_t result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1)           // if current bit is 1
+            result = (result * base) % mod;  // multiply and reduce
+        exp /= 2;                   // shift to next bit
+        base = (base * base) % mod; // square and reduce
+    }
+    return result;
+}
+```
+
+**Time complexity:** O(log exp) — only ~20 multiplications for exp=10^6.
+
+---
+
+### 54. REPL Integration
+
+All number theory functions are dispatched in main.cpp by function name.
+They extract integer arguments, call the pure function, and print the result.
+No symbolic manipulation needed — these are purely computational.

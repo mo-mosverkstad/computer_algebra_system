@@ -15,6 +15,7 @@ const std::unordered_set<std::string> KNOWN_FUNCS = {
     "det", "transpose", "dot", "cross", "simp",
     "inverse", "inv", "rule", "rules", "taylor", "trigsimp", "tsimp",
     "grad", "div", "curl",
+    "perm", "mod", "powmod", "factorize",
 };
 
 class Parser {

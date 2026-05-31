@@ -29,6 +29,7 @@ set(AXION_SOURCES
     src/modules/matrix.cpp
     src/modules/solver.cpp
     src/modules/rewrite.cpp
+    src/modules/number_theory.cpp
     src/output/printer.cpp
 )
 

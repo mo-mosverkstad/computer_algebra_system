@@ -466,3 +466,42 @@ grad(x^2 + y^2 + z^2, x, y, z)  → [2*x, 2*y, 2*z]
 div([x^2, y^2, z^2], x, y, z)   → 2*x + 2*y + 2*z
 curl([y, -x, 0], x, y, z)        → [0, 0, -2]
 ```
+
+
+---
+
+## Phase 12 — Number Theory & Discrete Math (2026-05-31)
+
+### Added
+
+- **Number theory module** (`src/modules/number_theory.h/.cpp`)
+  - `gcd_val`, `lcm_val` — greatest common divisor, least common multiple
+  - `binom_val(n, k)` — binomial coefficient (overflow-safe iterative)
+  - `perm_val(n, k)` — permutations P(n,k)
+  - `factorial_int(n)` — factorial
+  - `prime_factorize(n)` — trial division, returns (prime, exponent) pairs
+  - `mod_val(a, m)` — modular reduction (always non-negative)
+  - `powmod_val(base, exp, mod)` — modular exponentiation (binary method)
+
+- **REPL commands**
+  - `gcd(a, b)`, `lcm(a, b)`
+  - `binom(n, k)`, `perm(n, k)`
+  - `mod(a, m)`, `powmod(base, exp, mod)`
+  - `factorize(n)` — displays prime factorization
+
+### Key Results
+
+```
+gcd(48, 18)          → 6
+lcm(12, 8)           → 24
+binom(10, 3)         → 120
+perm(5, 3)           → 60
+mod(17, 5)           → 2
+powmod(2, 10, 1000)  → 24
+factorize(360)       → 2^3 * 3^2 * 5
+factorize(97)        → 97 (prime)
+```
+
+### Regression
+
+All 52 previous tests: ✅ Pass
