@@ -89,7 +89,7 @@ int main() {
             // Assignment: name := expr or f(x) := expr
             if (has_assignment(input)) {
                 auto a = parse_assignment(session.arena, input);
-                Expr* val = simplify(session.arena, a.value);
+                Expr* val = simplify_full(session.arena, a.value);
                 if (a.params.empty()) {
                     session.vars[a.name] = val;
                     std::cout << a.name << " := " << print(val) << "\n";
@@ -141,6 +141,7 @@ int main() {
                                 expr = differentiate(session.arena, expr, v);
                                 expr = simplify(session.arena, expr);
                             }
+                            expr = simplify_full(session.arena, expr);
                             session.last_result = expr;
                             std::cout << print(expr) << "\n";
                             continue;
@@ -150,6 +151,7 @@ int main() {
                         expr = differentiate(session.arena, expr, var);
                         expr = simplify(session.arena, expr);
                     }
+                    expr = simplify_full(session.arena, expr);
                     session.last_result = expr;
                     std::cout << print(expr) << "\n";
                     continue;
@@ -163,7 +165,7 @@ int main() {
                     for (size_t i = 1; i < e->children.size(); ++i) {
                         std::string v = e->children[i]->name;
                         Expr* d = differentiate(session.arena, expr, v);
-                        components.push_back(simplify(session.arena, d));
+                        components.push_back(simplify_full(session.arena, d));
                     }
                     int n = static_cast<int>(components.size());
                     Expr* result = make_matrix(session.arena, 1, n, std::move(components));
@@ -184,7 +186,7 @@ int main() {
                         Expr* d = differentiate(session.arena, vec->children[i], v);
                         terms.push_back(simplify(session.arena, d));
                     }
-                    Expr* result = simplify(session.arena, make_add(session.arena, std::move(terms)));
+                    Expr* result = simplify_full(session.arena, make_add(session.arena, std::move(terms)));
                     session.last_result = result;
                     std::cout << print(result) << "\n";
                     continue;
@@ -202,9 +204,9 @@ int main() {
                     Expr* Fz = vec->children[2];
                     // curl = [dFz/dy - dFy/dz, dFx/dz - dFz/dx, dFy/dx - dFx/dy]
                     std::vector<Expr*> components = {
-                        simplify(session.arena, make_add(session.arena, {differentiate(session.arena, Fz, y), make_neg(session.arena, differentiate(session.arena, Fy, z))})),
-                        simplify(session.arena, make_add(session.arena, {differentiate(session.arena, Fx, z), make_neg(session.arena, differentiate(session.arena, Fz, x))})),
-                        simplify(session.arena, make_add(session.arena, {differentiate(session.arena, Fy, x), make_neg(session.arena, differentiate(session.arena, Fx, y))})),
+                        simplify_full(session.arena, make_add(session.arena, {differentiate(session.arena, Fz, y), make_neg(session.arena, differentiate(session.arena, Fy, z))})),
+                        simplify_full(session.arena, make_add(session.arena, {differentiate(session.arena, Fx, z), make_neg(session.arena, differentiate(session.arena, Fz, x))})),
+                        simplify_full(session.arena, make_add(session.arena, {differentiate(session.arena, Fy, x), make_neg(session.arena, differentiate(session.arena, Fx, y))})),
                     };
                     Expr* result = make_matrix(session.arena, 1, 3, std::move(components));
                     session.last_result = result;
@@ -215,7 +217,7 @@ int main() {
                 if (fname == "expand" && e->children.size() >= 1) {
                     Expr* expr = e->children[0];
                     expr = expand(session.arena, expr);
-                    expr = simplify(session.arena, expr);
+                    expr = simplify_full(session.arena, expr);
                     session.last_result = expr;
                     std::cout << print(expr) << "\n";
                     continue;
@@ -230,8 +232,8 @@ int main() {
                     if (lo_e->is_num() && lo_e->den == 1 && hi_e->is_num() && hi_e->den == 1) {
                         Expr* result = eval_sum(session.arena, body, var, lo_e->num, hi_e->num);
                         if (result) {
-                            session.last_result = result;
-                            std::cout << print(result) << "\n";
+                            session.last_result = simplify_full(session.arena, result);
+                            std::cout << print(session.last_result) << "\n";
                             continue;
                         }
                     }
@@ -248,8 +250,8 @@ int main() {
                     if (lo_e->is_num() && lo_e->den == 1 && hi_e->is_num() && hi_e->den == 1) {
                         Expr* result = eval_prod(session.arena, body, var, lo_e->num, hi_e->num);
                         if (result) {
-                            session.last_result = result;
-                            std::cout << print(result) << "\n";
+                            session.last_result = simplify_full(session.arena, result);
+                            std::cout << print(session.last_result) << "\n";
                             continue;
                         }
                     }
@@ -262,8 +264,8 @@ int main() {
                     Expr* expr = e->children[0];
                     std::string var = e->children[1]->name;
                     expr = collect(session.arena, expr, var);
-                    session.last_result = expr;
-                    std::cout << print(expr) << "\n";
+                    session.last_result = simplify_full(session.arena, expr);
+                    std::cout << print(session.last_result) << "\n";
                     continue;
                 }
 
@@ -279,8 +281,8 @@ int main() {
                     }
                     Expr* result = compute_limit(session.arena, expr, var, point, dir);
                     if (result) {
-                        session.last_result = result;
-                        std::cout << print(result) << "\n";
+                        session.last_result = simplify_full(session.arena, result);
+                        std::cout << print(session.last_result) << "\n";
                     } else {
                         std::cout << "undefined (limit could not be computed)\n";
                     }
@@ -336,13 +338,13 @@ int main() {
                     if (roots.empty()) {
                         std::cout << "no solution found\n";
                     } else if (roots.size() == 1) {
-                        session.last_result = roots[0];
-                        std::cout << print(roots[0]) << "\n";
+                        session.last_result = simplify_full(session.arena, roots[0]);
+                        std::cout << print(session.last_result) << "\n";
                     } else {
                         std::cout << "{";
                         for (size_t i = 0; i < roots.size(); ++i) {
                             if (i > 0) std::cout << ", ";
-                            std::cout << print(roots[i]);
+                            std::cout << print(simplify_full(session.arena, roots[i]));
                         }
                         std::cout << "}\n";
                         session.last_result = roots[0];
@@ -390,7 +392,7 @@ int main() {
                 // rule(pattern, replacement) — define a rewrite rule
                 if (fname == "rule" && e->children.size() == 2) {
                     RewriteRule r;
-                    r.pattern = e->children[0];
+                    r.pattern = simplify(session.arena, e->children[0]);
                     r.replacement = e->children[1];
                     r.name = "rule" + std::to_string(session.rules.size() + 1);
                     session.rules.push_back(r);
@@ -546,7 +548,7 @@ int main() {
                     Expr* result;
                     if (terms.empty()) result = make_num(session.arena, 0);
                     else if (terms.size() == 1) result = terms[0];
-                    else result = simplify(session.arena, make_add(session.arena, std::move(terms)));
+                    else result = simplify_full(session.arena, make_add(session.arena, std::move(terms)));
                     session.last_result = result;
                     std::cout << print(result) << "\n";
                     continue;
@@ -554,23 +556,7 @@ int main() {
 
                 // trigsimp(expr) — apply built-in trig identities
                 if ((fname == "trigsimp" || fname == "tsimp") && e->children.size() == 1) {
-                    Expr* expr = simplify(session.arena, e->children[0]);
-                    // Apply trig rules
-                    static std::vector<RewriteRule> trig_rules;
-                    if (trig_rules.empty()) {
-                        // sin^2 + cos^2 = 1
-                        trig_rules.push_back({
-                            parse(session.arena, "sin(_x)^2 + cos(_x)^2"),
-                            make_num(session.arena, 1), "pythagorean"
-                        });
-                        // cos^2 + sin^2 = 1
-                        trig_rules.push_back({
-                            parse(session.arena, "cos(_x)^2 + sin(_x)^2"),
-                            make_num(session.arena, 1), "pythagorean2"
-                        });
-                        // sin(0) = 0, cos(0) = 1 already handled by simplifier
-                    }
-                    expr = apply_rules(session.arena, expr, trig_rules);
+                    Expr* expr = simplify_full(session.arena, e->children[0]);
                     // Also apply user rules
                     if (!session.rules.empty())
                         expr = apply_rules(session.arena, expr, session.rules);
@@ -678,7 +664,7 @@ int main() {
                         local_vars[params[i]] = simplify(session.arena, e->children[i]);
                     }
                     Expr* result = substitute(session.arena, body, local_vars);
-                    result = simplify(session.arena, result);
+                    result = simplify_full(session.arena, result);
                     session.last_result = result;
                     std::cout << print(result) << "\n";
                     continue;

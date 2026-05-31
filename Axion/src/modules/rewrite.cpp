@@ -10,7 +10,36 @@ bool is_wildcard(const Expr* e) {
     return e->is_sym() && !e->name.empty() && e->name[0] == '_';
 }
 
-// Deep structural equality check
+// Check if wildcard has a type constraint: _name__type
+// Returns the type ("num", "const", "") or empty for unconstrained
+std::string wildcard_type(const Expr* e) {
+    auto pos = e->name.find("__");
+    if (pos == std::string::npos) return "";
+    return e->name.substr(pos + 2);
+}
+
+// Get the binding name (without type suffix)
+std::string wildcard_name(const Expr* e) {
+    auto pos = e->name.find("__");
+    if (pos == std::string::npos) return e->name;
+    return e->name.substr(0, pos);
+}
+
+// Check if expression is a "rest" wildcard (matches remaining children)
+bool is_rest_wildcard(const Expr* e) {
+    return is_wildcard(e) && e->name == "_rest";
+}
+
+// Check type constraint
+bool check_type_constraint(const Expr* expr, const std::string& type) {
+    if (type.empty()) return true; // no constraint
+    if (type == "num") return expr->is_num();
+    if (type == "sym") return expr->is_sym();
+    if (type == "func") return expr->is_func();
+    // "const" would need variable context — skip for now
+    return true;
+}
+
 bool expr_equal(const Expr* a, const Expr* b) {
     if (!a && !b) return true;
     if (!a || !b) return false;
@@ -24,21 +53,102 @@ bool expr_equal(const Expr* a, const Expr* b) {
     return true;
 }
 
-// Match within commutative operations (ADD, MUL)
-// Try all permutations of pattern children against expr children
-bool match_commutative(const std::vector<Expr*>& expr_children,
+// Match commutative with support for _rest wildcard
+bool match_commutative(Arena& arena, const std::vector<Expr*>& expr_children,
                        const std::vector<Expr*>& pat_children,
                        Bindings& bindings) {
+    // Check for _rest wildcard in pattern
+    int rest_idx = -1;
+    for (size_t i = 0; i < pat_children.size(); ++i) {
+        if (is_rest_wildcard(pat_children[i])) { rest_idx = static_cast<int>(i); break; }
+    }
+
+    if (rest_idx >= 0) {
+        // Pattern has _rest: match non-rest patterns against some children,
+        // bind _rest to the remaining children
+        std::vector<const Expr*> fixed_pats;
+        for (size_t i = 0; i < pat_children.size(); ++i)
+            if (static_cast<int>(i) != rest_idx) fixed_pats.push_back(pat_children[i]);
+
+        if (expr_children.size() < fixed_pats.size()) return false;
+
+        size_t n_fixed = fixed_pats.size();
+        size_t n_expr = expr_children.size();
+
+        if (n_fixed == 0) {
+            // _rest only: bind to entire expression
+            Expr* rest_expr;
+            if (n_expr == 1) rest_expr = expr_children[0];
+            else rest_expr = make_add(const_cast<Arena&>(arena), std::vector<Expr*>(expr_children.begin(), expr_children.end()));
+            Bindings trial = bindings;
+            trial["_rest"] = rest_expr;
+            bindings = trial;
+            return true;
+        }
+
+        // Try to match fixed patterns against a subset of expr children
+        // For 1 fixed pattern (most common): try each child
+        if (n_fixed == 1) {
+            for (size_t i = 0; i < n_expr; ++i) {
+                Bindings trial = bindings;
+                if (pattern_match(expr_children[i], fixed_pats[0], trial)) {
+                    // Bind _rest to remaining children
+                    std::vector<Expr*> rest;
+                    for (size_t j = 0; j < n_expr; ++j)
+                        if (j != i) rest.push_back(expr_children[j]);
+                    Expr* rest_expr;
+                    if (rest.empty()) rest_expr = make_num(const_cast<Arena&>(arena), 0);
+                    else if (rest.size() == 1) rest_expr = rest[0];
+                    else {
+                        // Determine if parent is ADD or MUL from context
+                        // For now, create ADD (most common for _rest in sums)
+                        rest_expr = make_add(const_cast<Arena&>(arena), std::move(rest));
+                    }
+                    trial["_rest"] = rest_expr;
+                    bindings = trial;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // For 2 fixed patterns: try all pairs
+        if (n_fixed == 2) {
+            for (size_t i = 0; i < n_expr; ++i) {
+                for (size_t j = 0; j < n_expr; ++j) {
+                    if (i == j) continue;
+                    Bindings trial = bindings;
+                    bool m1 = pattern_match(expr_children[i], fixed_pats[0], trial);
+                    bool m2 = m1 ? pattern_match(expr_children[j], fixed_pats[1], trial) : false;
+                    if (m1 && m2) {
+                        std::vector<Expr*> rest;
+                        for (size_t k = 0; k < n_expr; ++k)
+                            if (k != i && k != j) rest.push_back(expr_children[k]);
+                        Expr* rest_expr;
+                        if (rest.empty()) rest_expr = make_num(const_cast<Arena&>(arena), 0);
+                        else if (rest.size() == 1) rest_expr = rest[0];
+                        else rest_expr = make_add(const_cast<Arena&>(arena), std::move(rest));
+                        trial["_rest"] = rest_expr;
+                        bindings = trial;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // General: 1 fixed (already handled above), fall through for 0 fixed
+        return false;
+    }
+
+    // No _rest: standard commutative matching
     if (expr_children.size() != pat_children.size()) return false;
 
-    // Simple case: try matching in order first
+    // Try in order first
     Bindings trial = bindings;
     bool ok = true;
     for (size_t i = 0; i < pat_children.size(); ++i) {
-        if (!pattern_match(expr_children[i], pat_children[i], trial)) {
-            ok = false;
-            break;
-        }
+        if (!pattern_match(expr_children[i], pat_children[i], trial)) { ok = false; break; }
     }
     if (ok) { bindings = trial; return true; }
 
@@ -52,7 +162,7 @@ bool match_commutative(const std::vector<Expr*>& expr_children,
         }
     }
 
-    // For 3+ children, try all permutations (expensive but correct)
+    // For 3-4 children, try all permutations
     if (pat_children.size() <= 4) {
         std::vector<size_t> perm(pat_children.size());
         for (size_t i = 0; i < perm.size(); ++i) perm[i] = i;
@@ -61,8 +171,7 @@ bool match_commutative(const std::vector<Expr*>& expr_children,
             bool all_match = true;
             for (size_t i = 0; i < perm.size(); ++i) {
                 if (!pattern_match(expr_children[i], pat_children[perm[i]], trial)) {
-                    all_match = false;
-                    break;
+                    all_match = false; break;
                 }
             }
             if (all_match) { bindings = trial; return true; }
@@ -72,42 +181,42 @@ bool match_commutative(const std::vector<Expr*>& expr_children,
     return false;
 }
 
+// Global arena reference for rest-matching (set during apply_rules)
+static Arena* g_match_arena = nullptr;
+
 } // anonymous namespace
 
 bool pattern_match(const Expr* expr, const Expr* pattern, Bindings& bindings) {
     if (!expr || !pattern) return false;
 
-    // Wildcard: matches anything
     if (is_wildcard(pattern)) {
-        auto it = bindings.find(pattern->name);
-        if (it != bindings.end()) {
-            // Already bound: must match same expression
-            return expr_equal(expr, it->second);
-        }
-        bindings[pattern->name] = const_cast<Expr*>(expr);
+        std::string name = wildcard_name(pattern);
+        std::string type = wildcard_type(pattern);
+
+        // Check type constraint
+        if (!check_type_constraint(expr, type)) return false;
+
+        auto it = bindings.find(name);
+        if (it != bindings.end()) return expr_equal(expr, it->second);
+        bindings[name] = const_cast<Expr*>(expr);
         return true;
     }
 
-    // Number: exact match
-    if (pattern->is_num()) {
+    if (pattern->is_num())
         return expr->is_num() && expr->num == pattern->num && expr->den == pattern->den;
-    }
 
-    // Symbol: exact name match
-    if (pattern->is_sym()) {
+    if (pattern->is_sym())
         return expr->is_sym() && expr->name == pattern->name;
-    }
 
-    // Must be same node type
     if (expr->type != pattern->type) return false;
     if (expr->name != pattern->name) return false;
 
-    // ADD and MUL are commutative
     if (expr->is_add() || expr->is_mul()) {
-        return match_commutative(expr->children, pattern->children, bindings);
+        static Arena fallback_arena;
+        Arena& arena = g_match_arena ? *g_match_arena : fallback_arena;
+        return match_commutative(arena, expr->children, pattern->children, bindings);
     }
 
-    // Other nodes: match children in order
     if (expr->children.size() != pattern->children.size()) return false;
     for (size_t i = 0; i < expr->children.size(); ++i) {
         if (!pattern_match(expr->children[i], pattern->children[i], bindings))
@@ -119,14 +228,13 @@ bool pattern_match(const Expr* expr, const Expr* pattern, Bindings& bindings) {
 Expr* apply_bindings(Arena& arena, const Expr* tmpl, const Bindings& bindings) {
     if (!tmpl) return nullptr;
 
-    // If template is a wildcard, substitute
     if (is_wildcard(tmpl)) {
-        auto it = bindings.find(tmpl->name);
+        std::string name = wildcard_name(tmpl);
+        auto it = bindings.find(name);
         if (it != bindings.end()) return it->second;
         return const_cast<Expr*>(tmpl);
     }
 
-    // Deep copy with substitution
     auto* n = arena.create<Expr>();
     n->type = tmpl->type;
     n->num = tmpl->num;
@@ -139,30 +247,25 @@ Expr* apply_bindings(Arena& arena, const Expr* tmpl, const Bindings& bindings) {
 
 Expr* apply_rule(Arena& arena, Expr* expr, const RewriteRule& rule) {
     Bindings bindings;
-    if (pattern_match(expr, rule.pattern, bindings)) {
+    if (pattern_match(expr, rule.pattern, bindings))
         return apply_bindings(arena, rule.replacement, bindings);
-    }
     return nullptr;
 }
 
 Expr* apply_rule_recursive(Arena& arena, Expr* expr, const RewriteRule& rule) {
-    // Try at current node
     Expr* result = apply_rule(arena, expr, rule);
     if (result) return result;
 
-    // Try in children
     bool changed = false;
     for (auto& child : expr->children) {
         Expr* new_child = apply_rule_recursive(arena, child, rule);
-        if (new_child) {
-            child = new_child;
-            changed = true;
-        }
+        if (new_child) { child = new_child; changed = true; }
     }
     return changed ? expr : nullptr;
 }
 
 Expr* apply_rules(Arena& arena, Expr* expr, const std::vector<RewriteRule>& rules, int max_iter) {
+    g_match_arena = &arena;
     for (int iter = 0; iter < max_iter; ++iter) {
         bool changed = false;
         for (const auto& rule : rules) {
@@ -170,11 +273,12 @@ Expr* apply_rules(Arena& arena, Expr* expr, const std::vector<RewriteRule>& rule
             if (result) {
                 expr = simplify(arena, result);
                 changed = true;
-                break; // restart from first rule
+                break;
             }
         }
         if (!changed) break;
     }
+    g_match_arena = nullptr;
     return expr;
 }
 

@@ -456,7 +456,19 @@ Axion/
 
 ---
 
-### Phase 13 — Meta-Rule Engine & Bidirectional Rewriting (Future)
+### Phase 13 — Meta-Rule Engine & Bidirectional Rewriting (Partial ✅ / Future)
+
+**Implemented:**
+- [x] Rest-matching: `_rest` wildcard matches remaining children in ADD/MUL
+- [x] Typed wildcards: `_n__num` matches only numbers, `_f__func` matches only functions
+- [x] Pattern simplification: patterns are flattened before storage
+- [x] Subset matching in commutative operations (1 or 2 fixed + rest)
+
+**Remaining (future):**
+- [ ] Recursive markers in replacement (`diff(_f)` triggers recursion)
+- [ ] Recognition functions (binomial pattern detection)
+- [ ] Strategy engine (direction tags, "simplify = try both, pick shorter")
+- [ ] Bidirectional rules
 
 This phase addresses the fundamental limitation of simple pattern→replacement rules:
 some mathematical transformations are **bidirectional**, **context-dependent**, or

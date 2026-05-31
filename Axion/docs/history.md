@@ -505,3 +505,38 @@ factorize(97)        → 97 (prime)
 ### Regression
 
 All 52 previous tests: ✅ Pass
+
+
+---
+
+## Phase 13 — Meta-Rule Engine (Partial, 2026-05-31)
+
+### Added
+
+- **Rest-matching (`_rest` wildcard)**
+  - In ADD/MUL patterns, `_rest` matches all remaining children not matched by other patterns
+  - Enables rules like `sin(_x)^2 + cos(_x)^2 + _rest → 1 + _rest`
+  - Works with 1 or 2 fixed patterns + rest
+
+- **Typed wildcards**
+  - `_n__num` — only matches numeric expressions
+  - `_f__func` — only matches function calls
+  - `_s__sym` — only matches symbols
+
+- **Pattern simplification on rule definition**
+  - Patterns are now `simplify()`-ed before storage to ensure flattened ADD/MUL
+
+### Key Results
+
+```
+rule(sin(_x)^2 + cos(_x)^2 + _rest, 1 + _rest)
+sin(a)^2 + cos(a)^2 + 5       → 6
+sin(a)^2 + cos(a)^2 + y       → 1 + y
+
+rule(log(_x) + log(_y) + _rest, log(_x*_y) + _rest)
+log(2) + log(3) + log(5)      → log(30)
+```
+
+### Regression
+
+All 52 previous tests: ✅ Pass

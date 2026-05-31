@@ -300,15 +300,34 @@ Expr* simplify(Arena& arena, Expr* e) {
         return e;
     }
 
-    // FUNC with numeric args — only keep computational rules (not identity patterns)
+    // FUNC with numeric args — computational evaluation
     if (e->is_func() && e->children.size() == 1 && e->children[0]->is_num()) {
         int64_t n = e->children[0]->num;
         int64_t d = e->children[0]->den;
         if (e->name == "abs") return make_num(arena, std::abs(n), d);
+        if (n == 0 && d == 1) {
+            if (e->name == "sin" || e->name == "tan") return make_num(arena, 0);
+            if (e->name == "cos") return make_num(arena, 1);
+            if (e->name == "exp") return make_num(arena, 1);
+        }
+        if (n == 1 && d == 1) {
+            if (e->name == "ln") return make_num(arena, 0);
+            if (e->name == "exp") return make_sym(arena, "e");
+        }
         // sqrt of perfect square
         if (e->name == "sqrt" && d == 1 && n >= 0) {
             int64_t root = static_cast<int64_t>(std::sqrt(static_cast<double>(n)));
             if (root * root == n) return make_num(arena, root);
+        }
+    }
+
+    // FUNC with symbolic arg: ln(e)→1, sin(pi)→0, cos(pi)→-1
+    if (e->is_func() && e->children.size() == 1 && e->children[0]->is_sym()) {
+        const std::string& arg = e->children[0]->name;
+        if (e->name == "ln" && arg == "e") return make_num(arena, 1);
+        if (arg == "pi") {
+            if (e->name == "sin" || e->name == "tan") return make_num(arena, 0);
+            if (e->name == "cos") return make_num(arena, -1);
         }
     }
 
