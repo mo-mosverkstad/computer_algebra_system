@@ -300,19 +300,17 @@ Expr* simplify(Arena& arena, Expr* e) {
         return e;
     }
 
-    // FUNC with numeric args — computational evaluation
+    // FUNC with numeric args — table-driven evaluation
     if (e->is_func() && e->children.size() == 1 && e->children[0]->is_num()) {
         int64_t n = e->children[0]->num;
         int64_t d = e->children[0]->den;
         if (e->name == "abs") return make_num(arena, std::abs(n), d);
-        if (n == 0 && d == 1) {
-            if (e->name == "sin" || e->name == "tan" || e->name == "sinh" || e->name == "tanh") return make_num(arena, 0);
-            if (e->name == "cos" || e->name == "cosh") return make_num(arena, 1);
-            if (e->name == "exp") return make_num(arena, 1);
-        }
-        if (n == 1 && d == 1) {
-            if (e->name == "ln") return make_num(arena, 0);
-            if (e->name == "exp") return make_sym(arena, "e");
+        // Lookup in func_eval table
+        for (const auto& rule : get_rules().func_eval) {
+            if (rule.func_name == e->name && rule.arg_num == n && rule.arg_den == d) {
+                if (!rule.res_sym.empty()) return make_sym(arena, rule.res_sym);
+                return make_num(arena, rule.res_num, rule.res_den);
+            }
         }
         // sqrt of perfect square
         if (e->name == "sqrt" && d == 1 && n >= 0) {
@@ -321,13 +319,12 @@ Expr* simplify(Arena& arena, Expr* e) {
         }
     }
 
-    // FUNC with symbolic arg: ln(e)→1, sin(pi)→0, cos(pi)→-1
+    // FUNC with symbolic arg — table-driven evaluation
     if (e->is_func() && e->children.size() == 1 && e->children[0]->is_sym()) {
         const std::string& arg = e->children[0]->name;
-        if (e->name == "ln" && arg == "e") return make_num(arena, 1);
-        if (arg == "pi") {
-            if (e->name == "sin" || e->name == "tan") return make_num(arena, 0);
-            if (e->name == "cos") return make_num(arena, -1);
+        for (const auto& rule : get_rules().func_sym) {
+            if (rule.func_name == e->name && rule.arg_sym == arg)
+                return make_num(arena, rule.res_num, rule.res_den);
         }
     }
 

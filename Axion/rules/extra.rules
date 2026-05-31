@@ -1,0 +1,12 @@
+# Axion CAS — External Rules File
+# Format: pattern → replacement
+# Lines starting with # are comments
+# @diff func(_u) → derivative
+# @int func(_u) → antiderivative
+
+# Custom identity rules
+tan(_x) * cos(_x) → sin(_x)
+
+# Add sec/csc differentiation
+@diff sec(_u) → sec(_u) * tan(_u)
+@diff csc(_u) → -csc(_u) * cot(_u)

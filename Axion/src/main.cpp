@@ -85,6 +85,18 @@ int main() {
 
         if (input == "quit" || input == "exit") break;
 
+        // load command: load("path/to/rules.txt")
+        if (input.substr(0, 5) == "load(" && input.back() == ')') {
+            std::string path = input.substr(5, input.size() - 6);
+            // Strip quotes
+            if (path.size() >= 2 && path.front() == '"' && path.back() == '"')
+                path = path.substr(1, path.size() - 2);
+            int n = load_rules_file(session.arena, path);
+            if (n >= 0) std::cout << "Loaded " << n << " rules from " << path << "\n";
+            else std::cerr << "Error: cannot open " << path << "\n";
+            continue;
+        }
+
         try {
             // Assignment: name := expr or f(x) := expr
             if (has_assignment(input)) {

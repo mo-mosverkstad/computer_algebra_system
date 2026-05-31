@@ -857,12 +857,14 @@ sufficiently data-driven.
 
 #### 14.7 Implementation Order
 
-1. Extended wildcard types (`_c__const`, `_v__hasvar`) — enables integration rules
-2. Arithmetic in bindings — enables `_n+1` in replacement patterns
-3. Migrate integration leaf rules to table format
-4. Migrate remaining simplify leaf rules to table
-5. (Optional) External rule file parser
-6. Validation: add `sinh`/`cosh`/`tanh` by editing only `rules.cpp`
+1. Extended wildcard types (`_c__const`, `_v__hasvar`) — ✅ Done in Phase 13
+2. Arithmetic in bindings — ✅ Works naturally via simplify() after substitution
+3. Migrate integration leaf rules to table format — ✅ Already table-driven
+4. Migrate remaining simplify leaf rules to table — ✅ Done (func_eval, func_sym tables)
+5. External rule file parser — ✅ `load("path")` command
+6. Validation: add `sinh`/`cosh`/`tanh` by editing only `rules.cpp` — ✅ Verified
+7. Validation: add `cot` by editing only `rules.cpp` — ✅ Verified
+8. Validation: add `sec`/`csc` via external rule file — ✅ Verified
 
 **Estimated effort:** 3–5 weeks
 

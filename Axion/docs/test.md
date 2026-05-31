@@ -420,3 +420,55 @@ None — all features implemented cleanly.
 | `x^2 + 2*x + 1` (direct input) | `(1 + x)^2` | `(1 + x)^2` | ✅ (auto-factored) |
 | `expand((x+1)^2)` | `1 + x^2 + 2*x` | `1 + x^2 + 2*x` | ✅ (stays expanded) |
 | `3*x + 5` | `5 + 3*x` | `5 + 3*x` | ✅ (no factoring needed) |
+
+
+---
+
+## Phase 14 — Rule-Driven Architecture Refactor
+
+### Regression Test
+
+All 52 Phase 1–13 tests: ✅ Pass (no regressions)
+
+### Table-driven function evaluation
+
+| Input | Expected | Actual | Source | Verdict |
+|-------|----------|--------|--------|---------|
+| `sin(0)` | `0` | `0` | func_eval table | ✅ |
+| `cos(0)` | `1` | `1` | func_eval table | ✅ |
+| `sinh(0)` | `0` | `0` | func_eval table | ✅ |
+| `cosh(0)` | `1` | `1` | func_eval table | ✅ |
+| `exp(0)` | `1` | `1` | func_eval table | ✅ |
+| `exp(1)` | `e` | `e` | func_eval table (res_sym) | ✅ |
+| `ln(1)` | `0` | `0` | func_eval table | ✅ |
+| `sin(pi)` | `0` | `0` | func_sym table | ✅ |
+| `cos(pi)` | `-1` | `-1` | func_sym table | ✅ |
+| `ln(e)` | `1` | `1` | func_sym table | ✅ |
+
+### New function via rules.cpp only (cot)
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `diff(cot(x), x)` | `-sin(x)^-2` | `-sin(x)^-2` | ✅ |
+| `diff(cot(x^2), x)` | `-2*x*sin(x^2)^-2` | `-2*x*sin(x^2)^-2` | ✅ |
+
+### External rule file loading
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `load("../rules/extra.rules")` | Loaded 3 rules | Loaded 3 rules | ✅ |
+| `tan(x)*cos(x)` (after load) | `sin(x)` | `sin(x)` | ✅ |
+| `diff(sec(x), x)` (after load) | `sec(x)*tan(x)` | `sec(x)*tan(x)` | ✅ |
+| `diff(sec(x^2), x)` (after load) | `2*x*sec(x^2)*tan(x^2)` | `2*x*sec(x^2)*tan(x^2)` | ✅ |
+| `diff(csc(x), x)` (after load) | `-csc(x)*cot(x)` | `-1*csc(x)*cot(x)` | ✅ |
+
+### Arithmetic in bindings
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `rule(2*_x__num, _x__num+_x__num)` then `2*5` | `10` | `10` | ✅ |
+| `rule(2*_x__num, _x__num+_x__num)` then `2*3` | `6` | `6` | ✅ |
+
+### Issues Found
+
+None.

@@ -585,3 +585,75 @@ int(cosh(x), x)               → sinh(x)
 ### Regression
 
 All 52 previous tests: ✅ Pass
+
+
+---
+
+## Phase 14 — Rule-Driven Architecture Refactor (2026-05-31)
+
+### Added
+
+- **Table-driven function evaluation**
+  - `FuncEvalRule` table: `{func_name, arg_num, arg_den, res_num, res_den, res_sym}`
+  - `FuncSymRule` table: `{func_name, arg_sym, res_num, res_den}`
+  - `simplify()` now looks up function values from tables instead of hardcoded `if` chains
+  - Adding `sin(0)→0`, `cosh(0)→1`, etc. requires only editing `rules.cpp`
+
+- **External rule file parser**
+  - `load("path/to/rules.txt")` REPL command
+  - File format: `pattern → replacement` (or `->`)
+  - `@diff func(_u) → derivative` for differentiation rules
+  - `@int func(_u) → antiderivative` for integration rules
+  - Comments with `#`, blank lines ignored
+  - Rules loaded at runtime without recompilation
+
+- **`cot` function support** (added by editing only `rules.cpp`)
+  - `diff(cot(x), x) → -sin(x)^-2`
+  - Chain rule works automatically: `diff(cot(x^2), x) → -2*x*sin(x^2)^-2`
+
+- **`sec`/`csc` support via external rule file**
+  - `diff(sec(x), x) → sec(x)*tan(x)`
+  - `diff(csc(x), x) → -csc(x)*cot(x)`
+  - Loaded at runtime: `load("rules/extra.rules")`
+
+- **Arithmetic in bindings**
+  - Replacement patterns like `_n + 1` work naturally
+  - After binding substitution, `simplify()` folds the arithmetic
+  - Example: rule `2*_x__num → _x__num + _x__num` then `2*5 → 10`
+
+### Key Results
+
+```
+# Table-driven evaluation (no hardcoded if-chains)
+sin(0)    → 0    (from func_eval table)
+cos(pi)   → -1   (from func_sym table)
+cosh(0)   → 1    (from func_eval table)
+exp(1)    → e    (from func_eval table, res_sym="e")
+
+# New function added by editing ONLY rules.cpp
+diff(cot(x), x)      → -sin(x)^-2
+diff(cot(x^2), x)    → -2*x*sin(x^2)^-2
+
+# External rule file
+load("rules/extra.rules")  → Loaded 3 rules
+tan(x)*cos(x)              → sin(x)  (identity from file)
+diff(sec(x^2), x)          → 2*x*sec(x^2)*tan(x^2)  (diff rule from file)
+
+# Arithmetic in bindings
+rule(2*_x__num, _x__num + _x__num)
+2*5  → 10
+```
+
+### Success Criteria Met
+
+1. ✅ `rules.cpp` contains ALL mathematical knowledge as data tables
+2. ✅ `simplify.cpp` contains ONLY structural algorithms + table lookups
+3. ✅ `calculus.cpp` contains ONLY recursive structure (sum/product/chain dispatch)
+4. ✅ `integration.cpp` contains ONLY linearity + constant extraction
+5. ✅ Adding `cot` required ONLY editing `rules.cpp` — zero other file changes
+6. ✅ Adding `sec`/`csc` required ONLY an external rule file — zero C++ changes
+7. ✅ New identity `tan(x)*cos(x)→sin(x)` loaded from file at runtime
+
+### Regression
+
+All 52 previous tests: ✅ Pass

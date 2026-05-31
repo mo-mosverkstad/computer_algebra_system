@@ -3,6 +3,7 @@
 #include "output/printer.h"
 #include "frontend/parser.h"
 #include <cmath>
+#include <fstream>
 
 namespace axion {
 
@@ -301,6 +302,7 @@ void init_rules(Arena& arena) {
         {"sinh",  "cosh(_u)"},
         {"cosh",  "sinh(_u)"},
         {"tanh",  "cosh(_u)^(-2)"},
+        {"cot",   "-sin(_u)^(-2)"},
     };
 
     // =========================================================
@@ -327,6 +329,37 @@ void init_rules(Arena& arena) {
         recognize_perfect_cube,
         recognize_common_factor,
     };
+
+    // =========================================================
+    // FUNCTION EVALUATION RULES: f(numeric) → value
+    // Used by simplify() for computational evaluation
+    // =========================================================
+
+    g_rules.func_eval = {
+        // f(0) rules
+        {"sin",  0, 1, 0, 1, ""},
+        {"cos",  0, 1, 1, 1, ""},
+        {"tan",  0, 1, 0, 1, ""},
+        {"exp",  0, 1, 1, 1, ""},
+        {"sinh", 0, 1, 0, 1, ""},
+        {"cosh", 0, 1, 1, 1, ""},
+        {"tanh", 0, 1, 0, 1, ""},
+        // f(1) rules
+        {"ln",   1, 1, 0, 1, ""},
+        {"exp",  1, 1, 0, 0, "e"},  // exp(1) → symbol "e"
+    };
+
+    // =========================================================
+    // FUNCTION SYMBOLIC EVALUATION: f(symbol) → value
+    // Used by simplify() for known symbolic arguments
+    // =========================================================
+
+    g_rules.func_sym = {
+        {"sin",  "pi", 0, 1},
+        {"cos",  "pi", -1, 1},
+        {"tan",  "pi", 0, 1},
+        {"ln",   "e",  1, 1},
+    };
 }
 
 Expr* simplify_smart(Arena& arena, Expr* expr) {
@@ -340,6 +373,70 @@ Expr* simplify_smart(Arena& arena, Expr* expr) {
             return r;
     }
     return expr;
+}
+
+int load_rules_file(Arena& arena, const std::string& path) {
+    (void)arena;
+    std::ifstream file(path);
+    if (!file.is_open()) return -1;
+
+    init_rules(g_rule_arena);
+    int count = 0;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        // Strip whitespace
+        size_t start = line.find_first_not_of(" \t");
+        if (start == std::string::npos) continue;
+        line = line.substr(start);
+
+        // Skip comments and empty lines
+        if (line.empty() || line[0] == '#') continue;
+
+        // Find arrow separator: → or ->
+        size_t arrow = line.find("→");
+        if (arrow == std::string::npos) arrow = line.find("->");
+        if (arrow == std::string::npos) continue;
+
+        size_t arrow_len = (line[arrow] == '-') ? 2 : 3; // "->" is 2, "→" is 3 bytes UTF-8
+        std::string lhs = line.substr(0, arrow);
+        std::string rhs = line.substr(arrow + arrow_len);
+
+        // Trim
+        while (!lhs.empty() && (lhs.back() == ' ' || lhs.back() == '\t')) lhs.pop_back();
+        while (!rhs.empty() && (rhs.front() == ' ' || rhs.front() == '\t')) rhs.erase(rhs.begin());
+
+        if (lhs.empty() || rhs.empty()) continue;
+
+        // Check for @diff / @int prefixes
+        if (lhs.substr(0, 5) == "@diff") {
+            std::string func_pattern = lhs.substr(5);
+            while (!func_pattern.empty() && func_pattern[0] == ' ') func_pattern.erase(func_pattern.begin());
+            // Extract function name from "func(_u)"
+            size_t paren = func_pattern.find('(');
+            if (paren != std::string::npos) {
+                std::string fname = func_pattern.substr(0, paren);
+                g_rules.diff_rules.push_back({fname, rhs});
+                ++count;
+            }
+        } else if (lhs.substr(0, 4) == "@int") {
+            std::string func_pattern = lhs.substr(4);
+            while (!func_pattern.empty() && func_pattern[0] == ' ') func_pattern.erase(func_pattern.begin());
+            size_t paren = func_pattern.find('(');
+            if (paren != std::string::npos) {
+                std::string fname = func_pattern.substr(0, paren);
+                g_rules.int_rules.push_back({fname, rhs});
+                ++count;
+            }
+        } else {
+            // Identity rule
+            Expr* pattern = simplify(g_rule_arena, parse(g_rule_arena, lhs));
+            Expr* replacement = parse(g_rule_arena, rhs);
+            g_rules.identities.push_back({pattern, replacement, ""});
+            ++count;
+        }
+    }
+    return count;
 }
 
 } // namespace axion

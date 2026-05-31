@@ -2392,3 +2392,116 @@ expand() uses simplify_full() directly → "1 + x^2 + 2*x"
 #### Why It Works
 
 By comparing string lengths of the original vs. recognized form, the engine makes a simple but effective heuristic decision. Factored forms are almost always shorter than expanded forms for perfect powers and common-factor expressions. The `expand()` command deliberately bypasses this to respect the user's intent.
+
+
+---
+
+## Phase 14 — Rule-Driven Architecture
+
+---
+
+### 62. Table-Driven Function Evaluation (`src/engine/rules.h`, `src/engine/rules.cpp`)
+
+#### Concept
+
+Instead of hardcoding `if (e->name == "sin" && n == 0) return 0;` in `simplify.cpp`, function evaluation at known values is stored as data tables in `rules.cpp`. The simplifier performs a table lookup.
+
+#### Data Structures
+
+```cpp
+struct FuncEvalRule {
+    std::string func_name;  // "sin", "cos", "exp"
+    int64_t arg_num;        // argument numerator
+    int64_t arg_den;        // argument denominator
+    int64_t res_num;        // result numerator
+    int64_t res_den;        // result denominator
+    std::string res_sym;    // if non-empty, result is this symbol
+};
+
+struct FuncSymRule {
+    std::string func_name;  // "sin", "cos", "ln"
+    std::string arg_sym;    // "pi", "e"
+    int64_t res_num;        // result
+    int64_t res_den;
+};
+```
+
+#### Annotated Code (in simplify.cpp)
+
+```cpp
+// Table lookup replaces hardcoded if-chains
+for (const auto& rule : get_rules().func_eval) {
+    if (rule.func_name == e->name && rule.arg_num == n && rule.arg_den == d) {
+        if (!rule.res_sym.empty()) return make_sym(arena, rule.res_sym);
+        return make_num(arena, rule.res_num, rule.res_den);
+    }
+}
+```
+
+#### Why It Works
+
+Adding a new function (e.g., `sinh(0)→0`) requires only adding one line to the `func_eval` vector in `rules.cpp`. No changes to `simplify.cpp` or any other algorithmic code. This is the key architectural goal of Phase 14.
+
+---
+
+### 63. External Rule File Parser (`src/engine/rules.cpp`)
+
+#### Concept
+
+Mathematical knowledge can be loaded from plain text files at runtime, without recompilation. This separates domain knowledge from engine code.
+
+#### File Format
+
+```
+# Comments start with #
+# Identity rules: pattern → replacement
+tan(_x) * cos(_x) → sin(_x)
+
+# Differentiation rules
+@diff sec(_u) → sec(_u) * tan(_u)
+
+# Integration rules
+@int sec(_u) → ln(sec(_u) + tan(_u))
+```
+
+#### Annotated Code
+
+```cpp
+int load_rules_file(Arena& arena, const std::string& path) {
+    std::ifstream file(path);
+    // Parse each line: find "→" or "->", split into LHS/RHS
+    // @diff prefix → add to diff_rules table
+    // @int prefix → add to int_rules table
+    // Otherwise → add to identities table (pattern simplified before storage)
+}
+```
+
+#### Why It Works
+
+The parser reuses the existing `parse()` function to convert pattern/replacement strings into AST nodes, then appends them to the appropriate rule table. Since all modules read from the same `get_rules()` tables, newly loaded rules take effect immediately.
+
+---
+
+### 64. Architecture Validation
+
+#### The Test
+
+Add `cot` (cotangent) support by editing ONLY `rules.cpp`:
+
+```cpp
+// In diff_rules:
+{"cot", "-sin(_u)^(-2)"},
+```
+
+Result: `diff(cot(x^2), x) → -2*x*sin(x^2)^-2` — chain rule works automatically.
+
+#### Why This Proves the Architecture
+
+The differentiation engine (`calculus.cpp`) has NO knowledge of `cot`. It:
+1. Sees `FUNC("cot", x^2)`
+2. Looks up "cot" in `get_rules().diff_rules` → finds `-sin(_u)^(-2)`
+3. Substitutes `_u = x^2` → `-sin(x^2)^(-2)`
+4. Multiplies by chain rule factor `d/dx(x^2) = 2*x`
+5. Returns `MUL(-sin(x^2)^-2, 2*x)` → simplifies to `-2*x*sin(x^2)^-2`
+
+Zero lines of algorithmic code were touched. The mathematical knowledge is pure data.
