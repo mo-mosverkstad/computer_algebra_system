@@ -1,4 +1,6 @@
 #include "engine/simplify.h"
+#include "engine/rules.h"
+#include "modules/rewrite.h"
 #include <algorithm>
 #include <cmath>
 
@@ -295,36 +297,19 @@ Expr* simplify(Arena& arena, Expr* e) {
         return e;
     }
 
-    // FUNC with numeric args
+    // FUNC with numeric args — only keep computational rules (not identity patterns)
     if (e->is_func() && e->children.size() == 1 && e->children[0]->is_num()) {
         int64_t n = e->children[0]->num;
         int64_t d = e->children[0]->den;
         if (e->name == "abs") return make_num(arena, std::abs(n), d);
-        if (n == 0) {
-            if (e->name == "sin" || e->name == "tan") return make_num(arena, 0);
-            if (e->name == "cos") return make_num(arena, 1);
-            if (e->name == "exp") return make_num(arena, 1);
-        }
-        if (n == 1 && d == 1) {
-            if (e->name == "exp") return make_sym(arena, "e");
-            if (e->name == "ln") return make_num(arena, 0);
-        }
+        // sqrt of perfect square
         if (e->name == "sqrt" && d == 1 && n >= 0) {
             int64_t root = static_cast<int64_t>(std::sqrt(static_cast<double>(n)));
             if (root * root == n) return make_num(arena, root);
         }
     }
 
-    // FUNC with symbolic constant args (pi, e)
-    if (e->is_func() && e->children.size() == 1 && e->children[0]->is_sym()) {
-        const std::string& arg = e->children[0]->name;
-        if (arg == "pi") {
-            if (e->name == "sin") return make_num(arena, 0);
-            if (e->name == "cos") return make_num(arena, -1);
-            if (e->name == "tan") return make_num(arena, 0);
-        }
-    }
-    // cos(n*pi) for integer n
+    // cos(n*pi) for integer n — computational (not a simple pattern)
     if (e->is_func() && e->name == "cos" && e->children[0]->is_mul()) {
         auto* inner = e->children[0];
         if (inner->children.size() == 2 && inner->children[0]->is_num()
@@ -376,6 +361,14 @@ Expr* simplify(Arena& arena, Expr* e) {
     }
 
     return e;
+}
+
+Expr* simplify_full(Arena& arena, Expr* e) {
+    e = simplify(arena, e);
+    // Initialize rules on first call
+    init_rules(arena);
+    // Apply builtin identity rules
+    return apply_rules(arena, e, get_rules().identities, 10);
 }
 
 } // namespace axion

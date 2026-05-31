@@ -15,6 +15,7 @@ extern "C" {
 #include "frontend/parser.h"
 #include "engine/simplify.h"
 #include "engine/eval.h"
+#include "engine/rules.h"
 #include "modules/calculus.h"
 #include "modules/polynomial.h"
 #include "modules/series.h"
@@ -64,6 +65,7 @@ int main() {
     std::cout << "Commands: diff, expand, eval, approx, quit | := for assignment\n\n";
 
     Session session;
+    init_rules(session.arena);
     linenoiseSetMultiLine(1);
     linenoiseHistorySetMaxLen(100);
 
@@ -607,7 +609,7 @@ int main() {
             }
 
             // Default: simplify and print
-            e = simplify(session.arena, e);
+            e = simplify_full(session.arena, e);
             // Apply user-defined rewrite rules
             if (!session.rules.empty())
                 e = apply_rules(session.arena, e, session.rules);

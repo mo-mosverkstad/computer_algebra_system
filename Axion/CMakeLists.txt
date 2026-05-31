@@ -20,6 +20,7 @@ set(AXION_SOURCES
     src/frontend/parser.cpp
     src/engine/simplify.cpp
     src/engine/eval.cpp
+    src/engine/rules.cpp
     src/modules/calculus.cpp
     src/modules/polynomial.cpp
     src/modules/series.cpp

@@ -1846,3 +1846,117 @@ if (fname == "diff" && e->children.size() >= 2) {
 
 Simply loops: differentiate N times, simplifying after each step.
 `diff(x^5, x, 3)` = d³/dx³(x⁵) = d/dx(d/dx(5x⁴)) = d/dx(20x³) = 60x².
+
+
+---
+
+## Architecture Decision: Why Not Everything Is Data-Driven
+
+---
+
+### 44. The Rule Table vs Code Boundary
+
+After the refactoring, Axion has two kinds of mathematical knowledge:
+
+1. **Data-driven rules** (in `src/engine/rules.cpp`) — pure pattern→replacement
+2. **Algorithmic logic** (in module `.cpp` files) — recursive procedures
+
+A natural question: why not put EVERYTHING in the rule table?
+
+---
+
+### 45. What IS in the Rule Table (and why)
+
+These are things you might want to **extend** — add new functions, new identities:
+
+```cpp
+// rules.cpp — easy to add new entries:
+{"sin",   "cos(_u)"},        // d/dx sin(u) = cos(u) * u'
+{"asin",  "(1 - _u^2)^(-1/2)"},  // just add one line for arcsin!
+add_id("sinh(0)", "0");      // just add one line for new identity!
+```
+
+**Why these are data:** They're function-specific facts. There are infinitely many
+possible functions (sin, cos, arctan, Bessel, ...) and you want to add new ones
+without touching the differentiation algorithm.
+
+---
+
+### 46. What IS NOT in the Rule Table (and why)
+
+These structural rules remain as code in `calculus.cpp`:
+
+```cpp
+// Sum rule: d/dx(f + g + h) = f' + g' + h'
+case NodeType::ADD: {
+    for (auto* c : e->children)
+        terms.push_back(differentiate(arena, c, var));  // RECURSIVE CALL
+    return make_add(arena, std::move(terms));
+}
+
+// Product rule: d/dx(f*g) = f'*g + f*g'
+case NodeType::MUL: {
+    for (size_t i = 0; i < e->children.size(); ++i) {
+        // differentiate the i-th factor, keep others unchanged
+        // RECURSIVE + PERMUTATION LOGIC
+    }
+}
+```
+
+**Why these can't be data:**
+
+1. **Recursion.** The right-hand side calls `differentiate()` again. A simple
+   pattern→replacement rule can't express "apply this same transformation recursively
+   to subexpressions." You'd need a Turing-complete rule language — at which point
+   you've just reinvented C++ with worse syntax.
+
+2. **Variable-length children.** The product rule for `f*g*h` generates 3 terms
+   (one for each factor). The number of terms depends on the input structure.
+   A fixed pattern can't express "for each child, do X."
+
+3. **Arithmetic on the AST.** The power rule `d/dx(f^n) = n*f^(n-1)*f'` requires
+   computing `n-1` from the exponent node. This is arithmetic on the tree structure,
+   not pattern matching.
+
+4. **They never change.** The product rule is a mathematical law. You will never
+   need to "add a new product rule" or "swap it for a different one." It's been
+   the same since Leibniz invented it in 1684. Making it data-driven adds complexity
+   with zero practical benefit.
+
+---
+
+### 47. The Design Principle
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  CHANGES FREQUENTLY          │  NEVER CHANGES           │
+│  (new functions, identities) │  (structural algorithms) │
+│                              │                          │
+│  → Put in rules.cpp          │  → Keep as code          │
+│    (data table)              │    (module .cpp files)   │
+│                              │                          │
+│  Examples:                   │  Examples:               │
+│  • sin → cos                 │  • Product rule          │
+│  • cos(pi) → -1             │  • Chain rule            │
+│  • exp(ln(x)) → x           │  • Linearity             │
+│  • sin²+cos² → 1            │  • Cofactor expansion    │
+│  • new user rules            │  • Gaussian elimination  │
+│                              │  • L'Hôpital iteration   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Rule of thumb:** If you can express it as `pattern → replacement` without
+recursion or loops, it belongs in `rules.cpp`. If it requires recursion,
+iteration over children, or arithmetic on the tree structure, it belongs in code.
+
+---
+
+### 48. How to Add New Mathematical Knowledge
+
+| I want to... | Where to edit | Example |
+|-------------|---------------|---------|
+| Add a new function derivative | `rules.cpp` diff_rules | `{"sinh", "cosh(_u)"}` |
+| Add a new integral | `rules.cpp` int_rules | `{"sec", "ln(sec(_u) + tan(_u))"}` |
+| Add a new identity | `rules.cpp` add_id() | `add_id("cosh(0)", "1")` |
+| Add a new trig identity | `rules.cpp` add_id() | `add_id("1 + tan(_x)^2", "sec(_x)^2")` |
+| Add a new structural rule | Module .cpp file | (rare — only if math itself changes) |
