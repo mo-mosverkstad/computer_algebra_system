@@ -1724,3 +1724,125 @@ Rules are applied **after** the built-in simplifier. This means the simplifier
 canonicalizes the expression first (sorting terms, combining like terms), which
 makes pattern matching more reliable — the pattern only needs to match one
 canonical form, not all equivalent orderings.
+
+
+---
+
+## Phase 11 — Advanced Calculus
+
+---
+
+### 41. Taylor Series Implementation (main.cpp, taylor handler)
+
+#### Concept
+
+A Taylor series approximates a function as a polynomial around a point:
+
+```
+f(x) ≈ f(a) + f'(a)*(x-a) + f''(a)/2!*(x-a)² + f'''(a)/3!*(x-a)³ + ...
+```
+
+#### How It's Implemented
+
+The taylor command doesn't have its own module — it's implemented directly in the
+REPL handler because it composes existing primitives (differentiate + substitute + simplify):
+
+```
+taylor(expr, var, point, order):
+  current = expr
+  for k = 0 to order:
+    1. Evaluate current at var=point (deep-copy + substitute + simplify)
+    2. Build term: value/k! * (x-point)^k
+    3. Add to result if non-zero
+    4. Differentiate current for next iteration
+```
+
+#### The Deep-Copy Problem
+
+The original implementation used `substitute()` which mutates the tree in place.
+This corrupted the `current` expression, making subsequent derivatives wrong.
+
+**Fix:** A lambda `eval_at_point` deep-copies the expression before substituting:
+
+```cpp
+auto eval_at_point = [&](Expr* expr) -> Expr* {
+    std::function<Expr*(const Expr*)> dcopy = [&](const Expr* node) -> Expr* {
+        if (!node) return nullptr;
+        if (node->is_sym() && node->name == var) return point;  // substitute here
+        auto* n = session.arena.create<Expr>();
+        n->type = node->type; n->num = node->num; n->den = node->den; n->name = node->name;
+        for (auto* c : node->children) n->children.push_back(dcopy(c));
+        return n;
+    };
+    return simplify(session.arena, dcopy(expr));
+};
+```
+
+This combines deep-copy and substitution in one pass: when it encounters the variable
+symbol, it returns the point value instead of copying the symbol.
+
+#### Why Exact Rational Arithmetic Matters
+
+Taylor coefficients are fractions: 1/2, 1/6, 1/24, 1/120, etc.
+With floating-point, these would accumulate rounding errors.
+With exact rationals, `(1/6)*x^3` stays exactly `(1/6)*x^3`.
+
+#### Trace: `taylor(sin(x), x, 0, 5)`
+
+```
+k=0: current = sin(x), eval at 0 → sin(0) = 0         → skip (zero)
+k=1: current = cos(x), eval at 0 → cos(0) = 1         → term: 1/1! * x = x
+k=2: current = -sin(x), eval at 0 → -sin(0) = 0       → skip
+k=3: current = -cos(x), eval at 0 → -cos(0) = -1      → term: -1/6 * x^3
+k=4: current = sin(x), eval at 0 → sin(0) = 0         → skip
+k=5: current = cos(x), eval at 0 → cos(0) = 1         → term: 1/120 * x^5
+
+Result: x + (-1/6)*x^3 + (1/120)*x^5
+```
+
+---
+
+### 42. Trigonometric Simplification (main.cpp, trigsimp handler)
+
+#### Implementation
+
+`trigsimp` reuses the Phase 10 rewrite engine with built-in trig rules:
+
+```cpp
+if (fname == "trigsimp") {
+    static std::vector<RewriteRule> trig_rules;
+    if (trig_rules.empty()) {
+        trig_rules.push_back({
+            parse(arena, "sin(_x)^2 + cos(_x)^2"),  // pattern
+            make_num(arena, 1),                       // replacement
+            "pythagorean"
+        });
+    }
+    expr = apply_rules(arena, expr, trig_rules);
+}
+```
+
+The rules are created once (static) and reused. This demonstrates how the rewrite
+engine from Phase 10 enables new simplification capabilities without modifying the
+core simplifier.
+
+---
+
+### 43. Higher-Order Derivatives
+
+Already implemented in Phase 4's REPL handler:
+
+```cpp
+if (fname == "diff" && e->children.size() >= 2) {
+    int order = 1;
+    if (e->children.size() >= 3 && e->children[2]->is_num())
+        order = static_cast<int>(e->children[2]->num);
+    for (int i = 0; i < order; ++i) {
+        expr = differentiate(arena, expr, var);
+        expr = simplify(arena, expr);
+    }
+}
+```
+
+Simply loops: differentiate N times, simplifying after each step.
+`diff(x^5, x, 3)` = d³/dx³(x⁵) = d/dx(d/dx(5x⁴)) = d/dx(20x³) = 60x².

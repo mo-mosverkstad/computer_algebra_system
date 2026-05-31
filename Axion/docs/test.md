@@ -273,3 +273,29 @@ All 52 Phase 1–6 tests: ✅ Pass (no regressions)
 | `solve(3*x - 6 <= 0, x)` | x <= 2 | x <= 2 | ✅ |
 | `solve(-x + 5 > 0, x)` | x < 5 | x < 5 | ✅ |
 | `solve(x + y = 5, x - y = 1, x, y)` | {x=3, y=2} | {x=3, y=2} | ✅ |
+
+
+---
+
+## Phase 11 — Advanced Calculus
+
+### Regression Test
+
+All 52 Phase 1–10 tests: ✅ Pass (no regressions)
+
+### Phase 11 Verification
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `taylor(sin(x), x, 0, 5)` | x - x³/6 + x⁵/120 | `x + (-1/6)*x^3 + (1/120)*x^5` | ✅ |
+| `taylor(exp(x), x, 0, 4)` | 1+x+x²/2+x³/6+x⁴/24 | `1 + x + (1/2)*x^2 + (1/6)*x^3 + (1/24)*x^4` | ✅ |
+| `taylor(cos(x), x, 0, 4)` | 1-x²/2+x⁴/24 | `1 + (-1/2)*x^2 + (1/24)*x^4` | ✅ |
+| `diff(x^5, x, 3)` | 60x² | `60*x^2` | ✅ |
+| `diff(x^2*y, x, 2)` | 2y | `2*y` | ✅ |
+| `trigsimp(sin(t)^2 + cos(t)^2)` | 1 | `1` | ✅ |
+
+### Issues Found
+
+1. **Taylor initially returned `0` for `sin(x)` at x=0**
+   - Cause: `substitute` function mutated the tree in place, corrupting the body for subsequent derivatives
+   - Fix: use deep-copy lambda before substitution to avoid aliasing

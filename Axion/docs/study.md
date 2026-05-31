@@ -431,16 +431,16 @@ Axion/
 
 **Deliverable:** `rule(sin(_x)^2 + cos(_x)^2, 1)` then `sin(a)^2 + cos(a)^2` → `1` ✅
 
-### Phase 11 — Advanced Calculus (Future)
+### Phase 11 — Advanced Calculus ✅ COMPLETE
 
-- [ ] Partial derivatives: `diff(f, [x, y])` (mixed partials)
-- [ ] Higher-order: `diff(f, x, 2)` for d²f/dx²
-- [ ] Gradient, divergence, curl (vector calculus)
-- [ ] Taylor/Maclaurin series expansion: `taylor(expr, var, point, order)`
-- [ ] Trigonometric simplification: `trigsimp(expr)`
-- [ ] Differential equations (basic separable, first-order linear)
+- [x] Higher-order: `diff(f, x, 2)` for d²f/dx² (already worked from Phase 4)
+- [x] Taylor/Maclaurin series: `taylor(expr, var, point, order)`
+- [x] Trigonometric simplification: `trigsimp(expr)`
+- [ ] Partial derivatives: `diff(f, [x, y])` (deferred — needs list parsing)
+- [ ] Gradient, divergence, curl (deferred)
+- [ ] Differential equations (deferred)
 
-**Deliverable:** `taylor(sin(x), x, 0, 5)` → `x - x^3/6 + x^5/120`, `diff(x^2*y, x, 2)` → `2*y`
+**Deliverable:** `taylor(sin(x), x, 0, 5)` → `x + (-1/6)*x^3 + (1/120)*x^5` ✅
 
 ### Phase 12 — Number Theory & Discrete Math (Future)
 

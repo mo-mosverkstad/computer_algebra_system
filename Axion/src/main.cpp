@@ -2,6 +2,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <functional>
 #include <unordered_map>
 #include <cmath>
 
@@ -402,6 +403,107 @@ int main() {
                 }
 
                 // approx(expr) or approx(expr, digits)
+                // taylor(expr, var, point, order)
+                if (fname == "taylor" && e->children.size() == 4) {
+                    Expr* body = e->children[0];
+                    std::string var = e->children[1]->name;
+                    Expr* point = simplify(session.arena, e->children[2]);
+                    Expr* order_e = simplify(session.arena, e->children[3]);
+                    if (!order_e->is_num() || order_e->den != 1) {
+                        std::cerr << "Error: taylor order must be integer\n";
+                        continue;
+                    }
+                    int order = static_cast<int>(order_e->num);
+
+                    // Taylor series: sum_{k=0}^{order} f^(k)(point)/k! * (x-point)^k
+                    Expr* current = simplify(session.arena, body);
+                    std::vector<Expr*> terms;
+                    int64_t factorial = 1;
+
+                    // Helper: deep-copy and substitute var=point
+                    auto eval_at_point = [&](Expr* expr) -> Expr* {
+                        // Deep copy then substitute
+                        std::function<Expr*(const Expr*)> dcopy = [&](const Expr* node) -> Expr* {
+                            if (!node) return nullptr;
+                            if (node->is_sym() && node->name == var) return point;
+                            auto* n = session.arena.create<Expr>();
+                            n->type = node->type; n->num = node->num; n->den = node->den; n->name = node->name;
+                            for (auto* c : node->children) n->children.push_back(dcopy(c));
+                            return n;
+                        };
+                        return simplify(session.arena, dcopy(expr));
+                    };
+
+                    for (int k = 0; k <= order; ++k) {
+                        if (k > 0) factorial *= k;
+                        Expr* val = eval_at_point(current);
+
+                        // term = val/k! * (x - point)^k
+                        if (!(val->is_num() && val->num == 0)) {
+                            Expr* term;
+                            if (k == 0) {
+                                term = val;
+                            } else {
+                                Expr* x_part;
+                                if (point->is_num() && point->num == 0)
+                                    x_part = make_sym(session.arena, var);
+                                else
+                                    x_part = make_add(session.arena, {make_sym(session.arena, var), make_neg(session.arena, point)});
+
+                                Expr* power_part = (k == 1) ? x_part : make_pow(session.arena, x_part, make_num(session.arena, k));
+
+                                if (val->is_num()) {
+                                    term = make_mul(session.arena, {make_num(session.arena, val->num, val->den * factorial), power_part});
+                                } else {
+                                    term = make_mul(session.arena, {val, make_num(session.arena, 1, factorial), power_part});
+                                }
+                            }
+                            term = simplify(session.arena, term);
+                            if (!(term->is_num() && term->num == 0))
+                                terms.push_back(term);
+                        }
+
+                        // Differentiate for next iteration
+                        current = differentiate(session.arena, current, var);
+                        current = simplify(session.arena, current);
+                    }
+
+                    Expr* result;
+                    if (terms.empty()) result = make_num(session.arena, 0);
+                    else if (terms.size() == 1) result = terms[0];
+                    else result = simplify(session.arena, make_add(session.arena, std::move(terms)));
+                    session.last_result = result;
+                    std::cout << print(result) << "\n";
+                    continue;
+                }
+
+                // trigsimp(expr) — apply built-in trig identities
+                if ((fname == "trigsimp" || fname == "tsimp") && e->children.size() == 1) {
+                    Expr* expr = simplify(session.arena, e->children[0]);
+                    // Apply trig rules
+                    static std::vector<RewriteRule> trig_rules;
+                    if (trig_rules.empty()) {
+                        // sin^2 + cos^2 = 1
+                        trig_rules.push_back({
+                            parse(session.arena, "sin(_x)^2 + cos(_x)^2"),
+                            make_num(session.arena, 1), "pythagorean"
+                        });
+                        // cos^2 + sin^2 = 1
+                        trig_rules.push_back({
+                            parse(session.arena, "cos(_x)^2 + sin(_x)^2"),
+                            make_num(session.arena, 1), "pythagorean2"
+                        });
+                        // sin(0) = 0, cos(0) = 1 already handled by simplifier
+                    }
+                    expr = apply_rules(session.arena, expr, trig_rules);
+                    // Also apply user rules
+                    if (!session.rules.empty())
+                        expr = apply_rules(session.arena, expr, session.rules);
+                    session.last_result = expr;
+                    std::cout << print(expr) << "\n";
+                    continue;
+                }
+
                 if (fname == "approx") {
                     Expr* expr = simplify(session.arena, e->children[0]);
                     std::unordered_map<std::string, double> env;

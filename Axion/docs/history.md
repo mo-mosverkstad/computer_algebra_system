@@ -423,3 +423,31 @@ sin(t)^2 + cos(t)^2           → 1
 rule(log(_x) + log(_y), log(_x * _y))
 log(2) + log(3)                → log(6)
 ```
+
+
+---
+
+## Phase 11 — Advanced Calculus (2026-05-31)
+
+### Added
+
+- **Taylor series** — `taylor(expr, var, point, order)`
+  - Computes Taylor expansion by repeated differentiation and evaluation at point
+  - Deep-copies expression before substitution to avoid tree mutation
+  - Exact rational coefficients: `1/6`, `1/120`, etc.
+
+- **Trigonometric simplification** — `trigsimp(expr)` / `tsimp(expr)`
+  - Applies built-in trig identities via the rewrite engine
+  - `sin(_x)^2 + cos(_x)^2` → `1`
+
+- **Higher-order derivatives** — `diff(f, x, n)` (already worked from Phase 4)
+
+### Key Results
+
+```
+taylor(sin(x), x, 0, 5)  → x + (-1/6)*x^3 + (1/120)*x^5
+taylor(exp(x), x, 0, 4)  → 1 + x + (1/2)*x^2 + (1/6)*x^3 + (1/24)*x^4
+taylor(cos(x), x, 0, 4)  → 1 + (-1/2)*x^2 + (1/24)*x^4
+diff(x^5, x, 3)          → 60*x^2
+trigsimp(sin(t)^2 + cos(t)^2) → 1
+```
