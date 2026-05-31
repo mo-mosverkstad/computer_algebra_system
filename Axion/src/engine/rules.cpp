@@ -55,6 +55,9 @@ void init_rules(Arena& arena) {
     add_id("sin(_x)^2 + cos(_x)^2", "1");
     add_id("cos(_x)^2 + sin(_x)^2", "1");
 
+    // Hyperbolic identity: cosh²-sinh²=1
+    add_id("cosh(_x)^2 - sinh(_x)^2", "1");
+
     // Logarithm rules
     add_id("ln(_x) + ln(_y)", "ln(_x * _y)");
     add_id("_n__num * ln(_x)", "ln(_x^_n__num)");
@@ -76,6 +79,9 @@ void init_rules(Arena& arena) {
         {"asin",  "(1 - _u^2)^(-1/2)"},
         {"acos",  "-(1 - _u^2)^(-1/2)"},
         {"atan",  "(1 + _u^2)^(-1)"},
+        {"sinh",  "cosh(_u)"},
+        {"cosh",  "sinh(_u)"},
+        {"tanh",  "cosh(_u)^(-2)"},
     };
 
     // =========================================================
@@ -88,7 +94,8 @@ void init_rules(Arena& arena) {
         {"cos",   "sin(_u)"},
         {"exp",   "exp(_u)"},
         {"tan",   "-ln(cos(_u))"},
-        // Note: ln(x) integration requires integration by parts (not table-based)
+        {"sinh",  "cosh(_u)"},
+        {"cosh",  "sinh(_u)"},
     };
 }
 

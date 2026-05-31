@@ -608,6 +608,266 @@ with hundreds of hand-written heuristics. A clean data-driven approach would be 
 
 ---
 
+### Phase 14 — Rule-Driven Architecture Refactor
+
+**Goal:** Transform Axion from a "collection of algorithms with some rules" into a
+"rule engine with algorithmic helpers." All mathematical knowledge should be expressed
+as data (rules/tables) wherever possible, with procedural code only for structural
+algorithms that cannot be expressed declaratively.
+
+#### 14.1 Motivation
+
+Currently, mathematical knowledge is scattered across the codebase in three forms:
+
+| Form | Location | Example |
+|------|----------|---------|
+| Hardcoded `if` chains | `simplify.cpp` | `sin(0)→0`, constant folding |
+| Rule tables (data) | `rules.cpp` | diff/int tables, identity rules |
+| Procedural algorithms | `calculus.cpp`, `solver.cpp` | product rule, Gaussian elimination |
+
+The first form should be eliminated entirely — all leaf-level transformations should
+be data. The second form should be expanded. The third form stays (algorithms are
+inherently procedural), but should be minimized.
+
+#### 14.2 Design: Phased Rule Application (inspired by math.js)
+
+math.js organizes simplification into **ordered rule groups** that run sequentially:
+
+```
+Phase 1: STRUCTURE   — flatten, canonicalize (algorithmic, stays as code)
+Phase 2: FOLD        — constant arithmetic (rule: _c1 + _c2 → eval)
+Phase 3: COMBINE     — like-term grouping (algorithmic, stays as code)
+Phase 4: IDENTITY    — mathematical identities (rules: sin²+cos²→1, exp(ln(x))→x)
+Phase 5: DOMAIN      — domain-specific (rules: log(a)+log(b)→log(ab))
+```
+
+Each phase runs to fixpoint before the next starts. This prevents rules from
+fighting each other (e.g., an identity rule undoing a combination).
+
+**Axion mapping:**
+
+| Phase | Current implementation | Target |
+|-------|----------------------|--------|
+| STRUCTURE | `simplify()` — flatten, sort | Keep as code |
+| FOLD | `simplify()` — constant arithmetic in ADD/MUL | Keep as code (performance-critical) |
+| COMBINE | `simplify()` — like-term, like-base | Keep as code |
+| IDENTITY | `rules.cpp` identity table | ✅ Already data-driven |
+| DOMAIN | Scattered in modules | Move to rule tables |
+
+#### 14.3 Deliverables
+
+##### 14.3.1 Extended Wildcard Types
+
+Add context-aware wildcard constraints to the pattern engine:
+
+| Wildcard | Matches | Use case |
+|----------|---------|----------|
+| `_x` | Any expression | General (existing) |
+| `_n__num` | Numeric literal only | Existing |
+| `_s__sym` | Symbol only | Existing |
+| `_f__func` | Function call only | Existing |
+| `_c__const` | Expression free of active variable | `∫ _c*f(x) dx → _c * ∫ f(x) dx` |
+| `_v__hasvar` | Expression containing active variable | Distinguish variable-dependent terms |
+| `_nz__nonzero` | Numeric, not zero | Safe division rules |
+| `_pos__pos` | Numeric, positive | `sqrt(_pos^2) → _pos` |
+
+Implementation: extend `check_type_constraint()` in `rewrite.cpp`. The `_c__const`
+and `_v__hasvar` types require a **context variable** passed to the matcher:
+
+```cpp
+struct MatchContext {
+    std::string active_var;  // the variable of interest (e.g., "x" for integration)
+};
+
+bool check_type_constraint(const Expr* expr, const std::string& type, const MatchContext& ctx);
+```
+
+##### 14.3.2 Rule-Driven Integration
+
+Replace the procedural `if` chains in `integration.cpp` with declarative rules:
+
+```cpp
+// Current (procedural):
+if (is_var(e, var))
+    return make_mul(arena, {make_num(arena, 1, 2), make_pow(arena, make_sym(arena, var), make_num(arena, 2))});
+
+// Target (declarative):
+IntegrationRule rules[] = {
+    { "_x",           "(1/2)*_x^2" },           // ∫x dx
+    { "_x^_n__num",   "_x^(_n+1) / (_n+1)" },  // ∫x^n dx (n≠-1)
+    { "_c__const * _f__hasvar", "_c * int(_f)" }, // linearity
+    { "sin(_x)",      "-cos(_x)" },              // table
+    { "cos(_x)",      "sin(_x)" },               // table
+    { "exp(_x)",      "exp(_x)" },               // table
+};
+```
+
+Challenge: the replacement `_x^(_n+1) / (_n+1)` requires **arithmetic on bound
+metavariables** during substitution. This needs a `compute_binding()` step:
+
+```cpp
+// After matching, before substitution:
+// If replacement contains _n+1, compute it from the bound value of _n
+bindings["_n+1"] = simplify(arena, make_add(arena, {bindings["_n"], make_num(arena, 1)}));
+```
+
+##### 14.3.3 Rule-Driven Differentiation (Structural Rules)
+
+Express the structural differentiation rules as data:
+
+```cpp
+struct DiffStructuralRule {
+    NodeType node_type;          // ADD, MUL, POW, NEG
+    std::string pattern;         // structural pattern
+    std::string replacement;     // with diff() markers for recursion
+};
+
+DiffStructuralRule structural_diff_rules[] = {
+    { NodeType::ADD, "_a + _b",     "diff(_a) + diff(_b)" },
+    { NodeType::NEG, "-_a",         "-diff(_a)" },
+    // MUL and POW are algorithmic (n-ary product rule, general power rule)
+};
+```
+
+The `diff()` markers in the replacement trigger recursive differentiation.
+This is a **meta-rule** — the replacement is not a simple substitution but
+invokes the differentiation engine recursively.
+
+Note: The n-ary product rule and general `f^g` rule remain procedural because
+they iterate over children in ways that flat patterns cannot express.
+
+##### 14.3.4 Simplification Rule Audit
+
+Audit `simplify.cpp` and extract any remaining leaf-level transformations into
+the rule table. After this phase, `simplify()` should contain ONLY:
+
+1. Recursive child simplification
+2. Flattening (structural)
+3. Canonical sorting (structural)
+4. Constant folding (arithmetic — could be a rule but kept for performance)
+5. Like-term combination (algorithmic grouping)
+6. Like-base power collection (algorithmic grouping)
+7. Computational function evaluation (sin(0)→0, etc. — trivial, kept for performance)
+
+Everything else moves to the identity rule table.
+
+##### 14.3.5 Rule File Format (Optional)
+
+Allow rules to be loaded from an external file rather than hardcoded in C++:
+
+```
+# rules/identities.rules
+# Format: pattern → replacement [; condition]
+
+exp(ln(_x))         → _x
+ln(exp(_x))         → _x
+sin(_x)^2+cos(_x)^2 → 1
+ln(_x)+ln(_y)       → ln(_x*_y)
+_n__num*ln(_x)      → ln(_x^_n__num)
+
+# Differentiation rules (function table)
+@diff sin(_u)       → cos(_u)
+@diff cos(_u)       → -sin(_u)
+@diff exp(_u)       → exp(_u)
+@diff ln(_u)        → _u^(-1)
+@diff tan(_u)       → cos(_u)^(-2)
+
+# Integration rules (function table)
+@int sin(_u)        → -cos(_u)
+@int cos(_u)        → sin(_u)
+@int exp(_u)        → exp(_u)
+```
+
+This separates mathematical knowledge from C++ code entirely. Rules can be
+edited, extended, or swapped without recompilation.
+
+#### 14.4 What Stays Procedural (Non-Goals)
+
+These algorithms are inherently iterative/recursive and should NOT be converted
+to flat rewrite rules:
+
+| Algorithm | Why it stays as code |
+|-----------|---------------------|
+| N-ary product rule | Iterates over N children, differentiating one at a time |
+| Like-term combination | Groups by key, sums coefficients — map-reduce pattern |
+| Canonical sorting | Comparison-based sort |
+| Gaussian elimination | Row operations on augmented matrix |
+| Rational Root Theorem | Trial division loop |
+| L'Hôpital iteration | Recursive with depth limit and 0/0 detection |
+| Taylor series | Loop: differentiate, evaluate, accumulate |
+| Cofactor expansion | Recursive matrix decomposition |
+| Polynomial long division | Iterative degree reduction |
+
+#### 14.5 Architecture After Refactor
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Rule Database                          │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │  Identities  │  │  Diff Table  │  │  Int Table   │  │
+│  │  (pattern →  │  │  (func →     │  │  (func →     │  │
+│  │   replace)   │  │   deriv)     │  │   antideriv) │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐                     │
+│  │  Domain Rules│  │  User Rules  │                     │
+│  │  (log, trig) │  │  (REPL)      │                     │
+│  └──────────────┘  └──────────────┘                     │
+└────────────────────────┬────────────────────────────────┘
+                         │ read
+┌────────────────────────▼────────────────────────────────┐
+│              Rewrite Engine (single engine)               │
+│                                                          │
+│  pattern_match() → apply_bindings() → simplify()         │
+│  Supports: wildcards, typed constraints, _rest,          │
+│            context variable, arithmetic in bindings       │
+└────────────────────────┬────────────────────────────────┘
+                         │ used by
+         ┌───────────────┼───────────────┐
+         ▼               ▼               ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  simplify()  │ │differentiate()│ │  integrate() │
+│              │ │              │ │              │
+│ Algorithmic: │ │ Structural:  │ │ Structural:  │
+│ - flatten    │ │ - sum rule   │ │ - linearity  │
+│ - sort       │ │ - product    │ │ - const pull │
+│ - combine    │ │ - chain rule │ │              │
+│ - fold       │ │              │ │ Leaf lookup: │
+│              │ │ Leaf lookup: │ │ - int table  │
+│ Then apply:  │ │ - diff table │ │              │
+│ - identities │ │              │ │              │
+└──────────────┘ └──────────────┘ └──────────────┘
+```
+
+#### 14.6 Success Criteria
+
+After this phase:
+
+1. `rules.cpp` contains ALL mathematical knowledge as data tables
+2. `simplify.cpp` contains ONLY structural algorithms (flatten, sort, combine, fold)
+3. `calculus.cpp` contains ONLY the recursive structure (sum/product/chain rule dispatch)
+4. `integration.cpp` contains ONLY linearity + constant extraction logic
+5. Adding a new function (e.g., `sinh`) requires ONLY adding entries to the rule tables — zero changes to algorithmic code
+6. A new identity (e.g., `cosh²-sinh²=1`) requires ONLY adding one line to the identity table
+
+**Test:** Add `sinh`, `cosh`, `tanh` support by ONLY editing `rules.cpp`. If any
+`.cpp` file other than `rules.cpp` needs changes, the architecture is not yet
+sufficiently data-driven.
+
+#### 14.7 Implementation Order
+
+1. Extended wildcard types (`_c__const`, `_v__hasvar`) — enables integration rules
+2. Arithmetic in bindings — enables `_n+1` in replacement patterns
+3. Migrate integration leaf rules to table format
+4. Migrate remaining simplify leaf rules to table
+5. (Optional) External rule file parser
+6. Validation: add `sinh`/`cosh`/`tanh` by editing only `rules.cpp`
+
+**Estimated effort:** 3–5 weeks
+
+---
+
 ## 8. Testing Strategy
 
 - **Unit tests** per module using Google Test.

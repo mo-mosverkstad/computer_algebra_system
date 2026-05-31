@@ -306,8 +306,8 @@ Expr* simplify(Arena& arena, Expr* e) {
         int64_t d = e->children[0]->den;
         if (e->name == "abs") return make_num(arena, std::abs(n), d);
         if (n == 0 && d == 1) {
-            if (e->name == "sin" || e->name == "tan") return make_num(arena, 0);
-            if (e->name == "cos") return make_num(arena, 1);
+            if (e->name == "sin" || e->name == "tan" || e->name == "sinh" || e->name == "tanh") return make_num(arena, 0);
+            if (e->name == "cos" || e->name == "cosh") return make_num(arena, 1);
             if (e->name == "exp") return make_num(arena, 1);
         }
         if (n == 1 && d == 1) {
