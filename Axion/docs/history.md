@@ -451,3 +451,18 @@ taylor(cos(x), x, 0, 4)  → 1 + (-1/2)*x^2 + (1/24)*x^4
 diff(x^5, x, 3)          → 60*x^2
 trigsimp(sin(t)^2 + cos(t)^2) → 1
 ```
+
+
+### Extended (deferred items completed)
+
+- **Mixed partial derivatives:** `diff(f, x, y)` — differentiates w.r.t. x then y
+- **Gradient:** `grad(f, x, y, z)` → `[∂f/∂x, ∂f/∂y, ∂f/∂z]`
+- **Divergence:** `div([Fx,Fy,Fz], x, y, z)` → `∂Fx/∂x + ∂Fy/∂y + ∂Fz/∂z`
+- **Curl:** `curl([Fx,Fy,Fz], x, y, z)` → `[∂Fz/∂y - ∂Fy/∂z, ∂Fx/∂z - ∂Fz/∂x, ∂Fy/∂x - ∂Fx/∂y]`
+
+```
+diff(x^2*y^3, x, y)              → 6*x*y^2
+grad(x^2 + y^2 + z^2, x, y, z)  → [2*x, 2*y, 2*z]
+div([x^2, y^2, z^2], x, y, z)   → 2*x + 2*y + 2*z
+curl([y, -x, 0], x, y, z)        → [0, 0, -2]
+```

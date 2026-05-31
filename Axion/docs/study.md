@@ -433,14 +433,16 @@ Axion/
 
 ### Phase 11 — Advanced Calculus ✅ COMPLETE
 
-- [x] Higher-order: `diff(f, x, 2)` for d²f/dx² (already worked from Phase 4)
+- [x] Higher-order: `diff(f, x, 2)` for d²f/dx²
 - [x] Taylor/Maclaurin series: `taylor(expr, var, point, order)`
 - [x] Trigonometric simplification: `trigsimp(expr)`
-- [ ] Partial derivatives: `diff(f, [x, y])` (deferred — needs list parsing)
-- [ ] Gradient, divergence, curl (deferred)
-- [ ] Differential equations (deferred)
+- [x] Partial derivatives: `diff(f, x, y)` for mixed partials
+- [x] Gradient: `grad(f, x, y, z)` → vector of partial derivatives
+- [x] Divergence: `div([Fx, Fy, Fz], x, y, z)` → scalar
+- [x] Curl: `curl([Fx, Fy, Fz], x, y, z)` → vector
+- [ ] Differential equations (deferred — requires dedicated solver architecture)
 
-**Deliverable:** `taylor(sin(x), x, 0, 5)` → `x + (-1/6)*x^3 + (1/120)*x^5` ✅
+**Deliverable:** `taylor(sin(x), x, 0, 5)` → `x + (-1/6)*x^3 + (1/120)*x^5`, `grad(x^2+y^2+z^2, x, y, z)` → `[2*x, 2*y, 2*z]` ✅
 
 ### Phase 12 — Number Theory & Discrete Math (Future)
 

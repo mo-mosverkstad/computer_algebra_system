@@ -125,8 +125,24 @@ int main() {
                     Expr* expr = simplify(session.arena, e->children[0]);
                     std::string var = e->children[1]->name;
                     int order = 1;
-                    if (e->children.size() >= 3 && e->children[2]->is_num())
-                        order = static_cast<int>(e->children[2]->num);
+                    if (e->children.size() >= 3) {
+                        if (e->children[2]->is_num()) {
+                            // diff(f, x, 2) — higher order
+                            order = static_cast<int>(e->children[2]->num);
+                        } else if (e->children[2]->is_sym()) {
+                            // diff(f, x, y, ...) — mixed partials
+                            expr = differentiate(session.arena, expr, var);
+                            expr = simplify(session.arena, expr);
+                            for (size_t i = 2; i < e->children.size(); ++i) {
+                                std::string v = e->children[i]->name;
+                                expr = differentiate(session.arena, expr, v);
+                                expr = simplify(session.arena, expr);
+                            }
+                            session.last_result = expr;
+                            std::cout << print(expr) << "\n";
+                            continue;
+                        }
+                    }
                     for (int i = 0; i < order; ++i) {
                         expr = differentiate(session.arena, expr, var);
                         expr = simplify(session.arena, expr);
@@ -137,6 +153,62 @@ int main() {
                 }
 
                 // expand(expr)
+                // grad(expr, x, y, z) — gradient vector
+                if (fname == "grad" && e->children.size() >= 2) {
+                    Expr* expr = simplify(session.arena, e->children[0]);
+                    std::vector<Expr*> components;
+                    for (size_t i = 1; i < e->children.size(); ++i) {
+                        std::string v = e->children[i]->name;
+                        Expr* d = differentiate(session.arena, expr, v);
+                        components.push_back(simplify(session.arena, d));
+                    }
+                    int n = static_cast<int>(components.size());
+                    Expr* result = make_matrix(session.arena, 1, n, std::move(components));
+                    session.last_result = result;
+                    std::cout << print_matrix(result) << "\n";
+                    continue;
+                }
+
+                // div([Fx, Fy, Fz], x, y, z) — divergence
+                if (fname == "div" && e->children.size() >= 2 && is_matrix(e->children[0])) {
+                    Expr* vec = e->children[0];
+                    int n = static_cast<int>(vec->children.size());
+                    int nvars = static_cast<int>(e->children.size()) - 1;
+                    if (n != nvars) { std::cerr << "Error: vector and variable count mismatch\n"; continue; }
+                    std::vector<Expr*> terms;
+                    for (int i = 0; i < n; ++i) {
+                        std::string v = e->children[i + 1]->name;
+                        Expr* d = differentiate(session.arena, vec->children[i], v);
+                        terms.push_back(simplify(session.arena, d));
+                    }
+                    Expr* result = simplify(session.arena, make_add(session.arena, std::move(terms)));
+                    session.last_result = result;
+                    std::cout << print(result) << "\n";
+                    continue;
+                }
+
+                // curl([Fx, Fy, Fz], x, y, z) — curl (3D only)
+                if (fname == "curl" && e->children.size() == 4 && is_matrix(e->children[0])) {
+                    Expr* vec = e->children[0];
+                    if (vec->children.size() != 3) { std::cerr << "Error: curl requires 3D vector\n"; continue; }
+                    std::string x = e->children[1]->name;
+                    std::string y = e->children[2]->name;
+                    std::string z = e->children[3]->name;
+                    Expr* Fx = vec->children[0];
+                    Expr* Fy = vec->children[1];
+                    Expr* Fz = vec->children[2];
+                    // curl = [dFz/dy - dFy/dz, dFx/dz - dFz/dx, dFy/dx - dFx/dy]
+                    std::vector<Expr*> components = {
+                        simplify(session.arena, make_add(session.arena, {differentiate(session.arena, Fz, y), make_neg(session.arena, differentiate(session.arena, Fy, z))})),
+                        simplify(session.arena, make_add(session.arena, {differentiate(session.arena, Fx, z), make_neg(session.arena, differentiate(session.arena, Fz, x))})),
+                        simplify(session.arena, make_add(session.arena, {differentiate(session.arena, Fy, x), make_neg(session.arena, differentiate(session.arena, Fx, y))})),
+                    };
+                    Expr* result = make_matrix(session.arena, 1, 3, std::move(components));
+                    session.last_result = result;
+                    std::cout << print_matrix(result) << "\n";
+                    continue;
+                }
+
                 if (fname == "expand" && e->children.size() >= 1) {
                     Expr* expr = e->children[0];
                     expr = expand(session.arena, expr);
