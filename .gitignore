@@ -1,0 +1,35 @@
+# Build
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Compiled objects
+*.o
+*.a
+*.so
+*.out
+
+# Editor and OS
+*.swp
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Temporary files
+*.tmp
+docs/patch_*.py
+docs/*_new.md
+__pycache__
+
+# Project files of vscode
+.vs
