@@ -383,6 +383,14 @@ int main() {
                 if (fname == "factor" && e->children.size() == 2) {
                     Expr* expr = e->children[0];
                     std::string var = e->children[1]->name;
+                    // Try recognition functions first
+                    Expr* recognized = apply_recognizers(session.arena,
+                        simplify(session.arena, expr), get_rules().recognizers);
+                    if (recognized && !recognized->is_add()) {
+                        session.last_result = recognized;
+                        std::cout << print(recognized) << "\n";
+                        continue;
+                    }
                     Expr* result = factor(session.arena, expr, var);
                     session.last_result = result;
                     std::cout << print(result) << "\n";

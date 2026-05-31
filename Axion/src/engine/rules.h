@@ -25,6 +25,7 @@ struct RuleTables {
     std::vector<RewriteRule> identities;   // simplification identities
     std::vector<DiffRule> diff_rules;      // differentiation table
     std::vector<IntRule> int_rules;        // integration table
+    std::vector<RecognitionFn> recognizers; // backward pattern detectors
 
     // Lookup helpers
     const DiffRule* find_diff(const std::string& func) const;

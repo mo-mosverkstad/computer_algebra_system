@@ -326,3 +326,72 @@ All 52 Phase 1–11 tests: ✅ Pass (no regressions)
 ### Issues Found
 
 None.
+
+
+---
+
+## Phase 13 — Meta-Rule Engine (Complete)
+
+### Regression Test
+
+All 52 Phase 1–12 tests: ✅ Pass (no regressions)
+
+### Phase 13 Verification
+
+#### Context-aware wildcards
+
+| Feature | Test | Verdict |
+|---------|------|---------|
+| `_c__const` | Matches expressions free of active variable | ✅ Implemented |
+| `_v__hasvar` | Matches expressions containing active variable | ✅ Implemented |
+| `MatchContext` | Overloaded `pattern_match` with context | ✅ Implemented |
+
+#### Recognition functions
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `factor(a^2 + 2*a*b + b^2, a)` | `(a + b)^2` | `(a + b)^2` | ✅ |
+| `factor(a^2 - 2*a*b + b^2, a)` | `(a - b)^2` | `(a - b)^2` | ✅ |
+| `factor(x^2 + 2*x + 1, x)` | `(1 + x)^2` | `(1 + x)^2` | ✅ |
+| `factor(x^2 - 2*x + 1, x)` | `(1 - x)^2` | `(1 - x)^2` | ✅ |
+| `factor(x^2 + 6*x + 9, x)` | `(3 + x)^2` | `(3 + x)^2` | ✅ |
+| `factor(x^2 + 4*x + 4, x)` | `(2 + x)^2` | `(2 + x)^2` | ✅ |
+| `factor(x^2 + 2*x*y + y^2, x)` | `(x + y)^2` | `(x + y)^2` | ✅ |
+| `factor(x^2 - 1, x)` | `(-1+x)*(1+x)` | `(-1+x)*(1+x)` | ✅ (falls through to root-finding) |
+
+#### Hyperbolic functions (rule-table driven)
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `sinh(0)` | `0` | `0` | ✅ |
+| `cosh(0)` | `1` | `1` | ✅ |
+| `tanh(0)` | `0` | `0` | ✅ |
+| `diff(sinh(x), x)` | `cosh(x)` | `cosh(x)` | ✅ |
+| `diff(cosh(x), x)` | `sinh(x)` | `sinh(x)` | ✅ |
+| `diff(tanh(x), x)` | `cosh(x)^-2` | `cosh(x)^-2` | ✅ |
+| `diff(sinh(x^2), x)` | `2*x*cosh(x^2)` | `2*x*cosh(x^2)` | ✅ |
+| `int(sinh(x), x)` | `cosh(x)` | `cosh(x)` | ✅ |
+| `int(cosh(x), x)` | `sinh(x)` | `sinh(x)` | ✅ |
+
+#### Rule-driven simplification
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `sin(pi/2)` | `1` | `1` | ✅ |
+| `cos(pi/2)` | `0` | `0` | ✅ |
+| `exp(ln(x))` | `x` | `x` | ✅ |
+| `ln(exp(x))` | `x` | `x` | ✅ |
+| `sin(x)^2 + cos(x)^2` | `1` | `1` | ✅ |
+| `ln(2) + ln(3)` | `ln(6)` | `ln(6)` | ✅ |
+| `2*ln(x)` | `ln(x^2)` | `ln(x^2)` | ✅ |
+
+#### Rest-matching and user rules
+
+| Input | Expected | Actual | Verdict |
+|-------|----------|--------|---------|
+| `rule(sin(_x)^2+cos(_x)^2+_rest, 1+_rest)` then `sin(a)^2+cos(a)^2+5` | `6` | `6` | ✅ |
+| `rule(log(_x)+log(_y)+_rest, log(_x*_y)+_rest)` then `log(2)+log(3)+log(5)` | `log(30)` | `log(30)` | ✅ |
+
+### Issues Found
+
+None — all features implemented cleanly.

@@ -509,7 +509,7 @@ All 52 previous tests: ✅ Pass
 
 ---
 
-## Phase 13 — Meta-Rule Engine (Partial, 2026-05-31)
+## Phase 13 — Meta-Rule Engine (Complete, 2026-05-31)
 
 ### Added
 
@@ -522,9 +522,36 @@ All 52 previous tests: ✅ Pass
   - `_n__num` — only matches numeric expressions
   - `_f__func` — only matches function calls
   - `_s__sym` — only matches symbols
+  - `_c__const` — matches expressions free of active variable (context-aware)
+  - `_v__hasvar` — matches expressions containing active variable (context-aware)
+
+- **Context-aware pattern matching**
+  - `MatchContext` struct with `active_var` field
+  - `pattern_match(expr, pattern, bindings, ctx)` overload
+  - Enables integration/differentiation rules that distinguish constants from variable terms
+
+- **Recognition functions (backward pattern detectors)**
+  - `RecognitionFn` type: C++ functions registered as backward rules
+  - `apply_recognizers(arena, expr, fns)` — applies recognizers bottom-up
+  - Perfect square trinomial recognizer: `a²+2ab+b² → (a+b)²`, `a²-2ab+b² → (a-b)²`
+  - Handles numeric perfect squares: `x²+6x+9 → (3+x)²`
+  - Integrated into `factor()` command (tries recognizers before root-finding)
 
 - **Pattern simplification on rule definition**
   - Patterns are now `simplify()`-ed before storage to ensure flattened ADD/MUL
+
+- **Hyperbolic function support (via rule tables)**
+  - `sinh`, `cosh`, `tanh` differentiation rules
+  - `sinh`, `cosh` integration rules
+  - `sinh(0)→0`, `cosh(0)→1`, `tanh(0)→0` computational rules
+  - `cosh²-sinh²=1` identity rule
+
+- **Rule-driven architecture refactor (partial)**
+  - Two-tier simplification: `simplify()` (fast algorithmic) vs `simplify_full()` (+ identity rules)
+  - All user-facing outputs now go through `simplify_full()`
+  - Removed duplicated trig rules from `trigsimp` — uses identity table
+  - Identity rules: `sin(pi/2)→1`, `cos(pi/2)→0`, `exp(ln(_x))→_x`, `ln(exp(_x))→_x`,
+    `sin²+cos²→1`, `ln(_x)+ln(_y)→ln(_x*_y)`, `_n*ln(_x)→ln(_x^_n)`
 
 ### Key Results
 
@@ -535,6 +562,13 @@ sin(a)^2 + cos(a)^2 + y       → 1 + y
 
 rule(log(_x) + log(_y) + _rest, log(_x*_y) + _rest)
 log(2) + log(3) + log(5)      → log(30)
+
+factor(a^2 + 2*a*b + b^2, a)  → (a + b)^2
+factor(x^2 + 6*x + 9, x)     → (3 + x)^2
+factor(x^2 - 2*x + 1, x)     → (1 - x)^2
+
+diff(sinh(x^2), x)            → 2*x*cosh(x^2)
+int(cosh(x), x)               → sinh(x)
 ```
 
 ### Regression

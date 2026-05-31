@@ -30,13 +30,26 @@ bool is_rest_wildcard(const Expr* e) {
     return is_wildcard(e) && e->name == "_rest";
 }
 
+// Thread-local match context for context-aware wildcards
+static MatchContext g_match_ctx;
+
+// Check if expression contains a specific variable
+bool contains_var(const Expr* e, const std::string& var) {
+    if (!e) return false;
+    if (e->is_sym() && e->name == var) return true;
+    for (auto* c : e->children)
+        if (contains_var(c, var)) return true;
+    return false;
+}
+
 // Check type constraint
 bool check_type_constraint(const Expr* expr, const std::string& type) {
     if (type.empty()) return true; // no constraint
     if (type == "num") return expr->is_num();
     if (type == "sym") return expr->is_sym();
     if (type == "func") return expr->is_func();
-    // "const" would need variable context — skip for now
+    if (type == "const") return !contains_var(expr, g_match_ctx.active_var);
+    if (type == "hasvar") return contains_var(expr, g_match_ctx.active_var);
     return true;
 }
 
@@ -279,6 +292,27 @@ Expr* apply_rules(Arena& arena, Expr* expr, const std::vector<RewriteRule>& rule
         if (!changed) break;
     }
     g_match_arena = nullptr;
+    return expr;
+}
+
+bool pattern_match(const Expr* expr, const Expr* pattern, Bindings& bindings, const MatchContext& ctx) {
+    MatchContext prev = g_match_ctx;
+    g_match_ctx = ctx;
+    bool result = pattern_match(expr, pattern, bindings);
+    g_match_ctx = prev;
+    return result;
+}
+
+Expr* apply_recognizers(Arena& arena, Expr* expr, const std::vector<RecognitionFn>& fns) {
+    // Try each recognizer at every subexpression (bottom-up)
+    for (auto& child : expr->children) {
+        Expr* r = apply_recognizers(arena, child, fns);
+        if (r) child = r;
+    }
+    for (auto fn : fns) {
+        Expr* r = fn(arena, expr);
+        if (r) return r;
+    }
     return expr;
 }
 
