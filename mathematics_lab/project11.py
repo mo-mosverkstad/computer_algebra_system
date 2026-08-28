@@ -34,8 +34,15 @@ def combinations_with_sum(
     
     result: List[List[int]] = []
     for value in range(lower_bound, upper_bound + 1, 2):
+        if value * size > target_sum: break
         for rest in combinations_with_sum(value + 2, upper_bound, size - 1, target_sum - value):
             result.append([value] + rest)
+    return result
+
+
+def product(values: List[int]) -> int:
+    result = 1
+    for value in values: result *= value
     return result
 
 
@@ -89,12 +96,16 @@ def generate_subsets(
     for even_term in range(partial_lower_bound, partial_upper_bound + 1, 2):
         odd_term = subset_sum - even_term
         
-        print(f"even_term = {even_term}, odd_term = {odd_term}")
-        for even_part in combinations_with_sum(lower_even_bound, upper_even_bound, subset_even_size, even_term):
-            for odd_part in combinations_with_sum(lower_odd_bound, upper_odd_bound, subset_odd_size, odd_term):
-                prod = 1
-                for value in even_part + odd_part: prod *= value
-                if prod % subset_prod_divisable != 0: continue
+        even_parts = combinations_with_sum(lower_even_bound, upper_even_bound, subset_even_size, even_term)
+        odd_parts = combinations_with_sum(lower_odd_bound, upper_odd_bound, subset_odd_size, odd_term)
+        even_prods = [product(part) for part in even_parts]
+        odd_prods = [product(part) for part in odd_parts]
+        
+        print(f"even_term = {even_term} -> {even_parts}, odd_term = {odd_term} -> {odd_parts}")
+        
+        for even_part, even_prod in zip(even_parts, even_prods):
+            for odd_part, odd_prod in zip(odd_parts, odd_prods):
+                if even_prod * odd_prod % subset_prod_divisable != 0: continue
                 result.append(set(even_part + odd_part))
     
     
