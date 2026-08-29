@@ -92,11 +92,15 @@ def generate_subsets(
     for even_term_sum in range(partial_lower_bound, partial_upper_bound + 1, 2):
         odd_term_sum = subset_sum - even_term_sum
         
+        print(f"even_term_sum: {even_term_sum}, odd_term_sum: {odd_term_sum}")
+        
+        
         even_parts = combinations_with_sum(lower_even_bound, upper_even_bound, subset_even_size, even_term_sum)
         odd_parts = combinations_with_sum(lower_odd_bound, upper_odd_bound, subset_odd_size, odd_term_sum)
         even_products = [product(part) for part in even_parts]
         odd_products = [product(part) for part in odd_parts]
         
+        '''
         # print(f"even_term_sum = {even_term_sum} -> {even_parts}, odd_term_sum = {odd_term_sum} -> {odd_parts}")
         
         # TODO: May be improved here using better algorithm than checking each divisability (using prime factors)
@@ -104,79 +108,20 @@ def generate_subsets(
             for odd_part, odd_prod in zip(odd_parts, odd_products):
                 if even_prod * odd_prod % subset_prod_divisable != 0: continue
                 result.append(set(even_part + odd_part))
+        '''
     
     
     print("Successfully calculated result")
     return result
-    
 
-print(combinations_with_sum(2, 8, 2, 10))
-print()
-print(" --------------- ASSIGNMENT 1.0 --------------- ")
-
-universal_set_lower_bound = 1
-universal_set_upper_bound = 9
-subset_sum = 20
-subset_prod_divisable = 24
+print(" --------------- ASSIGNMENT 1.2 --------------- ")
 
 result = generate_subsets(
-    universal_set_lower_bound = universal_set_lower_bound,
-    universal_set_upper_bound = universal_set_upper_bound,
-    subset_even_size = 2,
-    subset_odd_size = 2,
-    subset_sum = subset_sum,
-    subset_prod_divisable = subset_prod_divisable
-)
-
-print(f"Result: {result}")
-
-
-# Check for correctness
-correct = True
-incorrects = []
-for result_element in result:
-    if sum(result_element) == 20 and product(result_element) % 24 != 0:
-        incorrects.append(result_element)
-        correct = False
-        
-print(f"Number of result elements: {len(result)}")
-print(f"Correct: {correct}, incorrects: {incorrects}")
-
-print()
-
-print(" --------------- ASSIGNMENT 1.1 --------------- ")
-
-result = []
-
-result += generate_subsets(
     universal_set_lower_bound = 1,
-    universal_set_upper_bound = 30,
-    subset_even_size=3,
-    subset_odd_size=4,
-    subset_sum=105,
-    subset_prod_divisable=360
+    universal_set_upper_bound = 60,
+    subset_even_size = 5,
+    subset_odd_size = 6,
+    subset_sum = 330,
+    subset_prod_divisable = 2**6*3**3*5**2*7
 )
-
-result += generate_subsets(
-    universal_set_lower_bound = 1,
-    universal_set_upper_bound = 30,
-    subset_even_size=4,
-    subset_odd_size=3,
-    subset_sum=105,
-    subset_prod_divisable=360
-)
-
-print(f"Result: {result[:20]}...<truncated at 20>")
-print(f"Number of result elements: {len(result)}")
-
-# Check for correctness
-correct = True
-incorrects = []
-for result_element in result:
-    if sum(result_element) == 105 and product(result_element) % 360 != 0:
-        incorrects.append(result_element)
-        correct = False
-        
-print(f"Correct: {correct}, incorrects: {incorrects}")
-
-print()
+print(f"result length: {len(result)}, result: {result[:20]}...<truncated at 20>")
