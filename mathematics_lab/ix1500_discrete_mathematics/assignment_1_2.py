@@ -116,10 +116,12 @@ def enumerate_half(pool_lower_bound, pool_upper_bound, subset_size, primes, need
             target_key = (target,) + cap_vector(calculate_key(target_result, primes), needed)
             entry = buckets.get(target_key, None)
             if entry is None:
-                buckets[target_key] = [1, [target_result]]
+                buckets[target_key] = [1, [target_result], target_result, target_result]
             else:
                 entry[0] += 1
                 entry[1].append(target_result)
+                if (target_result < entry[2]): entry[2] = target_result
+                if (target_result > entry[3]): entry[3] = target_result
     return buckets
     
 
@@ -128,10 +130,13 @@ needed = [6, 3, 2, 1]
 even_buckets = enumerate_half(2, 60, 5, primes, needed, 30, 280)
 odd_buckets = enumerate_half(1, 59, 6, primes, needed, 50, 300)
 
+min_subset = None
+max_subset = None
+
 def alter_tuple_index(tuple_obj, index, value):
     return tuple(value if i == index else tuple_obj[i] for i in range(len(tuple_obj)))
 
-def loop_over_traversal(buckets, needed, traverse_key, traverse_index = 0, count = 0):
+def loop_over_traversal(buckets, needed, traverse_key, self_min, self_max, min_subset, max_subset, traverse_index = 0, count = 0):
     start = traverse_key[traverse_index + 1]
     end = needed[traverse_index]
     for offset in range(start, end + 1):
@@ -139,27 +144,82 @@ def loop_over_traversal(buckets, needed, traverse_key, traverse_index = 0, count
         if traverse_index == len(needed) - 1:
             entry = buckets.get(traverse_key)
             if entry is not None:
-                count = count + entry[0]
+                other_count, _, other_min, other_max = entry
+                count = count + other_count
+                subset1 = tuple(sorted(self_min + other_min))
+                subset2 = tuple(sorted(self_min + other_max))
+                subset3 = tuple(sorted(self_max + other_min))
+                subset4 = tuple(sorted(self_max + other_max))
+                if min_subset is None or subset1 < min_subset: min_subset = subset1
+                if max_subset is None or subset1 > max_subset: max_subset = subset1
+                if min_subset is None or subset2 < min_subset:
+                    min_subset = subset2
+                if max_subset is None or subset2 > max_subset:
+                    max_subset = subset2
+                if min_subset is None or subset3 < min_subset:
+                    min_subset = subset3
+                if max_subset is None or subset3 > max_subset:
+                    max_subset = subset3
+                if min_subset is None or subset4 < min_subset:
+                    min_subset = subset4
+                if max_subset is None or subset4 > max_subset:
+                    max_subset = subset4
         else:
-            count = loop_over_traversal(buckets, needed, traverse_key, traverse_index + 1, count)
+            count, min_subset, max_subset = loop_over_traversal(buckets, needed, traverse_key, self_min, self_max, min_subset, max_subset, traverse_index + 1, count)
     traverse_key = alter_tuple_index(traverse_key, traverse_index + 1, start) # traverse_key[traverse_index + 1] = start
-    return count
+    return count, min_subset, max_subset
+
 
 count = 0
+
 for (even_key, even_value) in even_buckets.items():
     self_entry = even_buckets.get(even_key)
     if self_entry is None: continue
-    self_count = self_entry[0]
+    self_count, self_half_subsets, self_min, self_max = self_entry
     
     complement_sum = TARGET_SUM - even_key[0]
     complement_prime_exponents = tuple((needed[i-1] - even_key[i]) for i in range(1, len(even_key)))
     complement_key = (complement_sum,) + complement_prime_exponents
     
-    complement_count = loop_over_traversal(odd_buckets, needed, complement_key)
+    complement_count, min_subset, max_subset = loop_over_traversal(odd_buckets, needed, complement_key, self_min, self_max, min_subset, max_subset)
     count += complement_count * self_count
+    '''
+    for self_half_subset in self_half_subsets:
+        for complement_half_subset in complement_half_subsets:
+            subset = tuple(sorted(self_half_subset + complement_half_subset))
+            if min_subset is None or subset < min_subset:
+                min_subset = subset
+            if max_subset is None or subset > max_subset:
+                max_subset = subset
+    '''
     # print(f"even_key = {even_key}, complement_key = {complement_key}, self_entry = {self_entry}, complement_count = {complement_count}")
 
 
 print(len(even_buckets), len(odd_buckets))
-print(f"count = {count}")
+print(f"count = {count}, min_subset = {min_subset}, max_subset = {max_subset}")
 # print(odd_bucket_keys)
+
+
+def calculate_sum(subset):
+    '''sum = |S_E - 165|, not simply sum'''
+    return abs(sum(subset) - 165)
+    
+
+# D(S) = |S_E - S_O| = |S_E - (330 - S_E)| = |2S_E - 330| = 2|S_E - 165|
+
+# initialize an arbitrary sum value
+min_even_sum = None # min(|E_S - 165|)
+max_even_sum = None # max(|E_S - 165|)
+
+for entry in even_buckets.values():
+    for subset in entry[1]:
+        subset_sum = calculate_sum(subset)
+        if min_even_sum is None or subset_sum < min_even_sum:
+            min_even_sum = subset_sum
+        if max_even_sum is None or subset_sum > max_even_sum:
+            max_even_sum = subset_sum
+
+min_d_s = 2*min_even_sum
+max_d_s = 2*max_even_sum
+print(f"min_d_s = {min_d_s}, max_d_s = {max_d_s}")
+
