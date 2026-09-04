@@ -1,0 +1,482 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+
+\usepackage{graphicx}
+\usepackage{float}
+
+\usepackage{geometry}
+\geometry{
+    a4paper,
+    margin=2.5cm
+}
+
+\usepackage{booktabs}
+\usepackage{array}
+
+\usepackage{xcolor}
+\usepackage{listings}
+
+\usepackage{hyperref}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    showstringspaces=false
+}
+
+\title{
+    \textbf{IX1500 Discrete Mathematics}\\
+    Project 1
+}
+
+\author{
+    Mo Wang\\
+    \texttt{mowang@kth.se}
+}
+
+\date{September 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+This report presents the solution to constrained enumeration problems of Project 1. The enumeration of subsets must satisfy several constraints, including the sums, parity and product divisibility of the subset elements without enumerating all possible sets. The first problem is small enough to be calculated mathematically by hand using a simple algorithm, while the second two are solved computationally for larger number set. The implemented enumeration exploits the given constraint algorithms to reduces number of enumeration.
+
+\end{abstract}
+
+\section*{Introduction}
+
+The purpose of this project is to find and analyze the subsets that satisfy a number of given arithmetical constraints, including the sums, parity and product divisibility of the subset elements, from a given universal set $U$. This should be done without enumerating through all possible subsets from universal set.
+
+The project consists of three parts: one hand-solved problem for a small universal set and two computational problems of increasing size of universal set. The hand-solved problem provides the fundamental intuition for constrained enumeration algorithm that reduces the search space, while the computational ones are for apply the intuition into code and optimize it as well.
+
+\section*{Assignment 0: Solve by Hand}
+
+For the first solve-by-hand assignment, let the universal set $U$:
+\[
+U = \{1,2,3,4,5,6,7,8,9\}.
+\]
+All subsets $S \subseteq U$ must satisfy the element number constraint:
+\[
+|S| = 4,
+\]
+and
+\[
+|E(S)| = 2
+\quad\text{or}\quad
+|O(S)| = 2,
+\]
+where
+\[
+E(S) = \{x\in S : x \text{ is even}\},
+O(S) = \{x\in S : x \text{ is odd}\}.
+\]
+as well as element sum constraint:
+\[
+\sum_{x\in S} x = 20,
+\]
+In addition, the product of element
+\[
+\prod_{x\in S}x
+\]
+must be divisible by $24$, which forms the dividablity constraint.
+
+These requirements mean that the subset must contain four different elements chosen from the universal set. Since the subset contains four elements, the condition that exactly two of the elements are even, or exactly two of the elements are odd, implies that the subset must contain exactly two even elements and two odd elements. This is because a non-even number is an odd number and a non-odd number is an even number. Therefore, the subset can be divided into two parts with each partial sum: one even part containing two even elements and one odd part containing two odd elements.
+
+Therefore, according to the sum constraint, the total sum of the subset must be $20$, if the partial sum of the even part is $s_E$ and odd part $s_O$
+\[
+s_E + s_O = 20.
+\]
+
+Additionally, the divisibility requirement can be fulfilled by requiring the product of all elements in a valid subset having at least three factors of $2$ and at least one factor of $3$.
+\[
+24 = 2^3 \times 3,
+\]
+
+\subsection*{Algorithm}
+
+A simple method for enumerating the subsets satisfying the element number and sum constraints is to vary the sum of the even part and determine the corresponding required sum for the odd part. For instance, the even part may have the sum of 10, giving the combinations: $\{2, 8\}$ and $\{4, 6\}$. The odd part must then have the sum $10$, resulting in combinations: $\{1, 9\}$ and $\{3, 7\}$. Concatenating both parts, 4 total combinations can be formed: $\{1, 2, 8, 9\}$, $\{2, 3, 7, 8\}$, $\{1, 4, 6, 9\}$ and $\{3, 4, 6, 7\}$. The full enumeration process is listed in Table~\ref{tab:sums}.
+
+\begin{table}[h]
+\centering
+\caption{Even and odd sums with combinations}
+\label{tab:sums}
+\begin{tabular}{lllll}
+\toprule
+Even sum & Even combinations & Odd sum & Odd combinations \\
+\midrule
+4 & - & 16 & \{7, 9\}\\
+6 & \{2, 4\} & 14 & \{5, 9\}\\
+8 & \{2, 6\} & 12 & \{3, 9\}, \{5, 7\}\\
+10 & \{2, 8\}, \{4, 6\} & 10 & \{1, 9\}, \{3, 7\}\\
+12 & \{4, 8\} & 8 & \{1, 7\}, \{3, 5\}\\
+14 & \{6, 8\} & 6 & \{1, 5\}\\
+16 & - & 4 & \{1, 3\}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+After enumerating all candidate subsets satisfying the element number and sum constraints fulfills the even  number and sum constraints, the subsets whose products are not divisible by 24 are removed. The results can be shown in Table~\ref{tab:sums-filter}
+
+\begin{table}[h]
+\centering
+\caption{Removing combinations that cannot be divisable by $24 = 2^3 \times 3$}
+\label{tab:sums-filter}
+\begin{tabular}{lllll}
+\toprule
+Even+Odd & Even combinations & Odd combinations & Divisible by 24? & Valid \\
+\midrule
+4+16  & -        & 7, 9          & - & No \\
+
+6+14  & 2, 4     & 5, 9          &
+$2\times4\times5\times9 = 2^3 \times 3^2 \times 5$
+& Yes \\
+
+8+12  & 2, 6     & 3, 9          &
+$2\times6\times3\times9 = 2^2 \times 3^4$
+& No \\
+
+      &          & 5, 7          &
+$2\times6\times5\times7 = 2^2 \times 3 \times 5 \times 7$
+& No \\
+
+10+10 & 2, 8     & 1, 9          &
+$2\times8\times1\times9 = 2^4 \times 3^2$
+& Yes \\
+
+      &          & 3, 7          &
+$2\times8\times3\times7 = 2^4 \times 3 \times 7$
+& Yes \\
+
+      & 4, 6     & 1, 9          &
+$4\times6\times1\times9 = 2^3 \times 3^3$
+& Yes \\
+
+      &          & 3, 7          &
+$4\times6\times3\times7 = 2^3 \times 3^2 \times 7$
+& Yes \\
+
+12+8  & 4, 8     & 1, 7          &
+$4\times8\times1\times7 = 2^5 \times 7$
+& No \\
+
+      &          & 3, 5          &
+$4\times8\times3\times5 = 2^5 \times 3 \times 5$
+& Yes \\
+
+14+6  & 6, 8     & 1, 5          &
+$6\times8\times1\times5 = 2^4 \times 3 \times 5$
+& Yes \\
+
+16+4  & -        & 1, 3          & - & No \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Result}
+
+The hand calculation can also be found as a screenshot in appendix.
+
+Concatenating the even and odd parts of the subset, the result shows that there are totally 7 subsets. The subsets are given as:
+\[
+\{2, 4, 5, 9\},\;
+\{1, 2, 8, 9\},\;
+\{2, 3, 7, 8\},\;
+\{1, 4, 6, 9\},\;
+\{3, 4, 6, 7\},\;
+\{3, 4, 5, 8\},\;
+\{1, 5, 6, 8\}
+\]
+
+
+% ============================================================
+% 2. For Pass Grade
+% ============================================================
+
+\section{For Pass Grade}
+
+For this part,
+
+\[
+U = \{1,2,3,\ldots,30\}.
+\]
+
+We seek subsets $S\subseteq U$ satisfying
+
+\[
+|S|=7,
+\]
+
+\[
+\sum_{x\in S}x=105,
+\]
+
+and
+
+\[
+|E(S)|=3
+\quad\text{or}\quad
+|O(S)|=3,
+\]
+
+where
+
+\[
+E(S)=\{x\in S:x\text{ is even}\},
+\]
+
+\[
+O(S)=\{x\in S:x\text{ is odd}\}.
+\]
+
+Furthermore,
+
+\[
+\prod_{x\in S}x
+\]
+
+must be divisible by $360$.
+
+% ------------------------------------------------------------
+% 2.1 Algorithm
+% ------------------------------------------------------------
+
+\subsection{Algorithm}
+
+Describe the algorithm used to search for valid subsets.
+
+The program should avoid testing every possible subset whenever
+possible.
+
+Explain the pruning conditions and why they are valid.
+
+% ------------------------------------------------------------
+% 2.2 Results
+% ------------------------------------------------------------
+
+\subsection{Results}
+
+The total number of valid subsets is
+
+\[
+\boxed{\ldots}
+\]
+
+The valid subsets are
+
+\[
+\begin{aligned}
+S_1 &= \{\ldots\},\\
+S_2 &= \{\ldots\},\\
+S_3 &= \{\ldots\},\\
+&\vdots
+\end{aligned}
+\]
+
+% ------------------------------------------------------------
+% 2.3 Discussion
+% ------------------------------------------------------------
+
+\subsection{Discussion}
+
+Discuss the algorithm and its efficiency.
+
+Explain why the approach avoids unnecessary subset checks and how
+the mathematical constraints are used to reduce the search space.
+
+% ------------------------------------------------------------
+% 2.4 Conclusion
+% ------------------------------------------------------------
+
+\subsection{Conclusion}
+
+Summarize the results for this part.
+
+% ============================================================
+% 3. Higher Grade
+% ============================================================
+
+\section{Higher Grade}
+
+For this part,
+
+\[
+U = \{1,2,3,\ldots,60\}.
+\]
+
+We seek subsets $S\subseteq U$ satisfying
+
+\[
+|S|=11,
+\]
+
+\[
+\sum_{x\in S}x=330,
+\]
+
+and
+
+\[
+|E(S)|=5,
+\]
+
+where
+
+\[
+E(S)=\{x\in S:x\text{ is even}\}.
+\]
+
+Furthermore,
+
+\[
+\prod_{x\in S}x
+\]
+
+must be divisible by
+
+\[
+2^6\cdot3^3\cdot5^2\cdot7.
+\]
+
+% ------------------------------------------------------------
+% 3.1 Algorithm
+% ------------------------------------------------------------
+
+\subsection{Algorithm}
+
+Describe the algorithm used to solve the problem.
+
+Explain how the constraints are incorporated into the search.
+
+% ------------------------------------------------------------
+% 3.2 Valid Subsets
+% ------------------------------------------------------------
+
+\subsection{Valid Subsets}
+
+The total number of valid subsets is
+
+\[
+\boxed{\ldots}
+\]
+
+% ------------------------------------------------------------
+% 3.3 Lexicographical Order
+% ------------------------------------------------------------
+
+\subsection{Lexicographical Order}
+
+The lexicographically smallest valid subset is
+
+\[
+\boxed{\{\ldots\}}.
+\]
+
+The lexicographically largest valid subset is
+
+\[
+\boxed{\{\ldots\}}.
+\]
+
+% ------------------------------------------------------------
+% 3.4 D(S)
+% ------------------------------------------------------------
+
+\subsection{The Function $D(S)$}
+
+For every valid subset $S$, define
+
+\[
+D(S)
+=
+\left|
+\sum_{x\in E(S)}x
+-
+\sum_{x\in O(S)}x
+\right|.
+\]
+
+The minimum value of $D(S)$ is
+
+\[
+\boxed{\ldots}
+\]
+
+and the maximum value is
+
+\[
+\boxed{\ldots}.
+\]
+
+Explain how these values were determined.
+
+% ------------------------------------------------------------
+% 3.5 Discussion
+% ------------------------------------------------------------
+
+\subsection{Discussion}
+
+Discuss the mathematical reasoning and computational approach.
+
+% ------------------------------------------------------------
+% 3.6 Conclusion
+% ------------------------------------------------------------
+
+\subsection{Conclusion}
+
+Summarize the main results.
+
+% ============================================================
+% 4. Code
+% ============================================================
+
+\section{Code}
+
+The code used to obtain the computational results is included below.
+
+% ------------------------------------------------------------
+% Example
+% ------------------------------------------------------------
+
+\begin{lstlisting}[language=C]
+/*
+ * Your program here.
+ */
+
+#include <stdio.h>
+
+int main(void)
+{
+    return 0;
+}
+\end{lstlisting}
+
+% If the code is long, it is better to put it in an appendix
+% or submit it as a separate file.
+
+% ============================================================
+% References
+% ============================================================
+
+\begin{thebibliography}{9}
+
+\bibitem{boiers}
+Course book, Chapter 1--2.
+
+\bibitem{lectures}
+IX1500 Discrete Mathematics, lecture notes F1--F8.
+
+\end{thebibliography}
+
+\end{document}

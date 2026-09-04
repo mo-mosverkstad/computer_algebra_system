@@ -1,0 +1,9 @@
+- title and authors of the report
+- email@kth.se
+- a summary containing the results of resolved parts
+- separate sections for each part containing e.g.
+  - mathematical formulas and equations
+  - a brief discussion
+  - explanatory diagrams
+  - your conclusions.
+- separate code section (do not mix code and text with conclusions and results).
