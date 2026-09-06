@@ -51,7 +51,7 @@
 
 \begin{abstract}
 
-This report presents the solution to constrained enumeration problems of Project 1. The enumeration of subsets must satisfy several constraints, including the sums, parity and product divisibility of the subset elements without enumerating all possible sets. The first problem is small enough to be calculated mathematically by hand using a simple algorithm, while the second two are solved computationally for larger number set. The implemented enumeration exploits the given constraint algorithms to reduces number of enumeration.
+This report presents the solution to constrained enumeration problems of Project 1. The enumeration of subsets must satisfy several constraints, including the sums, parity and product divisibility of the subset elements without enumerating all possible sets. The first problem is small enough to be calculated mathematically by hand using a simple algorithm, while the second two are solved computationally for larger number set. The implemented algorithms exploit the constraints to reduce the number of subsets that must be enumerated.
 
 \end{abstract}
 
@@ -90,9 +90,9 @@ In addition, the product of element
 \[
 \prod_{x\in S}x
 \]
-must be divisible by $24$, which forms the dividablity constraint.
+must be divisible by $24$, which forms the divisibility constraint.
 
-These requirements mean that the subset must contain four different elements chosen from the universal set. Since the subset contains four elements, the condition that exactly two of the elements are even, or exactly two of the elements are odd, implies that the subset must contain exactly two even elements and two odd elements. This is because a non-even number is an odd number and a non-odd number is an even number. Therefore, the subset can be divided into two parts with each partial sum: one even part containing two even elements and one odd part containing two odd elements.
+These requirements implies that the subset must contain four different elements chosen from the universal set. Since the subset contains four elements, the condition that exactly two of the elements are even, or exactly two of the elements are odd, implies that the subset must contain exactly two even elements and two odd elements. The obvious reason is that a non-even number must be an odd number while a non-odd number must be an even number. Therefore, the subset can be divided into two parts with each partial sum: one even part containing two even elements and one odd part containing two odd elements.
 
 Therefore, according to the sum constraint, the total sum of the subset must be $20$, if the partial sum of the even part is $s_E$ and odd part $s_O$
 \[
@@ -131,7 +131,7 @@ After enumerating all candidate subsets satisfying the element number and sum co
 
 \begin{table}[h]
 \centering
-\caption{Removing combinations that cannot be divisable by $24 = 2^3 \times 3$}
+\caption{Removing combinations that cannot be divisible by $24 = 2^3 \times 3$}
 \label{tab:sums-filter}
 \begin{tabular}{lllll}
 \toprule
@@ -188,7 +188,7 @@ $6\times8\times1\times5 = 2^4 \times 3 \times 5$
 
 The hand calculation can also be found as a screenshot in appendix.
 
-Concatenating the even and odd parts of the subset, the result shows that there are totally 7 subsets. The subsets are given as:
+After concatenating the even and odd parts of the subset and removing the combinations that doesn't fulfill divisibility constraint, the result shows that there are totally 7 valid subsets. The subsets are given as below:
 \[
 \{2, 4, 5, 9\},\;
 \{1, 2, 8, 9\},\;
@@ -204,199 +204,544 @@ Concatenating the even and odd parts of the subset, the result shows that there 
 % 2. For Pass Grade
 % ============================================================
 
-\section{For Pass Grade}
+\section*{Assignment 1: For pass grade}
 
-For this part,
-
+Assignment 1 has similar constraints to assignment 0, but the number are larger. The universal set $U$ spans as below:
 \[
 U = \{1,2,3,\ldots,30\}.
 \]
-
-We seek subsets $S\subseteq U$ satisfying
-
+Subsets $S\subseteq U$ satisfying
 \[
 |S|=7,
 \]
-
-\[
-\sum_{x\in S}x=105,
-\]
-
 and
-
 \[
 |E(S)|=3
 \quad\text{or}\quad
 |O(S)|=3,
 \]
-
 where
-
 \[
 E(S)=\{x\in S:x\text{ is even}\},
 \]
-
 \[
 O(S)=\{x\in S:x\text{ is odd}\}.
 \]
-
-Furthermore,
-
+Furthermore, the sum constraint is 105:
+\[
+\sum_{x\in S}x=105,
+\]
+and,
 \[
 \prod_{x\in S}x
 \]
-
 must be divisible by $360$.
 
-% ------------------------------------------------------------
-% 2.1 Algorithm
-% ------------------------------------------------------------
 
-\subsection{Algorithm}
+\subsection*{Algorithm}
 
-Describe the algorithm used to search for valid subsets.
+% Describe the algorithm used to search for valid subsets.
+% The program should avoid testing every possible subset whenever possible.
+% Explain the pruning conditions and why they are valid.
 
-The program should avoid testing every possible subset whenever
-possible.
+The algorithm for searching valid subsets is based on the same intuition for hand calculation in Assignment 0, but the implementation is further specified and translated into code.
 
-Explain the pruning conditions and why they are valid.
+Instead of generating all possible subsets of $U$, the subset is divided into an even and an odd part, which are enumerated independently according to their sizes and their partial sums constraints. The combination of the two parts only takes place after the parts are generated, which significantly reduces the number of candidate subsets. However, to fulfill the divisibility constraint, candidates that does not divide evenly must be removed.
 
-% ------------------------------------------------------------
-% 2.2 Results
-% ------------------------------------------------------------
-
-\subsection{Results}
-
-The total number of valid subsets is
-
+\subsubsection*{Number of elements in odd/even parts}
+In this assignment, there are two possible configurations of the sizes of two parts, either the even part has 3 elements, leaving the odd part with 4 elements, or vice versa. The program solves the two different configurations as two separate enumerations:
 \[
-\boxed{\ldots}
+|E(S)|=3
+,
+|O(S)|=4,
+\]
+or
+\[
+|E(S)|=4
+,
+|O(S)|=3,
 \]
 
-The valid subsets are
+\subsubsection*{Largest and smallest sum}
+For each configuration, the program must determine the smallest and largest possible partial sum for both even and odd parts, in order to determine the start and end boundary of independent enumerations. If three even elements are required, the smallest possible sum is obtained from the three smallest even numbers, while the largest possible sum is obtained from the three largest even numbers. The same calculation is performed same for the odd elements. 
+
+Each even part with partial sum implies the corresponding partial sum of odd part. Let $s_E$ denote the partial sum of the even elements and $s_O$ the partial sum of the odd elements. Since the total sum must be $105$,
+\[
+s_E + s_O = 105
+\]
+which can be rewritten as:
+\[
+s_O = 105 - s_E
+\]
+Using the latter equation, the required partial sum for odd part can be determined. By combining the two parts respectively into full subsets, they undoubtedly satisfy the sum constraint.
+
+The program then uses the minimum and maximum possible partial sums to determine which values of $s_E$ can actually lead to a valid subset. Let $L_E$ and $U_E$ be the minimum and maximum possible partial sums of the even part, and let $L_O$ and $U_O$ be the corresponding values for the odd part. For a valid combination, both
+\[
+L_E \le s_E \le U_E
+\]
+and
+\[
+L_O \le 105 - s_E \le U_O
+\]
+must suffice, which naturally leads to the combined bounds that the program enumerates through for determine the even and odd parts independently:
+\[ \max(L_E,\,105-U_O) \leq s_E \leq \min(U_E,\,105-L_O) \]
+Since $s_E$ is the sum of even numbers, it must itself be even, so the program increases the partial sum by $2$ in each iteration.
+
+\subsubsection*{Combinations with sum - generate all combinations fulfilling the partial sum}
+
+For every possible partial sum of, for instance $s_E$, the function \texttt{combinations\_with\_sum} is used to generate all combinations fulfilling the partial sum. The same function can also be used to generate the odd counterparts with the required sum $s_O$. The implementation of the function is recursive. After selecting a value, the next recursive call starts from the next larger number of the same parity. As an example, after selecting an even value $x$, the next possible value starts at $x+2$, which guarantees that all selected elements are different and the same combination is not generated in different orders.
+
+\subsubsection*{Assembling even and odd subset parts}
+
+After generating different even and odd parts, the program combines each even combination with partial sum $s_E$ with each odd combination with corresponding partial sum $s_O = 105 - s_E$. Because the partial sums are already selected to fulfill $s_E + s_O = 105$, the result subset already satisfies the element count, even count, odd count and total sum constraints. The remaining constraint to be satisfied is the product divisibility constraint. For each combined subset, the program has to check
+\[
+\prod_{x\in S} x \bmod 360 = 0.
+\]
+where the subsets that doesn't fulfill the condition are discarded.
+
+Finally, using these steps avoids generating and testing all $\binom{30}{7}$ possible subsets directly.
+
+\subsection*{Programming}
+
+The algorithm in the previous section is implemented in Python, consisting of several functions with dedicated responsibility for enumeration process. The most important functions are {combinations\_with\_sum} that generates combinations of numbers with a specified parity, size and target sum, and \texttt{generate\_subsets} that generates all valid subsets.
+
+\subsubsection*{Generating combinations with a specified sum}
+
+The function \texttt{combinations\_with\_sum} recursively generates combinations of numbers with a specified parity, size, and target sum, which is useful to construct each parity part of subset.
+
+\begin{lstlisting}[language=python]
+def combinations_with_sum(
+    lower_bound: int,
+    upper_bound: int,
+    size: int,
+    target_sum: int,
+) -> List[List[int]]:
+    if size == 0: return [[]] if target_sum == 0 else []
+    
+    result: List[List[int]] = []
+    for value in range(lower_bound, upper_bound + 1, 2):
+        if value * size > target_sum: break
+        for rest in combinations_with_sum(
+            value + 2,
+            upper_bound,
+            size - 1,
+            target_sum - value
+        ):
+            result.append([value] + rest)
+    return result
+\end{lstlisting}
+
+The function above is deliberately using newlines for each parameter to make the syntax readable than pressing together all parameters into a single line. The lower and upper bounds of the universal set and the target sum are specified as parameters, whereas the parity is implied from lower and upper bounds. For each for-loop iteration, the step size of $2$ ensures that only numbers of desired parity are considered, for instance generating searches of $2, 4, 6, \ldots$, while for odd combinations of $1, 3, 5, \ldots$.
+
+The recursive call starts from \texttt{value + 2}, in order to ensure that the subsequent element is larger than the previous one with same parity. This ensures that elements are not repeated and that the same combination is not generated in different orders. For each step, the same problem is handled with a decreasing \texttt{size}.
+
+When \texttt{size} reaches zero, a valid combination has been found only if the remaining \texttt{target\_sum} is also zero. In this case, the function returns an list with an empty combination, which allows the previously selected values to be attached while the recursive calls return. However, if the target sum is non-zero, an empty list is returned which doesn't allow previously selected values to be attached, and that branch is automatically discarded.
+
+Additionally, the remaining loop can be stopped if the current value multiplied by the number of elements still required is already greater than the remaining target sum, \texttt{if value * size > target\_sum: break}. Since subsequent values are even larger, later iteration cannot produce a valid combination, and the loop can be safely early-exited without checking all these combinations.
+
+\subsubsection*{Determining feasible sum bounds}
+
+Before generating combinations, the program decides the smallest and largest possible sums for the even and odd parts in order to specify the search range, which is implemented in the beginning of the \texttt{generate\_subsets} function.
+
+The smallest and largest number can be determined by adding the smallest even consecutive numbers respectively the largest even consecutive numbers for even part, for instance \texttt{2+4+6+\ldots} respective \texttt{\ldots+26+28+30}, odd numbers for odd counterparts. The listing below shows the even numbers, but for odd counterparts, the logic is similar.
+
+\begin{lstlisting}[language=python]
+lower_even_sum = int(arithmetic_sum(
+    lower_even_bound,
+    lower_even_bound + 2*(subset_even_size - 1),
+    2
+))
+
+upper_even_sum = int(arithmetic_sum(
+    upper_even_bound - 2*(subset_even_size - 1),
+    upper_even_bound,
+    2
+))
+\end{lstlisting}
+
+Also, function \texttt{arithmetic\_sum} is implemented but not shown as code and used to calculate these sums without an explicit logic of constructing the corresponding combinations for higher encapsulation and more clarity.
+
+\subsubsection*{Generating valid subsets}
+
+The main function, \texttt{generate\_subsets}, the previous steps are combined and the combined enumerations are produced.
+After calculating the odd and even parts fulfilling a specific even and odd partial sum, all these parts are combined and interleaved together using two large for loops. All candidate subsets that fulfills the divisibility constraint are appended into result, otherwise the subsets are instead discarded.
+
+\begin{lstlisting}[language=python]
+def generate_subsets(
+    universal_set_lower_bound: int,
+    universal_set_upper_bound: int,
+    subset_even_size: int,
+    subset_odd_size: int,
+    subset_sum: int,
+    subset_prod_divisible: int
+) -> List[Set[int]]:
+    result = []
+    # ...
+    for even_term_sum in range(
+        partial_lower_bound,
+        partial_upper_bound + 1,
+        2
+    ):
+        odd_term_sum = subset_sum - even_term_sum
+        even_parts = combinations_with_sum(
+            lower_even_bound,
+            upper_even_bound,
+            subset_even_size,
+            even_term_sum
+        )
+        odd_parts = combinations_with_sum(
+            lower_odd_bound,
+            upper_odd_bound,
+            subset_odd_size,
+            odd_term_sum
+        )
+        for even_part in even_parts:
+            even_prod = product(even_part)
+            for odd_part in odd_parts:
+                odd_prod = product(odd_part)
+                if even_prod * odd_prod % subset_prod_divisible != 0:
+                    continue
+                result.append(set(even_part + odd_part))
+    
+    return result
+\end{lstlisting}
+
+\subsection*{Results}
+
+The total number of valid subsets is 14999. Since the number is too large, the full enumeration of the valid subsets can be found in appendix. The first 20 number are given as:
 
 \[
 \begin{aligned}
-S_1 &= \{\ldots\},\\
-S_2 &= \{\ldots\},\\
-S_3 &= \{\ldots\},\\
-&\vdots
+&\{2,4,6,12,25,27,29\}, && \{2,4,8,10,25,27,29\},\\
+&\{2,6,8,10,23,27,29\}, && \{2,4,10,12,21,27,29\},\\
+&\{2,6,8,12,23,25,29\}, && \{4,6,8,10,21,27,29\},\\
+&\{2,4,6,18,21,25,29\}, && \{2,4,6,18,23,25,27\},\\
+&\{2,4,8,16,23,25,27\}, && \{2,4,10,14,19,27,29\},\\
+&\{2,4,10,14,23,25,27\}, && \{2,6,8,14,21,25,29\},\\
+&\{2,6,8,14,23,25,27\}, && \{2,6,10,12,19,27,29\},\\
+&\{2,6,10,12,21,25,29\}, && \{2,6,10,12,23,25,27\},\\
+&\{4,6,8,12,21,25,29\}, && \{4,6,8,12,23,25,27\},\\
+&\{2,4,6,17,20,27,29\}, && \{2,4,6,20,21,23,29\}.
 \end{aligned}
 \]
 
-% ------------------------------------------------------------
-% 2.3 Discussion
-% ------------------------------------------------------------
+\subsection*{Discussion}
 
-\subsection{Discussion}
+Using the algorithm, the search space for generating valid combinations is significantly reduced than enumerating all $7$-element subset and checking constraints from $U$ with $\binom{30}{7}=2\,035\,800$ possible subsets. The element number constraint and sum constraint can be used to selectively generate enumerations by dividing the problem into even and odd parts and only generate combinations for a given partial sum. By applying these constraints, subsets can be generated selectively rather than relying only on checking all possible subsets only at the end.
 
-Discuss the algorithm and its efficiency.
+However, one main inefficiency is the product divisibility check for all generated candidate subsets. Since the number of candidate subsets and number of discarded subsets can be large, checking the product divisibility at the end can be inefficient for large datasets. This could be improved by collecting and tracking the prime factors of $360=2^3\times3^2\times5$ during the enumeration, but this optimization is not implemented in the current version.
 
-Explain why the approach avoids unnecessary subset checks and how
-the mathematical constraints are used to reduce the search space.
+\subsection*{Conclusion}
 
-% ------------------------------------------------------------
-% 2.4 Conclusion
-% ------------------------------------------------------------
+By using this algorithm, all valid subsets satisfying the number of element, parity, sum and divisibility constraint can be found. By also enumerating even and odd parts independently, the number of combination generation can be reduced significantly compared to direct enumeration. The final number of valid subsets was found to be \[ 14999. \]
 
-\subsection{Conclusion}
+\section*{Assignment 2: Higher Grade}
 
-Summarize the results for this part.
-
-% ============================================================
-% 3. Higher Grade
-% ============================================================
-
-\section{Higher Grade}
-
-For this part,
-
+This assignment is similar to the previous one, but with larger number. The universal set is extended to $60$ as upper bound,
 \[
 U = \{1,2,3,\ldots,60\}.
 \]
-
-We seek subsets $S\subseteq U$ satisfying
-
+Subsets $S\subseteq U$ must satisfy the larger subset element constraint
 \[
 |S|=11,
 \]
-
-\[
-\sum_{x\in S}x=330,
-\]
-
 and
-
 \[
 |E(S)|=5,
 \]
-
 where
-
 \[
 E(S)=\{x\in S:x\text{ is even}\}.
 \]
-
+Furthermore, the sum constraint is 330:
+\[
+\sum_{x\in S}x=330,
+\]
 Furthermore,
-
 \[
 \prod_{x\in S}x
 \]
-
 must be divisible by
-
 \[
-2^6\cdot3^3\cdot5^2\cdot7.
+2^6\times3^3\times5^2\times7.
 \]
 
-% ------------------------------------------------------------
-% 3.1 Algorithm
-% ------------------------------------------------------------
 
-\subsection{Algorithm}
+\subsection*{Algorithm}
 
-Describe the algorithm used to solve the problem.
+The algorithm uses the same general principle as the previous assignment, but with optimizing of the main inefficiency of product divisibility check. Since the number of combinations are orders of magnitudes larger than the previous one, applying the same algorithm from the previous assignment is no longer practical since the execution time will be in the scale of days. In order to use product divisibility check, each partial subset can be represented with its sum and its relevant prime-factor exponents. Partial subsets can therefore be grouped with the same represenation into buckets of a large hashmap. This is useful to find the odd complement of each group that fulfills both the sum and product divisibility constraint with even subset part, without having a large loop to discard away candidate subsets.
 
-Explain how the constraints are incorporated into the search.
+\subsubsection*{Separating the even and odd parts}
 
-% ------------------------------------------------------------
-% 3.2 Valid Subsets
-% ------------------------------------------------------------
-
-\subsection{Valid Subsets}
-
-The total number of valid subsets is
-
+Since the final subset contains $11$ elements and $5$ of them are even, the remaining $6$ elements must therefore be odd:
 \[
-\boxed{\ldots}
+|E(S)|=5,\qquad |O(S)|=6.
 \]
 
-% ------------------------------------------------------------
-% 3.3 Lexicographical Order
-% ------------------------------------------------------------
-
-\subsection{Lexicographical Order}
-
-The lexicographically smallest valid subset is
-
+The program therefore generates the even and odd parts independently. The possible sum of the five even elements lies between
 \[
-\boxed{\{\ldots\}}.
+2+4+6+8+10=30
+\]
+and
+\[
+52+54+56+58+60=280,
+\]
+while the sum of the six odd elements lies between
+\[
+1+3+5+7+9+11=36
+\]
+and
+\[
+49+51+53+55+57+59=324.
 \]
 
-The lexicographically largest valid subset is
+The function \texttt{combinations\_with\_sum} can be used to generate all combinations with a fixed size and sum, in the same way as in Assignment 1.
 
+\subsubsection*{Representing the divisibility constraint}
+
+The product of each valid subset must be divisible by
 \[
-\boxed{\{\ldots\}}.
+2^6\times3^3\times5^2\times7.
 \]
 
-% ------------------------------------------------------------
-% 3.4 D(S)
-% ------------------------------------------------------------
+According to the fundamental theorem of arithmetic, each number can be decomposed into unique composition of prime factor exponents. In this case, each number can be represented as a prime vector of exponent number of each prime number. For instance, the divisibility number $2^6\times3^3\times5^2\times7$ can be represented as \texttt{(6, 3, 2, 1)} in prime vector form with the respect of the primes \texttt{(2, 3, 5, 7)}. For each generated even or odd part, prime factors are collected and a prime vector form is calculated using valuation. For instance, an even part of \texttt{\{2, 4, 6, 8, 10\}}, has a prime vector of \texttt{(8, 1, 1, 0)}, since their product is $2^8 \times 3^1 \times 5^1 \times 7^0$.
 
-\subsection{The Function $D(S)$}
+In this project, the prime vector can also be capped, which means that if an exponent of a prime vector is larger than what is required, the required number is written. For instance, the prime vector \texttt{(8, 4, 1, 0)} is capped to \texttt{(6, 3, 1, 0)} with divisibility \texttt{(6, 3, 2, 1)}, since six required prime factor $2$ and three required factor $3$ are fulfilled, while the last two are not. This is implemented by the function \texttt{cap\_vector}. This is useful since it provides an upper limit for enumeration.
 
-For every valid subset $S$, define
+\subsubsection*{Bucketing partial subsets}
 
+Each generated partial subset can be stored in a bucket. In each bucket, the partial subsets have the same sum of the partial subset and the same capped prime factorization exponents. For such bucket, a bucket key-vector can be represented as:
+\[
+(\text{sum},v_2,v_3,v_5,v_7),
+\]
+where the $v_p$ are the capped prime exponents of the product of the partial subset.
+
+Additionally, in each bucket, the number of subsets as well as representative minimum and maximum subsets are also stored, for counting number of valid enumerations as well as calculating the smallest and largest subset lexicographically. Using this representation, the program avoids testing every possible pair of even and odd subset.
+
+\subsubsection*{Matching even and odd buckets}
+
+Without testing every possible pair of even and odd subset, by looping each bucket, the corresponding odd buckets (more than one), can be identified by calculating its complement sum and complement prime vector.
+
+Suppose an even partial subset has the bucket key
+\[
+(s_E,e_2,e_3,e_5,e_7).
+\]
+Since the total sum must be $330$, the corresponding odd part must have sum $s_O=330-s_E$, as mentioned earlier. 
+
+In terms of complement prime vector, the combined prime-factor exponent must contain at least \texttt{(6,3,2,1)}. Therefore, the odd part requires at least the remaining exponents, which forms the least remaining prime vector:
+\[
+(6-e_2,\ 3-e_3,\ 2-e_5,\ 1-e_7),
+\]
+This prime vector is guarenteed to be positive in every element, since the all prime vectors are capped at \texttt{(6,3,2,1)}, which means for instance $e_2$ cannot be larger than $6$.
+
+Naturally, prime vectors with one or more prime factor exponents larger than the the least remaining prime vector are also taken into consideration. The prime vectors larger than the least remaining one can be easily calculated by incrementing each prime exponent.
+
+Since the buckets are stored in a large hashmap, searching for a specific bucket can be retrieved using a corresponding odd bucket key in constant time complexity.
+
+\subsection*{Counting number of valid subsets}
+
+Using this method, the number of valid subsets that can be formed can easily be calculated. The program loops over all odd buckets for all prime vectors that satisfy the complementary even bucket. If an appropriate odd bucket exists, every even subset represented by the first bucket can be combined with every odd subset represented by the matching bucket.
+
+Instead of performing these combinations individually, the program multiplies the number of subsets in the two matching buckets. If an even bucket contains $a$ subsets and a matching odd bucket contains $b$ subsets, then they represent $a\times b$ valid full subsets. This allows the total number of valid subsets to be calculated without explicitly constructing every one of them.
+
+\subsubsection*{Finding the lexicographical extremes}
+
+Since the bucket representation also contains the lexicographically smallest and largest partial subset, for every pair of corresponding buckets, four full subsets can be built by cross-interleaving the smallest and largest partial subset from buckets of both parity. Since all subsets within a bucket share identical sum and capped valuation information, the lexicographically smallest full subset obtainable from a pair of buckets must be formed from the lexicographically smallest partial subset stored in each bucket. Analogously, the lexicographically largest full subset is obtained from the stored maxima.
+
+These subsets are then used to compare for additional lexicographical comparasion in order to find the smallest and largest subset. Using this approach, constructing every valid subset only to find the smallest and largest one can be avoided.
+
+\subsubsection*{Calculating $D(S)$}
+
+For a valid subset $S$, the function $D(S)$ can be defined as:
+\[
+D(S)
+=
+\left|
+\sum_{x\in E(S)}x-\sum_{x\in O(S)}x
+\right|.
+\]
+Since the total sum is $330$, if $s_E$ denotes the sum of the even elements, then $s_O$ could be implied as:
+\[
+\sum_{x\in O(S)}x=330-s_E.
+\]
+as long as a corresponding $s_O$ exists.
+Therefore,
+\[
+D(S)
+=
+|s_E-(330-s_E)|
+=
+|2s_E-330|
+=
+2|s_E-165|.
+\]
+
+In this case, the minimum and maximum value of $|s_E-165|$ among the generated valid even partial subsets must be found, as long as each even bucket with partial sum $s_E$ has at least one corresponding odd bucket that suffice all constraint if both even and odd parts are interleaved together. This can be calculated using a loop around even buckets and check corresponding odd bucket, to obtain the minimum and maximum values of $D(S)$
+
+\subsubsection*{Algorithm conclusion}
+
+The main optimization improvement for Assignment 1 is that the product divisibility condition is incorporated into the representation of partial subsets rather than being checked by explicitly multiplying every pair of even and odd subsets. The use of sum bounds, recursive pruning, capped prime
+valuations, and bucketing substantially reduces the amount of pairwise comparison required.
+
+Although the program still enumerates partial combinations, it avoids enumerating and storing all complete valid subsets. This makes it possible to obtain the required count, lexicographical extremes, and values of $D(S)$ without explicitly constructing the potentially very large collection of valid subsets.
+
+\subsection*{Programming}
+
+The solution to assignment~2 can be implemented in Python, where recursive subset generation function \texttt{combinations\_with\_sum}. However, combinations of even part and odd part are generated through the function \texttt{enumerate\_half}, which introduces a bucket-based representation that aims to fulfill both the sum and product divisibility constraint.
+
+\subsubsection*{Internal helper functions}
+
+For simplifying the logic, several useful helper functions are implemented, for instance for prime valuations and capped valuation vectors. 
+
+The method \texttt{valuation(n, p)} computes the exponent of a prime factor $p$ in an integer $n$., whereas the method \texttt{cap\_vector} caps the prime vector after a specific requirement vector. All valuation prime vectors are therefore reduced to the bounded range, which preserves information relevant to divisibility test without introducing arbitrary large exponents.
+
+\subsubsection*{Enumerating even and odd subsets independently}
+
+The function \texttt{enumerate\_half} independently enumerates either the even or the odd partial subsets. Its lower and upper pool bounds determine the parity of the generated elements, while \texttt{subset\_size} specifies whether five even elements or six odd elements are required.
+
+\begin{lstlisting}[language=python]
+def enumerate_half(pool_lower_bound, pool_upper_bound, subset_size, primes, needed, low, high):
+    buckets = {}
+    target_range = range(low, high+1, 1)
+    target_range_size = len(target_range)
+    
+    for target in target_range:
+        for target_result in combinations_with_sum(pool_lower_bound, pool_upper_bound, subset_size, target):
+            target_key = (target,) + cap_vector(calculate_key(target_result, primes), needed)
+            entry = buckets.get(target_key, None)
+            if entry is None:
+                buckets[target_key] = [1, [target_result], target_result, target_result]
+            else:
+                entry[0] += 1
+                entry[1].append(target_result)
+                if (target_result < entry[2]): entry[2] = target_result
+                if (target_result > entry[3]): entry[3] = target_result
+    return buckets
+\end{lstlisting}
+
+
+For each possible target sum, the function calls \texttt{combinations\_with\_sum} to generate all partial subsets having the element number constraint, sum constraint as well as parity. For each generated partial subset, a capped valuation vector is calculated upon it in \texttt{target\_key}.
+
+A bucket key has the form
+\[
+(s,v_2,v_3,v_5,v_7),
+\]
+where $s$ is the partial sum and the remaining components are capped prime valuations. All partial subsets inside the same bucket has the same sum and the same capped valuation vector.
+
+Each bucket stores four informations as a subsequent list:
+
+\begin{enumerate}
+    \item count, number of partial subsets in the bucket;
+    \item all generated partial subsets belonging to the bucket;
+    \item lexicographically smallest partial subset in the bucket; and
+    \item lexicographically largest partial subset in the bucket.
+\end{enumerate}
+
+The count is used for calculating the total number of valid subsets. The stored lexicographical smallest and largest partial subsets are used to find the smallest and largest valid full subsets. The list of partial subsets is stored in the current implementation for inspection and verification, despite not being used meaningfully.
+
+
+\subsubsection*{Matching complementary buckets}
+
+After the even and odd buckets have been generated, the program iterates over all even buckets according to the search bounds specified in algorithm section and searches for the corresponding odd buckets. Given an even bucket key \texttt{(s\_E,e\_2,e\_3,e\_5,e\_7)} and odd matching bucket key \texttt{(s\_O,o\_2,o\_3,o\_5,o\_7)}, the complement odd sum can be calculated as $s_O=330-s_E$, wheras the complement prime vector of a matching odd bucket must satisfy:
+\[
+e_2+o_2\geq 6,
+\qquad
+e_3+o_3\geq 3,
+\qquad
+e_5+o_5\geq 2,
+\qquad
+e_7+o_7\geq 1.
+\]
+
+The implementation is written as a part in the function \texttt{loop\_over\_traversal}, which is shown in the code below. The program enumerates every capped odd valuation vector between the remaining requirement and the maximum vector $(6,3,2,1)$.
+
+\begin{lstlisting}[language=python]
+def loop_over_traversal(buckets, needed, traverse_key, self_min, self_max, min_subset, max_subset, traverse_index = 0, count = 0):
+    start = traverse_key[traverse_index + 1]
+    end = needed[traverse_index]
+    for offset in range(start, end + 1):
+        traverse_key = alter_tuple_index(traverse_key, traverse_index + 1, offset) # similar to traverse_key[traverse_index + 1] = offset
+        if traverse_index == len(needed) - 1:
+            entry = buckets.get(traverse_key)
+            if entry is not None:
+                other_count, _, other_min, other_max = entry
+                count = count + other_count
+                subset1 = tuple(sorted(self_min + other_min))
+                subset2 = tuple(sorted(self_min + other_max))
+                subset3 = tuple(sorted(self_max + other_min))
+                subset4 = tuple(sorted(self_max + other_max))
+                # Update min and max subsets ...
+        else:
+            count, min_subset, max_subset = loop_over_traversal(buckets, needed, traverse_key, self_min, self_max, min_subset, max_subset, traverse_index + 1, count)
+    traverse_key = alter_tuple_index(traverse_key, traverse_index + 1, start) # traverse_key[traverse_index + 1] = start
+    return count, min_subset, max_subset
+
+for (even_key, even_value) in even_buckets.items():
+    self_entry = even_buckets.get(even_key)
+    if self_entry is None: continue
+    self_count, self_half_subsets, self_min, self_max = self_entry
+    
+    complement_sum = TARGET_SUM - even_key[0]
+    complement_prime_exponents = tuple((needed[i-1] - even_key[i]) for i in range(1, len(even_key)))
+    complement_key = (complement_sum,) + complement_prime_exponents
+    
+    complement_count, min_subset, max_subset = loop_over_traversal(odd_buckets, needed, complement_key, self_min, self_max, min_subset, max_subset)
+    count += complement_count * self_count
+\end{lstlisting}
+
+When looping around all even buckets, the even key and even value is retrieved and unpacked to show the information about itself, such as the count of subset (\texttt{self\_count}), all even parts \texttt{self\_half\_subsets}, minimum even partial subset\texttt{self\_min} and maximum even partial subset \texttt{self\_max}. The complement can therefore according to previous section about algorithm be calculated using \texttt{complement\_sum} and \texttt{complement\_key}, to retreive from \texttt{odd\_buckets}.
+
+The recursive function \texttt{loop\_over\_traversal}, as a large recursive loop, enumerates all capped odd prime vectors that are componentwise greater than or equal to the minimum complementary vector. The parameter \texttt{traverse\_index} identifies the prime component currently being processed. For each component, the function iterates from the minimum required exponent, obtained from \texttt{traverse\_key}, to the corresponding maximum exponent in \texttt{needed}. The helper function \texttt{alter\_tuple\_index} produces a new key with the current prime component replaced by the selected exponent.
+
+After all four prime components have been selected, a lookup in \texttt{odd\_buckets} is then performed. If the dictionary contains the completed key, the corresponding odd bucket is compatible with the current even bucket.
+Since dictionary lookup has expected constant-time complexity, the program does not need to compare each even partial subset individually with every odd partial subset.
+
+If a matching odd bucket is found, its entry is unpacked into the number of odd partial subsets represented by the bucket and its lexicographically smallest and largest partial subsets. The number of represented odd partial subsets is added to \texttt{complement\_count}. After all compatible odd buckets have been iterated, \texttt{complement\_count} is multiplied by \texttt{self\_count}, the number of even partial subsets in the current even bucket. This product is the number of valid full subsets represented by the current even bucket and all of its compatible odd buckets, and it is added to the global count.
+
+The stored minimum and maximum partial subsets from each pair of compatible buckets are also merged and sorted. The resulting full subsets are compared lexicographically with the smallest and largest valid subsets found so far, and the global extrema are updated when necessary.
+
+Using this implementation, the total number of valid subsets and the lexicographically smallest and largest valid subsets can be determined without constructing every valid full subset.
+
+% Incorrect code section, calculate the D(S) properly before submit
+
+\subsubsection*{Computing \(D(S)\)}
+
+For computing $D(S)$, the variables \texttt{min\_even\_sum} and \texttt{max\_even\_sum} store the minimum and maximum values of $|s_E-165|$, respectively. For each even bucket that has at least one compatible odd bucket, the program calculates this value from the even-part sum and updates the two extrema when necessary. Finally, both values are multiplied by $2$ to obtain the minimum and maximum values of $D(S)$.
+
+\begin{lstlisting}[language=python]
+min_even_sum = None # min(|E_S - 165|)
+max_even_sum = None # max(|E_S - 165|)
+
+for entry in even_buckets.values():
+    for subset in entry[1]:
+        subset_sum = calculate_sum(subset)
+        if min_even_sum is None or subset_sum < min_even_sum:
+            min_even_sum = subset_sum
+        if max_even_sum is None or subset_sum > max_even_sum:
+            max_even_sum = subset_sum
+
+min_d_s = 2*min_even_sum
+max_d_s = 2*max_even_sum
+print(f"min_d_s = {min_d_s}, max_d_s = {max_d_s}")
+\end{lstlisting}
+
+\subsection*{Results}
+
+After executing the program, the total number of valid subsets can be concluded as
+\[
+\boxed{635402213}
+\]
+
+Also, the lexicographically smallest valid subset is
+\[
+\boxed{(1, 2, 3, 4, 5, 25, 56, 57, 58, 59, 60)}.
+\]
+, while the lexicographically largest valid subset is
+\[
+\boxed{(25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35)}.
+\]
+
+For every valid subset $S$, 
 \[
 D(S)
 =
@@ -406,68 +751,85 @@ D(S)
 \sum_{x\in O(S)}x
 \right|.
 \]
-
 The minimum value of $D(S)$ is
-
 \[
-\boxed{\ldots}
+\boxed{2}
 \]
-
 and the maximum value is
-
 \[
-\boxed{\ldots}.
+\boxed{270}.
 \]
 
-Explain how these values were determined.
+\subsection*{Discussion}
 
-% ------------------------------------------------------------
-% 3.5 Discussion
-% ------------------------------------------------------------
+The main improvement over Assignment~1 is the use of capped prime vectors, which also satisfy divisibility condition when generating combinations instead of discarding candidate subsets. The divisibility can be represented by the prime vector
+\[
+(6,3,2,1)
+\]
+with respect to the primes $(2,3,5,7)$. Exponents larger than the divisibility prime vector are capped because they provide no additional information for determining whether the final product is divisible by $2^6\times3^3\times5^2\times7$, which limits all possible prime vector to at most:
+\[
+(6+1)(3+1)(2+1)(1+1)=168
+\]
+distinct prime vectors for each partial sum.
 
-\subsection{Discussion}
+Partial subsets with the same sum and capped prime vectors are grouped into buckets. In this case, corresponding even and odd buckets are paired together using complementary sum and prime vector requirements. If two matching buckets contain $a$ and $b$ partial subsets, they represent $a\cdot b$ valid full subsets, which makes matching easier than looping through all vectors.
 
-Discuss the mathematical reasoning and computational approach.
+Bucket representation then fascilitates computation of number of all valid subset combinations, determination of the lexicographically smallest/largest valid subsets, and minimum/maximum values of $D(S)$.
 
-% ------------------------------------------------------------
-% 3.6 Conclusion
-% ------------------------------------------------------------
+However, one drawback with the current implementation is that every generated partial subset is stored in the bucket, despite it is not used and a bucket count is already stored. This can cause a large memory footprint during code execution. Nevertheless, the implemented method significantly reduces comparasions and makes larger combinationally enumeration problems computationally practical.
 
-\subsection{Conclusion}
+\section*{Conclusion}
 
-Summarize the main results.
+% Rewrite this
 
-% ============================================================
-% 4. Code
-% ============================================================
+This project investigated constrained subset enumeration under cardinality,
+parity, sum, and product-divisibility requirements. Rather than generating
+every subset of the universal set and checking all constraints afterwards,
+the solutions incorporated the mathematical constraints directly into the
+enumeration process.
 
-\section{Code}
+In Assignment~0, the subset was divided into even and odd parts and solved
+by hand using their partial sums. This produced seven valid subsets. The same
+principle was implemented computationally in Assignment~1, where recursive
+generation and feasible partial-sum bounds reduced the search space. For
+$U=\{1,\ldots,30\}$, the program found
+\[
+\boxed{14999}
+\]
+valid subsets.
 
-The code used to obtain the computational results is included below.
+Assignment~2 extended the method to the larger universal set
+$U=\{1,\ldots,60\}$. To avoid explicitly testing every pair of even and odd
+partial subsets, the partial subsets were grouped into buckets according to
+their sums and capped prime-valuation vectors. Compatible buckets could then
+be matched using complementary sum and divisibility requirements, while
+their stored multiplicities were used to count the represented full subsets.
 
-% ------------------------------------------------------------
-% Example
-% ------------------------------------------------------------
+The Assignment~2 program found
+\[
+\boxed{635402213}
+\]
+valid subsets. The lexicographically smallest valid subset was
+\[
+\boxed{\{1,2,3,4,5,25,56,57,58,59,60\}},
+\]
+and the lexicographically largest valid subset was
+\[
+\boxed{\{25,26,27,28,29,30,31,32,33,34,35\}}.
+\]
+The minimum and maximum values of $D(S)$ were found to be
+\[
+\boxed{2}
+\qquad\text{and}\qquad
+\boxed{270},
+\]
+respectively.
 
-\begin{lstlisting}[language=C]
-/*
- * Your program here.
- */
-
-#include <stdio.h>
-
-int main(void)
-{
-    return 0;
-}
-\end{lstlisting}
-
-% If the code is long, it is better to put it in an appendix
-% or submit it as a separate file.
-
-% ============================================================
-% References
-% ============================================================
+The results demonstrate how parity separation, partial-sum bounds, recursive
+pruning, prime valuations, and bucket aggregation can make large constrained
+enumeration problems computationally practical. In particular, the bucket
+method calculates the required results without explicitly constructing the
+complete collection of valid subsets.
 
 \begin{thebibliography}{9}
 
