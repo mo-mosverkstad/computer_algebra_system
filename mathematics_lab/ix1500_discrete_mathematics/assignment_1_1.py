@@ -167,6 +167,8 @@ result += generate_subsets(
 )
 
 print(f"Result: {result[:20]}...<truncated at 20>")
+with open("subsets.txt", "w") as f:
+    f.write(str(result))
 print(f"Number of result elements: {len(result)}")
 
 # Check for correctness
