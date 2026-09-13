@@ -172,6 +172,10 @@ def loop_over_traversal(buckets, needed, traverse_key, self_min, self_max, min_s
 
 count = 0
 
+# D(S) = |S_E - S_O| = |S_E - (330 - S_E)| = |2S_E - 330| = 2|S_E - 165|
+min_d_s = None
+max_d_s = None
+
 for (even_key, even_value) in even_buckets.items():
     self_entry = even_buckets.get(even_key)
     if self_entry is None: continue
@@ -183,6 +187,11 @@ for (even_key, even_value) in even_buckets.items():
     
     complement_count, min_subset, max_subset = loop_over_traversal(odd_buckets, needed, complement_key, self_min, self_max, min_subset, max_subset)
     count += complement_count * self_count
+
+    if complement_count > 0:
+        d_s = abs(2 * even_key[0] - TARGET_SUM)
+        if min_d_s is None or d_s < min_d_s: min_d_s = d_s
+        if max_d_s is None or d_s > max_d_s: max_d_s = d_s
     '''
     for self_half_subset in self_half_subsets:
         for complement_half_subset in complement_half_subsets:
@@ -199,27 +208,5 @@ print(len(even_buckets), len(odd_buckets))
 print(f"count = {count}, min_subset = {min_subset}, max_subset = {max_subset}")
 # print(odd_bucket_keys)
 
-
-def calculate_sum(subset):
-    '''sum = |S_E - 165|, not simply sum'''
-    return abs(sum(subset) - 165)
-    
-
-# D(S) = |S_E - S_O| = |S_E - (330 - S_E)| = |2S_E - 330| = 2|S_E - 165|
-
-# initialize an arbitrary sum value
-min_even_sum = None # min(|E_S - 165|)
-max_even_sum = None # max(|E_S - 165|)
-
-for entry in even_buckets.values():
-    for subset in entry[1]:
-        subset_sum = calculate_sum(subset)
-        if min_even_sum is None or subset_sum < min_even_sum:
-            min_even_sum = subset_sum
-        if max_even_sum is None or subset_sum > max_even_sum:
-            max_even_sum = subset_sum
-
-min_d_s = 2*min_even_sum
-max_d_s = 2*max_even_sum
 print(f"min_d_s = {min_d_s}, max_d_s = {max_d_s}")
 
