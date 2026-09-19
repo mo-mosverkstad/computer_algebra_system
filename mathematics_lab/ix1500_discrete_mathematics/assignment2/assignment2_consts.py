@@ -1,0 +1,1 @@
+message = "A well-designed cryptographic system transforms sensitive information into ciphertext that remains secure even when the encryption process is publicly understood."
