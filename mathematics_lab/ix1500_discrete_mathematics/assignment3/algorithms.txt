@@ -1,0 +1,80 @@
+Primality testing:
+
+1. Fermat Primality Test
+a^(n-1) = 1 (mod n) -> n maybe prime, otherwise n composite
+different trials of a (Carmichael number problems)
+
+2. Miller–Rabin Primality Test
+a^(n-1) = 1 (mod n)
+p prime, x^2 = 1 (mod p) -> x = 1 or x = -1 (maybe prime), otherwise composite
+
+n=561
+n-1 = 560
+1. 560/2 = 280, 2. 280/2 = 140, 3. 140/2 = 70, 4. 70/2 = 35, s = 4, d = 35 -> 2^4*35 = 560 ( n-1 = 2^s*d )
+
+a=2
+2^35 = 263 (mod 561)
+263^2 = 166 (mod 561)
+166^2 = 67 (mod 561) <- not -1
+67^2 = 1 (mod 561)
+-> fail
+
+a=3
+new round if necessary
+
+
+3. Solovay–Strassen Primality Test
+n odd prime, a relative prime to n, a^((n-1)/2) = (a/n) (mod n)
+(a/n): Legendre symbol/Jacobi symbol
+(a/n) = (a/p_1)^e_1*(a/p_2)^e_2*...*(a/p_n)^e_n
+(a/n) = -1: definitely 
+
+random a, 2<=a<=n-2
+d = gcd(a, n) = 1, otherwise n composite
+j = (a/n) (jacobi symbol calculation)
+r = a^(n-1)/2
+j == r (mod n) -> pass round, otherwise composite
+
+4. Lucas–Lehmer Primality Test
+5. Pseudoprimes and Strong Pseudoprimes
+6. Carmichael Numbers and Fermat's Test
+7. Comparison of Probabilistic Primality Tests
+
+Factorization Algorithms
+
+1. Fermat's Factorization Method
+x^2-y^2 = (x+y)*(x-y)
+
+odd N, smallest x >= sqrt(N)
+b^2 = x^2 - N, check b^2 perfect square, if not, x=x+1
+
+N=5959, sqrt(N)=77.19 -> x=78
+x=78: 78^2-5959 = 125
+x=79: 79^2-5959 = 282
+x=80: 80^2-5959 = 441 -> x=80, y=21
+
+2. Pollard's Rho Algorithm
+f(x) = x^2+c
+x_(i+1) = f(x_i) (mod n)
+if x_i = x_j (mod p) -> |x_i-x_j| = p*n, d = gcd(|x_i-x_j|, n)
+d is a factor
+
+|x_i-x_j| means check every pair -> tortoise/hare implementation
+slow: x_i, fast: x_j, d = gcd(|slow-fast|, n)
+
+3. Pollard's p − 1 Algorithm
+4. Continued Fraction Factorization
+5. Dixon's Factorization Method
+6. Quadratic Sieve
+7. Comparison of Factorization Algorithms
+
+Graph Theory
+
+1. Chromatic Number Problem
+2. Hamiltonian Cycle Problem
+3. Hamiltonian Path Problem
+4. Eulerian Path and Circuit
+5. Graph Isomorphism Problem
+6. Graph Planarity
+7. Bipartite Graphs
+8. Shortest Path with Constraints

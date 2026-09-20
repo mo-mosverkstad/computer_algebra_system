@@ -27,8 +27,41 @@ def small():
     d = util.modulo_inverse(e, totient)
     print("modulo_inverse", d)
     print("result:", util.power_modulo(c, d, n))
+
+def create_prime_list(bound: int) -> List[int]:
+    primes = []
+    is_prime = True
+    for number in range(2, bound+1):
+        is_prime = True
+        for prime in primes:
+            if number % prime == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(number)
+            if len(primes) % 8192 == 0:
+                print(len(primes))
+    return primes
+
+def factorize1(factor_number: int, primes: List[int]) -> List[int]:
+    prime_factors = []
+
+    for prime in primes:
+        while factor_number % prime == 0:
+            prime_factors.append(prime)
+            factor_number = factor_number // prime
+        
+    if factor_number > 1:
+        prime_factors.append(factor_number)
+        
+    return prime_factors
     
-key_factors = util.recover_factors([n for _, n in keys])
+largest_factor = int(max(n for _, n in keys) ** (1/2))
+primes = create_prime_list(largest_factor)
+print(f"primes: {primes}")
+key_factors = [factorize1(n, primes) for _, n in keys]
+
+# key_factors = util.recover_factors([n for _, n in keys])
 
 matches = {}
 
