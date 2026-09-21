@@ -9,11 +9,20 @@ TEST_NUMBERS = [8051, 84923, 13290059, 1000003 * 2000003, 104729 * 1299709,
 
 
 def tonelli_shanks(residue: int, prime: int) -> Optional[int]:
+    '''
+    Solve x from x^2 === residue (mod prime) using Tonelli-Shanks algorithm
+    '''
     residue = residue % prime
+
+    # simple cases
     if residue == 0:
         return 0
     if prime == 2:
         return residue
+
+    # Euler's criterion p=[odd_prime], a^((p-1)/2) \= legendre_symbol(a, p) (mod p)
+    # help: legendre_symbol(a, p) = cases(1: exist(x, x^2===a (mod p)), 0: a = n*p, -1: non_exist(x, x^2===a (mod p)))
+    # if non_exist(x, x^2 === residue (mod prime))
     if util.power_modulo(residue, (prime - 1) // 2, prime) != 1:
         return None
     if prime % 4 == 3:
