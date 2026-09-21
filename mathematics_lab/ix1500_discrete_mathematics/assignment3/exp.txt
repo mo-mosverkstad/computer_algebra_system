@@ -1,0 +1,1653 @@
+Below is the complete English version of the previous explanation. I have preserved all substantive details, including the algorithm flow, each function’s behavior, examples, implementation concerns, and suggested improvements.
+
+1. What the program does overall
+
+The program in factorization6_quadratic_sieve.py implements an educational version of the Quadratic Sieve algorithm. Its purpose is to find factors of a composite integer NN.
+
+The central idea is to find several integers xix_i for which:
+
+Q(xi)=xi2−NQ(x_i)=x_i^2-N
+
+can be completely factored using a small collection of primes called the factor base.
+
+The program then uses linear algebra modulo 2 to select a subset of these relations such that:
+
+∏iQ(xi)=Y2\prod_i Q(x_i)=Y^2
+
+In other words, the product becomes a perfect square.
+
+At the same time:
+
+Q(xi)=xi2−N≡xi2(modN)Q(x_i)=x_i^2-N\equiv x_i^2\pmod N
+
+Therefore:
+
+∏iQ(xi)≡∏ixi2=(∏ixi)2(modN)\prod_i Q(x_i) \equiv \prod_i x_i^2 = \left(\prod_i x_i\right)^2 \pmod N
+
+If we define:
+
+X=∏ixiX=\prod_i x_i
+
+then we obtain:
+
+X2≡Y2(modN)X^2\equiv Y^2\pmod N
+
+This implies:
+
+(X−Y)(X+Y)≡0(modN)(X-Y)(X+Y)\equiv0\pmod N
+
+The program then calculates:
+
+gcd⁡(∣X−Y∣,N)\gcd(|X-Y|,N)
+
+With a suitable pair XX and YY, this gives a nontrivial factor of NN.
+
+The main functions involved in this process are:
+
+sieve_factor_base()
+sieve_interval()
+quadratic_sieve_attempt()
+exponent_vector() from util.py
+gf2_dependencies() from util.py
+2. Function call structure
+
+The main call flow can be understood as follows:
+
+quadratic_sieve(N)
+│
+├── heuristic_bound(N)
+│   └── natural_log(N)
+│
+└── quadratic_sieve_attempt(N, bound, width)
+    │
+    ├── sieve_factor_base(N, bound)
+    │   ├── util.prime_list(bound)
+    │   └── util.power_modulo(...)
+    │
+    ├── sieve_interval(N, base, width)
+    │   ├── util.integer_sqrt(N)
+    │   └── tonelli_shanks(N, prime)
+    │
+    ├── util.exponent_vector(...)
+    │
+    ├── util.gf2_dependencies(...)
+    │
+    ├── util.mask_indices(...)
+    │
+    └── util.gcd(|X-Y|, N)
+
+
+If the goal is to obtain the complete prime factorization, the call flow starts with:
+
+sieve_factorize(N)
+└── quadratic_sieve(N)
+
+
+The following functions are primarily demonstrations, tests, or performance experiments:
+
+tonelli_check()
+worked_example()
+sieving_beats_division()
+base_size_tradeoff()
+factor_table()
+full_factorisation()
+3. Core algorithm functions
+3.1 tonelli_shanks(residue, prime)
+def tonelli_shanks(
+    residue: int,
+    prime: int
+) -> Optional```
+
+This function solves the modular equation:
+
+\[
+x^2\equiv residue\pmod {prime}
+\]
+
+In other words, it attempts to find a modular square root of `residue` modulo the prime number `prime`.
+
+If a square root exists, the function returns one of the roots. If no square root exists, it returns `None`.
+
+If \(x\) is one root, the other root is usually:
+
+\[
+prime-x
+\]
+
+because:
+
+\[
+(-x)^2=x^2
+\]
+
+and therefore:
+
+\[
+(-x)^2\equiv residue\pmod {prime}
+\]
+
+### Step 1: Normalize the residue
+
+```python
+residue = residue % prime
+
+
+This converts residue into the standard range:
+
+0≤residue<prime0\leq residue<prime
+
+For example:
+
+residue = 20
+prime = 7
+20 mod 7 = 6
+
+
+Therefore, finding the square root of 20 modulo 7 is equivalent to finding the square root of 6 modulo 7.
+
+Step 2: Handle simple cases
+if residue == 0:
+    return 0
+
+if prime == 2:
+    return residue
+
+
+If residue == 0, then:
+
+02≡0(modp)0^2\equiv0\pmod p
+
+so the square root is immediately 0.
+
+When the modulus is 2, the only possible residues are 0 and 1. Both values are their own square roots modulo 2.
+
+Step 3: Determine whether a square root exists
+if util.power_modulo(
+    residue,
+    (prime - 1) // 2,
+    prime
+) != 1:
+    return None
+
+
+This uses Euler’s criterion.
+
+For an odd prime pp, when aa is not divisible by pp:
+
+a(p−1)/2≡{1(modp),a is a quadratic residue−1(modp),a is not a quadratic residuea^{(p-1)/2}\equiv \begin{cases} 1\pmod p, & a\text{ is a quadratic residue}\\ -1\pmod p, & a\text{ is not a quadratic residue} \end{cases}
+
+A number aa is a quadratic residue modulo pp if there is some xx such that:
+
+x2≡a(modp)x^2\equiv a\pmod p
+
+The function util.power_modulo() performs modular exponentiation efficiently.
+
+If the result is not 1, the function concludes that no modular square root exists and returns None.
+
+Step 4: Handle the case prime % 4 == 3
+if prime % 4 == 3:
+    return util.power_modulo(
+        residue,
+        (prime + 1) // 4,
+        prime
+    )
+
+
+When:
+
+p≡3(mod4)p\equiv3\pmod4
+
+a square root can be calculated directly using:
+
+x≡a(p+1)/4(modp)x\equiv a^{(p+1)/4}\pmod p
+
+This is a fast special case of the Tonelli-Shanks algorithm.
+
+For example, consider:
+
+x2≡2(mod7)x^2\equiv2\pmod7
+
+Since:
+
+7 mod 4=37\bmod4=3
+
+we calculate:
+
+x=2(7+1)/4=22=4x=2^{(7+1)/4}=2^2=4
+
+Verification:
+
+42=16≡2(mod7)4^2=16\equiv2\pmod7
+
+The other root is:
+
+7−4=37-4=3
+
+and:
+
+32=9≡2(mod7)3^2=9\equiv2\pmod7
+Step 5: Handle the general case prime % 4 == 1
+
+The code first expresses:
+
+p−1p-1
+
+in the form:
+
+p−1=q⋅2sp-1=q\cdot2^s
+
+where qq is odd.
+
+power_of_two = 0
+odd_part = prime - 1
+
+while odd_part % 2 == 0:
+    odd_part //= 2
+    power_of_two += 1
+
+
+Here:
+
+odd_part corresponds to qq
+power_of_two corresponds to ss
+
+The function then searches for a quadratic non-residue:
+
+non_residue = 2
+
+while util.power_modulo(
+    non_residue,
+    (prime - 1) // 2,
+    prime
+) != prime - 1:
+    non_residue += 1
+
+
+The value prime - 1 is equivalent to −1-1 modulo prime.
+
+Therefore, when the loop stops:
+
+non_residue(p−1)/2≡−1(modp)non\_residue^{(p-1)/2}\equiv-1\pmod p
+
+The function then initializes the Tonelli-Shanks state. Conceptually, the values are:
+
+root  = residue^((q + 1) / 2) mod p
+value = residue^q mod p
+shift = non_residue^q mod p
+order = s
+
+
+The following loop repeatedly adjusts root, value, shift, and order until:
+
+value == 1
+
+
+At that point, root satisfies:
+
+root2≡residue(modp)root^2\equiv residue\pmod p
+
+The function then returns root.
+
+Role in the Quadratic Sieve
+
+The function is not used to factor NN directly.
+
+Instead, for each factor-base prime pp, it solves:
+
+x2≡N(modp)x^2\equiv N\pmod p
+
+If a solution is rr, then:
+
+x≡r(modp)x\equiv r\pmod p
+
+or:
+
+x≡−r(modp)x\equiv-r\pmod p
+
+implies:
+
+p∣(x2−N)p\mid(x^2-N)
+
+This allows the sieve to locate exactly which positions in an interval may be divisible by pp, instead of testing every position individually.
+
+3.2 sieve_factor_base(number, bound)
+def sieve_factor_base(
+    number: int,
+    bound: int
+) -> List```
+
+This function constructs the factor base used by the Quadratic Sieve.
+
+It first generates all primes up to `bound`:
+
+```python
+for prime in util.prime_list(bound):
+
+
+For every odd prime, it keeps the prime only when the congruence:
+
+x2≡number(modprime)x^2\equiv number\pmod {prime}
+
+has a solution.
+
+The main test is:
+
+elif util.power_modulo(
+    number % prime,
+    (prime - 1) // 2,
+    prime
+) == 1:
+    base.append(prime)
+
+
+The reason for this test is straightforward.
+
+If NN is not a quadratic residue modulo pp, then there is no xx satisfying:
+
+x2≡N(modp)x^2\equiv N\pmod p
+
+Therefore, pp cannot divide any number of the form:
+
+Q(x)=x2−NQ(x)=x^2-N
+
+Such a prime would not be useful for sieving, so it is not added to the factor base.
+
+The prime 2 is handled specially:
+
+if prime == 2:
+    base.append(prime)
+
+
+Euler’s criterion in the form used by the function applies to odd primes, so 2 is added separately.
+
+Example
+
+Suppose:
+
+N = 84923
+bound = 100
+
+
+The function performs the following work:
+
+Generate every prime up to 100.
+For every odd prime pp, test whether 84923 is a quadratic residue modulo pp.
+Keep only the primes that can divide some number of the form x2−84923x^2-84923.
+
+A larger factor base makes smooth numbers easier to find. However, it also increases:
+
+the amount of sieving work;
+the number of columns in the exponent vectors;
+the size of the linear algebra problem.
+3.3 sieve_interval(number, base, width)
+def sieve_interval(
+    number: int,
+    base: List[int],
+    width: int
+) -> List[Tuple[int, int, Dict[int, int]]]:
+
+
+This is one of the most important functions in the implementation.
+
+It searches for values:
+
+Q(x)=x2−NQ(x)=x^2-N
+
+that can be factored completely using the factor base.
+
+Each returned relation has the form:
+
+(candidate, residue, powers)
+
+
+The components mean:
+
+candidate is xx
+residue is x2−Nx^2-N
+powers stores the prime factorization and exponents
+
+For example:
+
+(293, 926, {2: 1, 463: 1})
+
+
+means:
+
+2932−N=926=21⋅4631293^2-N=926=2^1\cdot463^1
+
+The function only returns values that are completely factorable over the factor base.
+
+Step 1: Start at ⌈N⌉\lceil\sqrt N\rceil
+root = util.integer_sqrt(number)
+
+if root * root < number:
+    root += 1
+
+
+The function util.integer_sqrt(number) returns:
+
+⌊N⌋\lfloor\sqrt N\rfloor
+
+If NN is not a perfect square, the code increments the result, producing:
+
+root=⌈N⌉root=\lceil\sqrt N\rceil
+
+The sieve starts near N\sqrt N because:
+
+x2−Nx^2-N
+
+is relatively small in this region.
+
+Smaller numbers have a greater probability of being composed entirely of small prime factors. Such numbers are called smooth numbers.
+
+Step 2: Construct the sieving interval
+residues = [
+    (root + offset) * (root + offset) - number
+    for offset in range(width)
+]
+
+
+This creates:
+
+Q(root),Q(root+1),…,Q(root+width−1)Q(root),Q(root+1),\ldots,Q(root+width-1)
+
+For example, let:
+
+N = 91
+ceil(sqrt(91)) = 10
+width = 4
+
+
+Then:
+
+Q(10)=102−91=9Q(11)=112−91=30Q(12)=122−91=53Q(13)=132−91=78\begin{aligned} Q(10)&=10^2-91=9\\ Q(11)&=11^2-91=30\\ Q(12)&=12^2-91=53\\ Q(13)&=13^2-91=78 \end{aligned}
+
+The function then copies the list:
+
+remaining = list(residues)
+
+
+The two lists now have different purposes:
+
+residues preserves the original values;
+remaining is repeatedly divided by factor-base primes.
+Step 3: Find the sieving positions for each prime
+
+For a factor-base prime, the function calls:
+
+target = tonelli_shanks(number, prime)
+
+
+This finds a value satisfying:
+
+target2≡N(modp)target^2\equiv N\pmod p
+
+Therefore:
+
+x≡target(modp)x\equiv target\pmod p
+
+or:
+
+x≡−target(modp)x\equiv-target\pmod p
+
+implies:
+
+x2−N≡0(modp)x^2-N\equiv0\pmod p
+
+However, the list is indexed using offset, and:
+
+x=root+offsetx=root+offset
+
+Therefore, the relevant offsets satisfy:
+
+offset≡target−root(modp)offset\equiv target-root\pmod p
+
+or:
+
+offset≡−target−root(modp)offset\equiv-target-root\pmod p
+
+The corresponding code is:
+
+starts = {
+    (target - root) % prime,
+    (-target - root) % prime
+}
+
+
+A set is used because the two roots can sometimes produce the same starting position.
+
+Step 4: Remove the prime factors
+for start in starts:
+    for index in range(start, width, prime):
+        while remaining[index] % prime == 0:
+            remaining[index] //= prime
+
+
+Once one matching position is known, every position separated by prime also matches.
+
+For example, if the first valid index is start, the matching indices are:
+
+start
+start + prime
+start + 2 * prime
+start + 3 * prime
+...
+
+
+The function therefore avoids trying the prime at every position.
+
+The while loop removes the entire power of the prime.
+
+For example:
+
+72=23⋅3272=2^3\cdot3^2
+
+When processing the prime 2:
+
+72 -> 36 -> 18 -> 9
+
+
+When processing the prime 3:
+
+9 -> 3 -> 1
+
+
+A final remaining value of 1 means that the original number was completely factored over the factor base.
+
+Step 5: Collect smooth relations
+
+The function checks:
+
+if residues[offset] == 0 or remaining[offset] != 1:
+    continue
+
+
+This rejects two cases.
+
+Case 1: residues[offset] == 0
+
+This means:
+
+x2−N=0x^2-N=0
+
+and therefore:
+
+x2=Nx^2=N
+
+In that situation, NN is already a perfect square.
+
+Case 2: remaining[offset] != 1
+
+This means that the value contains at least one factor outside the factor base.
+
+For accepted values, the function factors the original residue again so that it can record the complete exponent information:
+
+powers = {}
+value = residues[offset]
+
+for prime in base:
+    while value % prime == 0:
+        powers[prime] = powers.get(prime, 0) + 1
+        value //= prime
+
+
+It then saves the relation:
+
+relations.append(
+    (root + offset, residues[offset], powers)
+)
+
+Debugging output inside the function
+
+The function contains a line similar to:
+
+print(
+    f"{{ {(target - root) % prime}, "
+    f"{(-target - root) % prime} }}"
+)
+
+
+This prints the two sieving starting positions for every factor-base prime.
+
+The output can be useful for debugging or teaching. However, it produces a large amount of output during performance tests and can significantly affect timing results.
+
+3.4 natural_log(number)
+def natural_log(number: int) -> float:
+
+
+This function calculates:
+
+ln⁡(number)\ln(number)
+
+for potentially very large Python integers.
+
+Calling:
+
+math.log(number)
+
+
+usually requires converting the integer to a floating-point number. Very large integers may exceed the floating-point range.
+
+The code therefore keeps approximately 53 significant binary bits:
+
+shift = number.bit_length() - 53
+
+
+If the integer is very large, the function uses:
+
+return (
+    math.log(number >> shift)
+    + shift * math.log(2)
+)
+
+
+This is based on the approximation:
+
+number≈(number≫shift)⋅2shiftnumber\approx(number\gg shift)\cdot2^{shift}
+
+Taking the natural logarithm gives:
+
+ln⁡(number)≈ln⁡(number≫shift)+shiftln⁡2\ln(number) \approx \ln(number\gg shift)+shift\ln2
+
+For smaller values, the function simply returns:
+
+return math.log(number)
+
+3.5 heuristic_bound(number)
+def heuristic_bound(number: int) -> int:
+
+
+This function estimates a suitable factor-base bound based on the size of NN.
+
+It first calculates:
+
+logarithm = natural_log(number)
+
+
+It then returns approximately:
+
+return max(
+    30,
+    int(
+        math.exp(
+            0.5 * math.sqrt(
+                logarithm * math.log(logarithm)
+            )
+        )
+    )
+)
+
+
+The mathematical formula is:
+
+B≈exp⁡(12ln⁡N⋅ln⁡ln⁡N)B\approx \exp\left( \frac12\sqrt{\ln N\cdot\ln\ln N} \right)
+
+The result is forced to be at least 30.
+
+The bound is not the number of primes in the factor base. It is the maximum prime value considered.
+
+For example:
+
+bound = 100
+
+
+means:
+
+Generate all primes up to 100.
+Keep only those for which NN is a quadratic residue.
+3.6 quadratic_sieve_attempt(number, bound, width)
+def quadratic_sieve_attempt(
+    number: int,
+    bound: int,
+    width: int
+) -> Tuple[Optional[int], int, int]:
+
+
+This function performs one complete Quadratic Sieve attempt.
+
+It returns:
+
+(factor, base_size, relation_count)
+
+
+For example:
+
+(83, 12, 18)
+
+
+means:
+
+the function found the factor 83;
+the factor base contained 12 primes;
+it found 18 smooth relations.
+
+If the attempt fails, it returns:
+
+(None, base_size, relation_count)
+
+Step 1: Construct the factor base
+base = sieve_factor_base(number, bound)
+
+Step 2: Find smooth relations
+relations = sieve_interval(
+    number,
+    base,
+    width
+)
+
+Step 3: Check whether enough relations were found
+if len(relations) <= len(base):
+    return None, len(base), len(relations)
+
+
+Suppose the factor base has mm primes. Every exponent-parity vector belongs to:
+
+GF(2)mGF(2)^m
+
+This is an mm-dimensional vector space over the field containing 0 and 1.
+
+If the program has more than mm vectors, the vectors must be linearly dependent. Therefore, the code requires:
+
+relation_count>factor_base_sizerelation\_count>factor\_base\_size
+
+This guarantees that at least one linear dependency exists.
+
+It is possible for mm or fewer vectors to already be linearly dependent. Therefore, this test is conservative. It may reject a set of relations that already contains a dependency.
+
+Step 4: Construct exponent-parity vectors
+vectors = [
+    util.exponent_vector(powers, base)
+    for _, _, powers in relations
+]
+
+
+The exponent_vector() function records only whether each exponent is odd or even.
+
+It stores the parity vector as the bits of an integer.
+
+Suppose:
+
+base = [2, 3, 5]
+Q(x) = 2^3 * 3^2 * 5^1
+
+
+The exponent vector is:
+
+[3, 2, 1]
+
+
+Reducing each exponent modulo 2 gives:
+
+[1, 0, 1]
+
+
+because:
+
+3 mod 2 = 1
+2 mod 2 = 0
+1 mod 2 = 1
+
+
+The program can represent this vector using the binary integer:
+
+101
+
+
+If several vectors XOR to zero, every combined prime exponent is even. Therefore, the product of the selected Q(x)Q(x) values is a perfect square.
+
+Step 5: Find linear dependencies
+for mask in util.gf2_dependencies(vectors):
+
+
+The function gf2_dependencies() performs Gaussian elimination over GF(2)GF(2).
+
+It searches for selected vectors satisfying:
+
+vi1⊕vi2⊕⋯⊕vik=0v_{i_1}\oplus v_{i_2}\oplus\cdots\oplus v_{i_k}=0
+
+The returned mask is a bit mask indicating which relations are selected.
+
+For example:
+
+mask = 0b10110
+
+
+means that relations with indices:
+
+1, 2, 4
+
+
+are selected.
+
+The function:
+
+util.mask_indices(mask)
+
+
+converts the bit mask into a sequence of relation indices.
+
+Step 6: Construct the left-hand value XX
+left = 1
+
+for index in util.mask_indices(mask):
+    candidate, _, powers = relations[index]
+    left = (left * candidate) % number
+
+
+If the selected candidates are:
+
+x1,x2,…,xkx_1,x_2,\ldots,x_k
+
+then:
+
+left=X≡x1x2⋯xk(modN)left=X\equiv x_1x_2\cdots x_k\pmod N
+Step 7: Combine all prime exponents
+combined = {}
+
+for prime, power in powers.items():
+    combined[prime] = (
+        combined.get(prime, 0) + power
+    )
+
+
+Because the selected parity vectors XOR to zero, every exponent in combined should be even.
+
+For example, suppose:
+
+Q(x1)=21⋅32Q(x_1)=2^1\cdot3^2
+
+and:
+
+Q(x2)=23⋅52Q(x_2)=2^3\cdot5^2
+
+Their product is:
+
+21+3⋅32⋅52=24⋅32⋅522^{1+3}\cdot3^2\cdot5^2 = 2^4\cdot3^2\cdot5^2
+
+Every exponent is even, so:
+
+Q(x1)Q(x2)=(22⋅3⋅5)2Q(x_1)Q(x_2) = (2^2\cdot3\cdot5)^2
+Step 8: Construct the right-hand value YY
+right = 1
+
+for prime, power in combined.items():
+    right = (
+        right
+        * util.power_modulo(
+            prime,
+            power // 2,
+            number
+        )
+    ) % number
+
+
+This calculates:
+
+Y≡∏ppep/2(modN)Y\equiv \prod_p p^{e_p/2} \pmod N
+
+Since:
+
+∏iQ(xi)=Y2\prod_iQ(x_i)=Y^2
+
+and:
+
+Q(xi)=xi2−N≡xi2(modN)Q(x_i)=x_i^2-N\equiv x_i^2\pmod N
+
+the program obtains:
+
+X2≡Y2(modN)X^2\equiv Y^2\pmod N
+Step 9: Extract a factor
+shared = util.gcd(
+    abs(left - right),
+    number
+)
+
+
+Since:
+
+X2≡Y2(modN)X^2\equiv Y^2\pmod N
+
+we have:
+
+N∣(X−Y)(X+Y)N\mid(X-Y)(X+Y)
+
+If:
+
+X≢Y(modN)X\not\equiv Y\pmod N
+
+and:
+
+X≢−Y(modN)X\not\equiv-Y\pmod N
+
+then:
+
+gcd⁡(∣X−Y∣,N)\gcd(|X-Y|,N)
+
+may produce a nontrivial factor.
+
+The code checks:
+
+if 1 < shared < number:
+    return shared, len(base), len(relations)
+
+
+If the result is 1 or NN, the current dependency is not useful, so the function tries another dependency.
+
+The current implementation only tries:
+
+gcd⁡(∣X−Y∣,N)\gcd(|X-Y|,N)
+
+It could also try:
+
+gcd⁡(X+Y,N)\gcd(X+Y,N)
+
+Sometimes the first expression fails while the second one produces a nontrivial factor.
+
+3.7 quadratic_sieve(number, bound=0, width=0)
+def quadratic_sieve(
+    number: int,
+    bound: int = 0,
+    width: int = 0
+) -> Tuple[Optional[int], int, int]:
+
+
+This is the main entry point for the Quadratic Sieve.
+
+Even-number case
+if number % 2 == 0:
+    return 2, 0, 0
+
+
+If the input is even, the function immediately returns 2 as a factor.
+
+No factor base or sieving is necessary.
+
+User-provided bound
+if bound != 0:
+    return quadratic_sieve_attempt(
+        number,
+        bound,
+        width or max(3000, bound * 100)
+    )
+
+
+If the caller explicitly provides a bound, the function performs only one attempt.
+
+If width == 0, it automatically uses:
+
+max(3000, bound * 100)
+
+
+For example:
+
+bound = 100
+width = 0
+
+
+results in:
+
+width = max(3000, 10000)
+width = 10000
+
+Automatically increasing parameters
+
+If no bound is supplied, the function calculates:
+
+start = heuristic_bound(number)
+
+
+It then tries the following scale factors:
+
+for scale in (1, 2, 4, 8, 16, 32):
+
+
+This produces bounds approximately equal to:
+
+B,  2B,  4B,  8B,  16B,  32BB,\;2B,\;4B,\;8B,\;16B,\;32B
+
+For each attempt, the width is:
+
+max(3000, bound * 100)
+
+
+If a factor is found, the function immediately returns it.
+
+If all six attempts fail, the function returns:
+
+(None, base_size, relations)
+
+
+The final two values come from the last attempt.
+
+3.8 sieve_factorize(number)
+def sieve_factorize(number: int) -> List```
+
+The `quadratic_sieve()` function normally finds one nontrivial factor.
+
+The `sieve_factorize()` function recursively splits the number until it obtains a complete prime factorization.
+
+### Numbers smaller than 2
+
+```python
+if number < 2:
+    return []
+
+
+Inputs such as 0 and 1 produce an empty list.
+
+Input is already prime
+if util.is_prime(number):
+    return [number]
+
+
+If the number is prime, the function returns a list containing that number.
+
+The util.is_prime() function checks divisibility up to approximately:
+
+N\sqrt N
+Trial division by small primes
+for prime in util.prime_list(100):
+    if number % prime == 0:
+        return sorted(
+            [prime]
+            + sieve_factorize(number // prime)
+        )
+
+
+The function first tests all primes up to 100.
+
+This quickly removes small prime factors before using the more complicated Quadratic Sieve.
+
+For example:
+
+N=2⋅3⋅1000003N=2\cdot3\cdot1000003
+
+The function first finds 2 and recursively factors the remaining value.
+
+Perfect-square handling
+perfect, root = util.is_perfect_square(number)
+
+if perfect:
+    return sorted(
+        sieve_factorize(root)
+        + sieve_factorize(root)
+    )
+
+
+If:
+
+N=r2N=r^2
+
+then it is enough to factor rr, and include that factorization twice.
+
+For example:
+
+144=122144=12^2
+
+Since:
+
+12=22⋅312=2^2\cdot3
+
+we obtain:
+
+144=24⋅32144=2^4\cdot3^2
+Use the Quadratic Sieve
+factor, _, _ = quadratic_sieve(number)
+
+
+If it fails:
+
+if factor is None:
+    return [number]
+
+
+This does not prove that number is prime. It only means that the Quadratic Sieve failed to split it using the attempted parameters.
+
+If a factor is found:
+
+return sorted(
+    sieve_factorize(factor)
+    + sieve_factorize(number // factor)
+)
+
+
+The function recursively factors both parts.
+
+Important performance issue
+
+Before calling the Quadratic Sieve, the function calls:
+
+util.is_prime(number)
+
+
+The implementation in util.py uses deterministic trial division up to N\sqrt N.
+
+For a very large composite number, this primality test may take much longer than the Quadratic Sieve itself. It may appear that the program is stuck before it even begins sieving.
+
+util.py also provides:
+
+is_probable_prime()
+
+
+For large values, this would be more suitable as a fast preliminary primality check.
+
+A possible design would be:
+
+Use is_probable_prime() for large numbers.
+Use deterministic is_prime() only for smaller numbers, or when a mathematically certain result is required.
+4. Demonstration and test functions
+4.1 tonelli_check()
+
+This function tests tonelli_shanks().
+
+It uses the fixed number:
+
+number = 13290059
+
+
+For several primes, it calls:
+
+root = tonelli_shanks(number, prime)
+
+
+It displays values such as:
+
+NN;
+the prime pp;
+p mod 4p\bmod4;
+the modular square root;
+root * root % p;
+N % p.
+
+If no square root exists, it prints a message similar to:
+
+none
+N is not a QR
+
+
+Here, QR means quadratic residue.
+
+The test verifies that:
+
+root2 mod p=N mod proot^2\bmod p=N\bmod p
+4.2 worked_example()
+
+This is a complete teaching example using:
+
+number = 84923
+bound = 100
+width = 3000
+
+
+The function:
+
+Constructs the factor base.
+Prints ⌈N⌉\lceil\sqrt N\rceil.
+Sieves values of Q(x)=x2−NQ(x)=x^2-N.
+Displays the first 10 smooth relations.
+Calls quadratic_sieve().
+Prints the resulting factorization.
+
+Each displayed relation includes information such as:
+
+x
+x - ceil(sqrt(N))
+Q(x)
+smooth factorization
+
+
+Conceptually, a relation might be displayed as:
+
+x = 300
+offset = 8
+Q(x) = 5077
+factorization = ...
+
+
+Only values completely factorable using the factor base are displayed.
+
+At the end, the function prints something similar to:
+
+print(
+    f"N = {factor} * {number // factor} ..."
+)
+
+
+If a factor was found, this shows:
+
+N=factor⋅NfactorN=factor\cdot\frac{N}{factor}
+
+There is a potential problem. If quadratic_sieve() returns None, then:
+
+number // factor
+
+
+attempts to divide by None, causing a TypeError.
+
+The example assumes that the selected number and parameters will successfully produce a factor.
+
+4.3 sieving_beats_division()
+
+This function compares two ways of finding smooth values.
+
+It uses:
+
+number = 13290059
+bound = 100
+width = 20000
+
+Method 1: Interval sieving
+relations = sieve_interval(
+    number,
+    base,
+    width
+)
+
+
+This method uses the two modular square roots associated with each factor-base prime.
+
+It visits only positions that are known to be divisible by the prime.
+
+Method 2: Trial division for every value
+for offset in range(width):
+    value = (root + offset) ** 2 - number
+
+    for prime in base:
+        while value % prime == 0:
+            value //= prime
+
+
+This method processes every value in the interval and tries every factor-base prime against it.
+
+The function uses:
+
+time.perf_counter()
+
+
+to measure the runtime in milliseconds.
+
+It prints:
+
+the factor-base size;
+the interval width;
+the number of smooth values found by each method;
+the runtime of each method.
+
+Both methods should find the same number of smooth values.
+
+The sieving method should normally be faster because it avoids unnecessary divisibility tests.
+
+However, sieve_interval() currently performs debugging output using print(). That output is included in the measured runtime, so the comparison is not completely fair.
+
+4.4 base_size_tradeoff()
+
+This function investigates how the factor-base bound affects performance.
+
+It uses:
+
+number = 1000003 * 2000003
+
+
+It tests the bounds:
+
+(50, 100, 200, 400, 800, 1600, 3200)
+
+
+For each bound, it calls:
+
+quadratic_sieve(
+    number,
+    bound,
+    bound * 120
+)
+
+
+It prints:
+
+the requested bound;
+the actual factor-base size;
+the number of smooth relations;
+the factor found;
+the runtime.
+
+This experiment demonstrates a standard tradeoff.
+
+If the bound is too small
+The factor base is small.
+Each prime is cheap to process.
+The linear algebra dimension is small.
+Smooth values are rare.
+The program may not collect enough relations.
+If the bound is too large
+Smooth values are more common.
+More primes must be processed.
+More memory and sieving work are required.
+The linear algebra problem becomes larger.
+
+There is usually a middle range that produces the best overall performance.
+
+One limitation of this experiment is that it changes both:
+
+the factor-base bound;
+the sieve interval width.
+
+Since it uses:
+
+width = bound * 120
+
+
+the test does not isolate the effect of the factor-base size alone.
+
+4.5 factor_table()
+
+This function tests the Quadratic Sieve using the numbers in TEST_NUMBERS.
+
+For every number, it calls:
+
+factor, base_size, relations = quadratic_sieve(number)
+
+
+It prints information such as:
+
+NN;
+the bit length of NN;
+factor pp;
+factor qq;
+factor-base size;
+number of smooth relations;
+runtime.
+
+If the algorithm fails, it prints:
+
+gave up
+
+
+If it succeeds, it calculates:
+
+other = number // factor
+
+
+and displays the two factors in increasing order.
+
+This function calls quadratic_sieve(), not sieve_factorize().
+
+Therefore, it performs one nontrivial split. It does not guarantee that both returned factors are prime.
+
+4.6 full_factorisation()
+
+This function tests recursive complete factorization.
+
+It calculates:
+
+by_sieve = sieve_factorize(number)
+by_trial = util.factorize(number)
+
+
+It compares:
+
+the recursive Quadratic Sieve result;
+the ordinary trial-division result.
+
+It then prints:
+
+by_sieve == by_trial
+
+
+If the output is True, both approaches produced the same ordered list of prime factors.
+
+For example:
+
+1729=7⋅13⋅191729=7\cdot13\cdot19
+
+A conceptual output would be:
+
+1729    7 * 13 * 19    True
+
+5. Why all tests run immediately
+
+At the bottom of factorization6_quadratic_sieve.py, the code directly calls:
+
+tonelli_check()
+worked_example()
+sieving_beats_division()
+base_size_tradeoff()
+factor_table()
+full_factorisation()
+
+
+Therefore, running:
+
+python factorization6_quadratic_sieve.py
+
+
+executes every demonstration and performance test in sequence.
+
+More importantly, importing the module also executes all of them:
+
+import factorization6_quadratic_sieve
+
+
+This happens because the calls are not protected by:
+
+if __name__ == "__main__":
+
+
+A better structure would be:
+
+if __name__ == "__main__":
+    tonelli_check()
+    worked_example()
+    sieving_beats_division()
+    base_size_tradeoff()
+    factor_table()
+    full_factorisation()
+
+
+With this structure:
+
+running the file directly executes the demonstrations;
+importing the module only defines and loads the functions;
+the tests do not run automatically during import.
+6. Important implementation issues
+6.1 Debugging output affects performance
+
+The statement that prints the two starting positions is inside the factor-base loop:
+
+print(f"{{ ... }}")
+
+
+For a large factor base, this can print many lines.
+
+It creates two problems:
+
+It makes normal program output difficult to read.
+It affects performance measurements.
+
+A better design would add an optional parameter:
+
+def sieve_interval(
+    number,
+    base,
+    width,
+    verbose=False
+):
+
+
+The output would then be conditional:
+
+if verbose:
+    print(...)
+
+6.2 The primality test may be the main bottleneck
+
+sieve_factorize() calls:
+
+util.is_prime(number)
+
+
+before calling the Quadratic Sieve.
+
+If is_prime() performs trial division up to N\sqrt N, it can be extremely slow for large numbers.
+
+This means the program may spend most of its time trying to prove that a large composite number is not prime before it reaches the Quadratic Sieve.
+
+Using is_probable_prime() for large values would normally be much faster.
+
+6.3 Only gcd(X-Y, N) is tested
+
+The current code tests:
+
+shared = util.gcd(
+    abs(left - right),
+    number
+)
+
+
+But because:
+
+N∣(X−Y)(X+Y)N\mid(X-Y)(X+Y)
+
+it is also reasonable to test:
+
+shared = util.gcd(
+    left + right,
+    number
+)
+
+
+If the first GCD produces 1 or NN, the second GCD may still produce a nontrivial factor.
+
+6.4 worked_example() may fail when no factor is found
+
+The function directly uses:
+
+number // factor
+
+
+If factor is None, this produces an error.
+
+It should first check:
+
+if factor is None:
+    print("No factor was found.")
+else:
+    print(
+        f"{number} = {factor} * {number // factor}"
+    )
+
+6.5 tonelli_shanks() assumes the modulus is prime
+
+The function does not verify that its second argument is actually prime.
+
+This is safe in the current Quadratic Sieve workflow because the values come from:
+
+util.prime_list()
+
+
+However, if tonelli_shanks() is called independently with a composite modulus, its result may be incorrect or its assumptions may no longer hold.
+
+6.6 The relation-count condition is conservative
+
+The function returns early when:
+
+len(relations) <= len(base)
+
+
+Having more relations than the number of factor-base primes guarantees a linear dependency.
+
+However, a dependency may already exist with fewer relations.
+
+For example, if two exponent vectors are identical:
+
+v1=v2v_1=v_2
+
+then:
+
+v1⊕v2=0v_1\oplus v_2=0
+
+Therefore, a dependency exists even if the number of relations does not exceed the vector-space dimension.
+
+The condition is safe as a sufficient requirement, but it is not mathematically necessary.
+
+6.7 A failed factorization is not proof of primality
+
+In sieve_factorize():
+
+if factor is None:
+    return [number]
+
+
+This treats the unsplit number like a final factor.
+
+However, failure of the Quadratic Sieve attempt does not mean the number is prime. It may simply mean:
+
+the factor base was too small;
+the sieve interval was too short;
+too few smooth relations were found;
+the available dependencies produced only trivial GCD values;
+the algorithm reached its retry limit.
+
+A more explicit API could distinguish between:
+
+proven prime;
+successfully factored;
+factorization attempt failed.
+7. One-sentence summary of every function
+tonelli_shanks(): Finds a solution to x2≡N(modp)x^2\equiv N\pmod p.
+sieve_factor_base(): Selects small primes that may divide values of x2−Nx^2-N.
+sieve_interval(): Searches near N\sqrt N for values of x2−Nx^2-N that are smooth over the factor base.
+natural_log(): Calculates the natural logarithm of a very large integer without directly converting the full integer to a float.
+heuristic_bound(): Estimates a suitable factor-base upper bound.
+quadratic_sieve_attempt(): Performs one complete Quadratic Sieve attempt.
+quadratic_sieve(): Automatically selects or expands parameters and retries the sieve.
+sieve_factorize(): Recursively produces a complete factorization.
+tonelli_check(): Tests the modular square-root implementation.
+worked_example(): Demonstrates one complete Quadratic Sieve execution.
+sieving_beats_division(): Compares interval sieving with trial division at every position.
+base_size_tradeoff(): Examines the performance effect of changing the factor-base bound.
+factor_table(): Tests one Quadratic Sieve split for several numbers.
+full_factorisation(): Tests recursive factorization and compares it with trial division.
+8. The most important idea to understand
+
+The linear algebra step does not find a factor directly.
+
+Its purpose is to find a subset of smooth relations for which the sum of every prime exponent is even.
+
+Suppose the factor base is:
+
+[2,3,5][2,3,5]
+
+and three smooth values have exponent vectors:
+
+v1=(1,0,1)v_1=(1,0,1) v2=(0,1,1)v_2=(0,1,1) v3=(1,1,0)v_3=(1,1,0)
+
+Over GF(2)GF(2), addition is XOR:
+
+v1⊕v2⊕v3=(1,0,1)⊕(0,1,1)⊕(1,1,0)=(0,0,0)v_1\oplus v_2\oplus v_3 = (1,0,1)\oplus(0,1,1)\oplus(1,1,0) = (0,0,0)
+
+This means that after multiplying the three corresponding values, the total exponent of every prime is even.
+
+Therefore, their product is a perfect square.
+
+That perfect square allows the program to construct:
+
+X2≡Y2(modN)X^2\equiv Y^2\pmod N
+
+The GCD step then attempts to convert this congruence of squares into a nontrivial factor of NN.
+
+Explanation focus
+
+This explanation follows the program’s actual execution order:
+
+Find modular square roots.
+Build the factor base.
+Sieve an interval near N\sqrt N.
+Record prime exponent parity.
+Find a linear dependency over GF(2)GF(2).
+Construct a perfect-square product.
+Obtain X2≡Y2(modN)X^2\equiv Y^2\pmod N.
+Use a GCD to extract a factor.
+
+The key conceptual point is this:
+
+The modulo-2 linear algebra finds a collection of smooth relations whose combined prime exponents are all even. This makes their product a perfect square, which is then used to create a congruence of squares and potentially reveal a factor of NN.

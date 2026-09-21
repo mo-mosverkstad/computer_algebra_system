@@ -116,8 +116,7 @@ def heuristic_bound(number: int) -> int:
     return max(30, int(math.exp(0.5 * math.sqrt(logarithm * math.log(logarithm)))))
 
 
-def quadratic_sieve_attempt(number: int, bound: int,
-                            width: int) -> Tuple[Optional[int], int, int]:
+def quadratic_sieve_attempt(number: int, bound: int, width: int) -> Tuple[Optional[int], int, int]:
     base = sieve_factor_base(number, bound)
     relations = sieve_interval(number, base, width)
     if len(relations) <= len(base):
