@@ -85,6 +85,7 @@ def sieve_interval(number: int, base: List[int], width: int) -> List[Tuple[int, 
         if target is None:
             continue
         starts = {(target - root) % prime, (-target - root) % prime}
+        print(f"{{ {(target - root) % prime}, {(-target - root) % prime} }} ")
         for start in starts:
             for index in range(start, width, prime):
                 while remaining[index] % prime == 0:
