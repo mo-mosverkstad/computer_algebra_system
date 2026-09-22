@@ -1,32 +1,36 @@
+// factor.cpp
 #include <cstdint>
-#include <vector>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <cstddef>
 
-namespace py = pybind11;
+extern "C" {
 
-std::vector<uint64_t> factorize(uint64_t factor_number) {
-    std::vector<uint64_t> factors;
+// naive trial division
+size_t factorize(uint64_t n, uint64_t* output, size_t capacity) {
+    size_t count = 0;
 
-    while (factor_number % 2 == 0) {
-        factors.push_back(2);
-        factor_number /= 2;
+    while (n % 2 == 0) {
+        if (count < capacity)
+            output[count] = 2;
+        ++count;
+        n /= 2;
     }
 
-    for (uint64_t i = 3; i <= factor_number / i; i += 2) {
-        while (factor_number % i == 0) {
-            factors.push_back(i);
-            factor_number /= i;
+    for (uint64_t i = 3; i <= n / i; i += 2) {
+        while (n % i == 0) {
+            if (count < capacity)
+                output[count] = i;
+            ++count;
+            n /= i;
         }
     }
 
-    if (factor_number > 1) {
-        factors.push_back(factor_number);
+    if (n > 1) {
+        if (count < capacity)
+            output[count] = n;
+        ++count;
     }
 
-    return factors;
+    return count;
 }
 
-PYBIND11_MODULE(factor, m) {
-    m.def("factorize", &factorize);
 }

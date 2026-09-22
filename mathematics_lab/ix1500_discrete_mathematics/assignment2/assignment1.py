@@ -1,23 +1,12 @@
 import util
+import enc_util
+import factor
 
 from typing import List, Tuple
 from assignment1_consts import messages, keys
     
 def decrypt_message(message: List[int], d: int, n: int) -> List[int]:
     return [util.power_modulo(c, d, n) for c in message]
-
-def decode_block(value: int) -> str:
-    width = max(1, (value.bit_length() + 7) // 8)
-    return value.to_bytes(width, "big").decode("latin-1")
-
-def decode_message(plaintext: List[int]) -> str:
-    return ''.join(decode_block(value) for value in plaintext)
-
-def is_text(plaintext: List[int]) -> bool:
-    return all(
-        32 <= ord(value) <= 126 or ord(value) in (9, 10, 13)
-        for value in plaintext
-    )
     
 def small():
     e = 7
@@ -28,40 +17,8 @@ def small():
     print("modulo_inverse", d)
     print("result:", util.power_modulo(c, d, n))
 
-def create_prime_list(bound: int) -> List[int]:
-    primes = []
-    is_prime = True
-    for number in range(2, bound+1):
-        is_prime = True
-        for prime in primes:
-            if number % prime == 0:
-                is_prime = False
-                break
-        if is_prime:
-            primes.append(number)
-            if len(primes) % 8192 == 0:
-                print(len(primes))
-    return primes
-
-def factorize1(factor_number: int, primes: List[int]) -> List[int]:
-    prime_factors = []
-
-    for prime in primes:
-        while factor_number % prime == 0:
-            prime_factors.append(prime)
-            factor_number = factor_number // prime
-        
-    if factor_number > 1:
-        prime_factors.append(factor_number)
-        
-    return prime_factors
-    
-largest_factor = int(max(n for _, n in keys) ** (1/2))
-primes = create_prime_list(largest_factor)
-print(f"primes: {primes}")
-key_factors = [factorize1(n, primes) for _, n in keys]
-
-# key_factors = util.recover_factors([n for _, n in keys])
+# key_factors = [util.factorize(n) for _, n in keys]
+key_factors = [factor.factorize(n) for _, n in keys]
 
 matches = {}
 
@@ -73,8 +30,8 @@ for ((e, n), (factor1, factor2)) in zip(keys, key_factors):
     message_num = 0
     for message in messages:
         dec = decrypt_message(message, d, n)
-        dec_text = decode_message(dec)
-        readable = is_text(dec_text)
+        dec_text = enc_util.decode_message(dec)
+        readable = enc_util.is_text(dec_text)
         print(f"decrypted message: {dec}")
         print(f"decrypted in extended ASCII: {dec_text}")
         print(f"readable?: {readable}")

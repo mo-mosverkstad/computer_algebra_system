@@ -42,3 +42,9 @@ def decode_message(blocks: List[int]) -> str:
     for block in blocks:
         characters.extend(chr(value) for value in decode_block(block))
     return ''.join(characters)
+
+def is_text(plaintext: List[int]) -> bool:
+    return all(
+        32 <= ord(value) <= 126 or ord(value) in (9, 10, 13)
+        for value in plaintext
+    )
