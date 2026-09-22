@@ -13,7 +13,9 @@ _lib.factorize.restype = ctypes.c_size_t
 
 
 def factorize(n: int) -> List[int]:
-    # A uint64 has at most 64 prime factors (all 2s).
+    if n >= 2**64:
+        raise TypeError(f"The factor n {n} is too large to fit as uint64")
+    # A uint64 has at most 64 prime factors (all 2s)
     result = (ctypes.c_uint64 * 64)()
 
     count = _lib.factorize(n, result, 64)

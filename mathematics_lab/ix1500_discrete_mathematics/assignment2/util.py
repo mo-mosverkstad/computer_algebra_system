@@ -29,30 +29,6 @@ def modulo_inverse(factor: int, modulo: int) -> int:
     inverse, other = gcd_linear_comb(factor, modulo)
     return inverse % modulo
 
-def recover_factors(moduli: List[int]) -> List[Tuple[int, int]]:
-    """Recover p, q for each modulus.
-
-    Several of the given moduli reuse the same prime, so a pairwise gcd splits
-    them immediately and no factoring is needed. Only moduli that share nothing
-    with the others fall back to trial division.
-    """
-    factors: List[Tuple[int, int]] = [(0, 0)] * len(moduli)
-
-    for i in range(len(moduli)):
-        for j in range(i + 1, len(moduli)):
-            shared = gcd(moduli[i], moduli[j])
-            if shared > 1:
-                factors[i] = (shared, moduli[i] // shared)
-                factors[j] = (shared, moduli[j] // shared)
-
-    for i, modulus in enumerate(moduli):
-        if factors[i] == (0, 0):
-            prime_factors = factorize(modulus)
-            factors[i] = (prime_factors[0], prime_factors[1])
-
-    return factors
-
-
 def factorize(factor_number: int) -> List[int]:
     prime_factors = []
     while factor_number % 2 == 0:
