@@ -1,5 +1,4 @@
 from typing import List, Tuple
-import random
 
 def gcd(factor1: int, factor2: int) -> int:
     while factor2 != 0:
@@ -26,8 +25,9 @@ def gcd_linear_comb(factor1: int, factor2: int) -> Tuple[int, int]:
     return x, y
     
 def modulo_inverse(factor: int, modulo: int) -> int:
-    inverse, other = gcd_linear_comb(factor, modulo)
+    inverse, _ = gcd_linear_comb(factor, modulo)
     return inverse % modulo
+
 
 def factorize(factor_number: int) -> List[int]:
     prime_factors = []
@@ -46,53 +46,6 @@ def factorize(factor_number: int) -> List[int]:
         prime_factors.append(factor_number)
         
     return prime_factors
-
-def is_probable_prime(candidate: int, rounds: int = 20) -> bool:
-    """Miller-Rabin.
-
-    If candidate is prime then for every base a either a^r == 1, or one of the
-    repeated squarings of a^r reaches -1 (mod candidate). A base that shows
-    neither proves the number composite. Trial division is not usable here
-    because the 128 bit keys in 2.2.1 are far too large for it.
-    """
-    if candidate < 2:
-        return False
-    for small_prime in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37):
-        if candidate == small_prime:
-            return True
-        if candidate % small_prime == 0:
-            return False
-
-    # candidate - 1 = odd_part * 2^power_of_two
-    odd_part = candidate - 1
-    power_of_two = 0
-    while odd_part % 2 == 0:
-        odd_part //= 2
-        power_of_two += 1
-
-    for _ in range(rounds):
-        base = random.randrange(2, candidate - 1)
-        witness = power_modulo(base, odd_part, candidate)
-        if witness == 1 or witness == candidate - 1:
-            continue
-        for _ in range(power_of_two - 1):
-            witness = (witness * witness) % candidate
-            if witness == candidate - 1:
-                break
-        else:
-            return False
-    return True
-
-
-def random_prime(bits: int) -> int:
-    """Draw odd candidates of the requested bit length until one is prime."""
-    while True:
-        # force the top bit so n = p*q really has the requested size, and the
-        # bottom bit so the candidate is odd
-        candidate = random.getrandbits(bits) | (1 << (bits - 1)) | 1
-        if is_probable_prime(candidate):
-            return candidate
-
 
 def power_modulo(base: int, exponent: int, modulo: int) -> int:
     result = 1
