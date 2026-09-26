@@ -28,7 +28,7 @@ def modulo_inverse(factor: int, modulo: int) -> int:
     inverse, _ = gcd_linear_comb(factor, modulo)
     return inverse % modulo
 
-
+# naive trial division factorization in Python
 def factorize(factor_number: int) -> List[int]:
     prime_factors = []
     while factor_number % 2 == 0:

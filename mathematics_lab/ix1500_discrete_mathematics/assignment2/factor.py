@@ -11,7 +11,7 @@ _lib.factorize.argtypes = [
 ]
 _lib.factorize.restype = ctypes.c_size_t
 
-
+# naive trial division implemented in cpp
 def factorize(n: int) -> List[int]:
     if n >= 2**64:
         raise TypeError(f"The factor n {n} is too large to fit as uint64")
