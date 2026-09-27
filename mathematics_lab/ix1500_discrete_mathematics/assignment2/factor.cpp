@@ -1,36 +1,26 @@
-// factor.cpp
 #include <cstdint>
 #include <cstddef>
+#include <vector>
 
 extern "C" {
 
 // naive trial division
-size_t factorize(uint64_t n, uint64_t* output, size_t capacity) {
-    size_t count = 0;
-
+std::vector<uint64_t> factorize(uint64_t n) {
+    std::vector<uint64_t> factors;
     while (n % 2 == 0) {
-        if (count < capacity)
-            output[count] = 2;
-        ++count;
+        factors.push_back(2);
         n /= 2;
     }
-
     for (uint64_t i = 3; i <= n / i; i += 2) {
         while (n % i == 0) {
-            if (count < capacity)
-                output[count] = i;
-            ++count;
+            factors.push_back(i);
             n /= i;
         }
     }
-
     if (n > 1) {
-        if (count < capacity)
-            output[count] = n;
-        ++count;
+        factors.push_back(n);
     }
-
-    return count;
+    return factors;
 }
 
 }

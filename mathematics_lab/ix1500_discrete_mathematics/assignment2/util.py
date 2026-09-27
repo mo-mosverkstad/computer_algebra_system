@@ -51,8 +51,8 @@ def power_modulo(base: int, exponent: int, modulo: int) -> int:
     result = 1
     base = base % modulo
     while exponent > 0:
-        if exponent & 1:
+        if exponent & 1: # if number is odd
             result = (result * base) % modulo
         base = (base * base) % modulo
-        exponent >>= 1
+        exponent >>= 1 # exponent = exponent * 2
     return result
