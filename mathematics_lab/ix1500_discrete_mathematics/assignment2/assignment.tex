@@ -442,7 +442,19 @@ A larger modulo can also affect execution time, but not directly. Since \texttt{
 
 \subsection*{2.2 Effect of RSA exponents on encryption and decryption time}
 
-In the second computational cost analysis, the RSA modulus is fixed at a 128-bit integer number $n = 185879242930562613603547896228926251273$, which can be prime factorized into two 64-bit numbers $17524406870024073221$ and $10606877842382991413$. The two numbers are randomly picked from a C++ function that generates prime numbers up to a specific number, in this case a large 64-bit number using the type \texttt{uint64\_t}. The prime generator function can be found in \texttt{random.cpp}, which is only used for efficiently generating large prime numbers.
+In the second computational cost analysis, the RSA modulus is fixed at a 128-bit integer number $n = 185879242930562613603547896228926251273$, which can be prime factorized into two 64-bit numbers $17524406870024073221$ and $10606877842382991413$. The two numbers are obtained through fast generation of large prime numbers using \texttt{SymPy}, and the numbers are multiplied afterwards. These are two randomly generated after executing the script below:
+
+\begin{lstlisting}[language=python]
+def generate_prime(bits: int = 64) -> int:
+    lower = 1 << (bits - 1)
+    upper = (1 << bits) - 1
+
+    while True:
+        candidate = random.randrange(lower, upper) | 1
+
+        if isprime(candidate):
+            return candidate
+\end{lstlisting}
 
 Several valid values of the public exponent $e$ is tested (all prime numbers):
 
