@@ -1,9 +1,7 @@
 CXX = g++
 PYTHON ?= python3
 
-# Header paths and the ABI-specific suffix (e.g. .cpython-312-x86_64-linux-gnu.so)
-# that CPython requires for importable extension modules.
-PYBIND11_INCLUDE := $(shell $(PYTHON) -c "import pybind11; print(pybind11.get_include())")
+PYBIND11_INCLUDE := $(shell $(PYTHON) -c "import pybind11; print(pybind11.get_include())" 2>/dev/null)
 PYTHON_INCLUDE   := $(shell $(PYTHON) -c "from sysconfig import get_config_var as g; print(g('INCLUDEPY'))")
 EXT_SUFFIX       := $(shell $(PYTHON) -c "from sysconfig import get_config_var as g; print(g('EXT_SUFFIX'))")
 
@@ -14,17 +12,20 @@ OBJECTS = factor.o factor_shim.o
 
 all: $(TARGET)
 
+# Fail with if pybind11 is not installed
+check-deps:
+	@$(PYTHON) -c "import pybind11" 2>/dev/null || (echo "pybind11 is missing for $(PYTHON). Install it with: $(PYTHON) -m pip install -r requirements.txt"; exit 1)
+
 $(TARGET): $(OBJECTS)
 	$(CXX) -shared -o $@ $^
 
-# factor.cpp is used as-is; factor_shim.cpp wraps it with pybind11 bindings.
-factor.o: factor.cpp
+factor.o: factor.cpp | check-deps
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-factor_shim.o: factor_shim.cpp
+factor_shim.o: factor_shim.cpp | check-deps
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
 
-.PHONY: all clean
+.PHONY: all clean check-deps
