@@ -1,6 +1,6 @@
 import math
 import time
-import util
+import util_other
 
 from typing import Dict, List, Optional, Tuple
 
@@ -23,12 +23,12 @@ def tonelli_shanks(residue: int, prime: int) -> Optional[int]:
     # Euler's criterion p=[odd_prime], a^((p-1)/2) \= legendre_symbol(a, p) (mod p)
     # help: legendre_symbol(a, p) = cases(1: exist(x, x^2===a (mod p)), 0: a = n*p, -1: non_exist(x, x^2===a (mod p)))
     # if non_exist(x, x^2 === residue (mod prime))
-    if util.power_modulo(residue, (prime - 1) // 2, prime) != 1:
+    if util_other.power_modulo(residue, (prime - 1) // 2, prime) != 1:
         return None
     if prime % 4 == 3: # prime = 3 + 4*k
         # x = a^((p+1)/4)
         # x^2 = (a^((p+1)/4))^2 = a^((p+1)/2) = a*a^((p-1)/2) === a*1 (mod p)
-        return util.power_modulo(residue, (prime + 1) // 4, prime)
+        return util_other.power_modulo(residue, (prime + 1) // 4, prime)
 
     # remaining case: prime = 1 + 4*k
 
@@ -40,12 +40,12 @@ def tonelli_shanks(residue: int, prime: int) -> Optional[int]:
         power_of_two += 1
 
     non_residue = 2
-    while util.power_modulo(non_residue, (prime - 1) // 2, prime) != prime - 1:
+    while util_other.power_modulo(non_residue, (prime - 1) // 2, prime) != prime - 1:
         non_residue += 1
 
-    root = util.power_modulo(residue, (odd_part + 1) // 2, prime)
-    value = util.power_modulo(residue, odd_part, prime)
-    shift = util.power_modulo(non_residue, odd_part, prime)
+    root = util_other.power_modulo(residue, (odd_part + 1) // 2, prime)
+    value = util_other.power_modulo(residue, odd_part, prime)
+    shift = util_other.power_modulo(non_residue, odd_part, prime)
     order = power_of_two
 
     while value != 1:
@@ -54,7 +54,7 @@ def tonelli_shanks(residue: int, prime: int) -> Optional[int]:
         while square != 1:
             square = (square * square) % prime
             level += 1
-        correction = util.power_modulo(shift, 1 << (order - level - 1), prime)
+        correction = util_other.power_modulo(shift, 1 << (order - level - 1), prime)
         root = (root * correction) % prime
         shift = (correction * correction) % prime
         value = (value * shift) % prime
@@ -64,17 +64,17 @@ def tonelli_shanks(residue: int, prime: int) -> Optional[int]:
 
 def sieve_factor_base(number: int, bound: int) -> List[int]:
     base: List[int] = []
-    for prime in util.prime_list(bound):
+    for prime in util_other.prime_list(bound):
         if prime == 2:
             base.append(prime)
         # Euler's criterion
-        elif util.power_modulo(number % prime, (prime - 1) // 2, prime) == 1:
+        elif util_other.power_modulo(number % prime, (prime - 1) // 2, prime) == 1:
             base.append(prime)
     return base
 
 
 def sieve_interval(number: int, base: List[int], width: int) -> List[Tuple[int, int, Dict[int, int]]]:
-    root = util.integer_sqrt(number)
+    root = util_other.integer_sqrt(number)
     if root * root < number:
         root += 1
     residues = [(root + offset) * (root + offset) - number for offset in range(width)]
@@ -85,7 +85,6 @@ def sieve_interval(number: int, base: List[int], width: int) -> List[Tuple[int, 
         if target is None:
             continue
         starts = {(target - root) % prime, (-target - root) % prime}
-        print(f"{{ {(target - root) % prime}, {(-target - root) % prime} }} ")
         for start in starts:
             for index in range(start, width, prime):
                 while remaining[index] % prime == 0:
@@ -124,19 +123,19 @@ def quadratic_sieve_attempt(number: int, bound: int,
     if len(relations) <= len(base):
         return None, len(base), len(relations)
 
-    vectors = [util.exponent_vector(powers, base) for _, _, powers in relations]
-    for mask in util.gf2_dependencies(vectors):
+    vectors = [util_other.exponent_vector(powers, base) for _, _, powers in relations]
+    for mask in util_other.gf2_dependencies(vectors):
         left = 1
         combined: Dict[int, int] = {}
-        for index in util.mask_indices(mask):
+        for index in util_other.mask_indices(mask):
             candidate, _, powers = relations[index]
             left = (left * candidate) % number
             for prime, power in powers.items():
                 combined[prime] = combined.get(prime, 0) + power
         right = 1
         for prime, power in combined.items():
-            right = (right * util.power_modulo(prime, power // 2, number)) % number
-        shared = util.gcd(abs(left - right), number)
+            right = (right * util_other.power_modulo(prime, power // 2, number)) % number
+        shared = util_other.gcd(abs(left - right), number)
         if 1 < shared < number:
             return shared, len(base), len(relations)
     return None, len(base), len(relations)
@@ -162,12 +161,12 @@ def quadratic_sieve(number: int, bound: int = 0,
 def sieve_factorize(number: int) -> List[int]:
     if number < 2:
         return []
-    if util.is_prime(number):
+    if util_other.is_prime(number):
         return [number]
-    for prime in util.prime_list(100):
+    for prime in util_other.prime_list(100):
         if number % prime == 0:
             return sorted([prime] + sieve_factorize(number // prime))
-    perfect, root = util.is_perfect_square(number)
+    perfect, root = util_other.is_perfect_square(number)
     if perfect:
         return sorted(sieve_factorize(root) + sieve_factorize(root))
     factor, _, _ = quadratic_sieve(number)
@@ -197,7 +196,7 @@ def worked_example() -> None:
     bound = 100
     width = 3000
     base = sieve_factor_base(number, bound)
-    root = util.integer_sqrt(number) + 1
+    root = util_other.integer_sqrt(number) + 1
     print(f"--- 6 worked example, N = {number}, base {base} ---")
     print(f"ceil(sqrt(N)) = {root}, sieving Q(x) = x^2 - N")
     relations = sieve_interval(number, base, width)
@@ -223,7 +222,7 @@ def sieving_beats_division() -> None:
     relations = sieve_interval(number, base, width)
     sieve_time = (time.perf_counter() - start) * 1000
 
-    root = util.integer_sqrt(number) + 1
+    root = util_other.integer_sqrt(number) + 1
     start = time.perf_counter()
     by_division = 0
     for offset in range(width):
@@ -277,7 +276,7 @@ def full_factorisation() -> None:
     print(f"{'N':>22}  {'quadratic sieve':>30}  {'agree':>5}")
     for number in (8051, 1729, 84923, 123456789, 13290059, 41255931679):
         by_sieve = sieve_factorize(number)
-        by_trial = util.factorize(number)
+        by_trial = util_other.factorize(number)
         print(f"{number:>22}  {' * '.join(str(p) for p in by_sieve):>30}"
               f"  {str(by_sieve == by_trial):>5}")
     print()
