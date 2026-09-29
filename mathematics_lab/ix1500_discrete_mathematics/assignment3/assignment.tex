@@ -56,23 +56,156 @@
 
 \begin{abstract}
 
-This report presents the solutions to RSA encryption-decryption algorithm and problems of Project~2. The RSA algorithm includes modulus arithmetics and factorizations. The first problem considering cracking RSA is small enough to be calculated mathematically by hand by number factorization, while the second one concerns decrypting RSA problems computationally. The last one measures the execution time for both encryption and decryption, compared with different sizes of keys.
+This report concerns the Quadratic Sieve algorithm, an integer factorization algorithm based on modular arithmetic and quadratic remainders. Mathematical concepts as a fundament to the algorithm as well as its underlying subalgorithms such as Tonelli-Shanks algorithm are explained. This includes generation of smooth numbers, the construction of a factor base, and the use of linear algebra to find a congruence of squares. Additionally, a working prototype is also used to illustrate the algorithm, as well as the strengths, limitations, and practical applications are discussed.
 
 \end{abstract}
 
 \section*{Introduction}
 
-This report concerns implementation of an RSA encryption-decryption algorithm that uses modulus arithmetics and factorizations. 
-
-The project consists of three parts: one hand-solved problem for a small RSA-cracking problem through small number factorization and recover the original message, while the second one concerns decrypting larger problems computationally. The third one measures the execution time for both encryption and decryption for different sizes of public exponent $e$ and private exponent $d$.
+This report concerns Quadratic Sieve algorithm which is an integer factorization algorithm for factoring large integers. Integer factorization is an important computational problem for different applications in number theory and cryptography. The Quadratic Sieve approaches the factorization problem by searching for a congruence between two squares, which can then be used to obtain a non-trivial factor of the original integer. For Quadratic Sieves, a factor base are constructed for series of quadratic differences and smooth values are also searched. Linear algebra is used at last to find suitable relations between these values. The correctness of the method can be explained through the resulting congruence of squares. A prototype for demonstrating the method on relatively small composite numbers is also implemented.
 
 \section*{Problem}
 % 1. Problem Definition: Clearly define the problem and explain its significance.
 
-Factorization requires the problem ...
+The problem scope of the Quadratic Sieve concerns the factorization of a composite number into non-trivial factors. This is important for different applications in number theory and cryptography. In terms of cryptography, the difficulty of factoring large number serves as a base for cryptographic security. 
+
+Given a composite integer $N$, the factorization problem is to find integers $p$ and $q$ such that
+
+\[
+N = pq,
+\]
+
+where $1 < p,q < N$. For a sufficiently large composite number, finding such factors can become computationally difficult. Simple algorithms such as trial-division that tests all prime numbers can quickly become a bottleneck since the algorithm has to check the prime number $2$ and all odd numbers since all prime numbers except $2$ are odd, up to $\sqrt{N}$.
+
+The Quadratic Sieve solves this problem by searching for a congruence of squares modulo $N$,
+
+\[
+x^2 \equiv y^2 \pmod{N},
+\]
+
+where $x \not\equiv \pm y \pmod{N}$. By solving the modular equation into the given congruence between $x$ and $y$, a non-trivial factor of $N$ can be obtained through the greatest common divisor,
+
+\[
+\gcd(x-y,N) \quad \text{or} \quad \gcd(x+y,N).
+\]
+
+In order to efficiently find the suitable values $x$ and $y$, the algorithm generates quadratic differences and searches for smooth values that can be represented using only small prime factors with even exponents. In this case, a pair of $x$ and $y$ can be found, whereas gcd can be calculated. This avoid searching through all $\lfloor \sqrt{N}/2 \rfloor + 1$ candidate numbers during factorization.
 
 \section*{Mathematical Background}
 % 2. Mathematical Background: Introduce the mathematical concepts, definitions, and theorems needed to understand the problem.
+
+The Quadratic Sieve algorithm relies on several concepts in both number theory and linear algebra. Linear algebra is included in the algorithm since it has a clean property of batch-solving multiple linear expression.
+
+\subsection*{Modular Arithmetic}
+
+The most important backbone concept that the Quadratic Sieves algorithm relies on is modular arithmetics. For two integers $a$ and $b$, the congruence 
+
+\[
+a \equiv b \pmod{N}
+\]
+
+means that the residue for the division $a/N$ is the same as for $b/N$. It also means that $N$ divides their diverence
+
+\[
+N \mid (a-b)
+\]
+
+In this case, the expression can also be transformed into a linear equation without special mathematical symbols:
+
+\[
+a - b = N \times k
+\]
+
+\subsection*{Quadratic Residues}
+
+An integer $a$ is a quadratic residue modulo $N$ if an integer $x$ exists and fulfills
+
+\[
+x^2 \equiv a \pmod{N}
+\]
+
+In another words, this can also be rephrased that if $a$ is an quadratic residue modulo $N$, the previous equation produces at least a solution $x$.
+
+If an integer $a$ is not a quadratic residue, it is called instead a quadratic non-residue modulo $N$.
+
+Quadratic residues are important for Quadratic Sieve algorithm since  the algorithm checks every quadratic difference $x^2 - N$ to be divisable by a prime number $p$. This problem can be rewritten as $x^2 \equiv N \pmod{p}$, whereas similar rewrite is mentioned above in Modular Arithmetic. Solving such modular equation requires Tonelli-Shanks algorithm, which will be investigated in detail later.
+
+\subsection*{Smooth Numbers}
+
+Another important concept is smooth number. A number is called smooth, or specifically $B$-smooth, if all its prime factors are smooth, which is essentially less than or equal to $B$. For instance, the number $2^3\times 3 \times 5 = 120$ is $5$-smooth since its prime factors after prime factorization are less than the bound $5$. However, a number $5 * 23 = 115$ is not $5$-smooth since it contains a prime factor $23$ which is over the bound.
+
+Smooth numbers are important for Quadratic Sieve algorithm because each element of the exponent vector corresponds to a ordered factored prime base starting from $2$, for instance the base ($2$, $3$, $5$, $7$, $11$, $\cdots$). Prime exponent vectors for smooth quadratic differences $x^2 - N$ must not be arbitrary large, otherwise computational performance will be affected. This means that a bound for the prime numbers must be set to limit the length of prime exponent vectors.
+
+\subsection*{Factor Base and Exponent Vector}
+
+A factor base is a basis concept suitable for linear algebra. In this specific vector space, each number can be represented as an exponent vector where each element is an exponent corresponding to each prime base in a factor base. Notice that each number has a unique exponent vector due to The Fundamental Theorem of Arithmetic.
+
+Suppose that a basis can be written as:
+
+\[
+\mathcal{B}=\{p_1,p_2,\ldots,p_k\}
+\]
+
+then a smooth number in basis $\mathcal{B}$ can be written as, considering the number can be represented as ($e_0$, $e_1$, $e_2$, $\cdots$, $e_k$) in vector-form:
+
+$$
+n = (-1)^{e_0}p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k},
+$$
+
+Notice how $e_0$ correspond to the sign, where an even sign produces positive number, while odd sign for negative number.
+
+For instance, a number $n_1 = 24$ can be written as the exponent vector $v_1 = (3, 1, 0)$ over the factor base $\mathcal{B}=\{2, 3, 5\}$.
+
+Factor bases are however not bases for linear general vector spaces. In a conventional vector space, applying a linear combination implies scaling vectors via scalar multiplication and combining them via vector addition. However, in this particular case, applying a linear combination to the exponent vectors corresponds to exponentiation and multiplication of the underlying prime bases instead. Operators for exponent vectors are one level lower than operators for equivalent numbers, meaning that an addition of two exponent vectors correspond to a multiplication of two numbers.
+
+Since the parity of each exponent is sufficient to determine if a product of numbers in exponent vector form, these vectors can be considered existing in the Galois field 2 $\mathbb{F}_2$. Exponent vectors over $\mathbb{F}_2$ may not be unique for each number, but facilitates computation for searching perfect squares.
+
+\subsection*{Linear Algebra over $\mathbb{F}_2$}
+
+Let a smooth value have the factorization
+
+$$
+x^2-N = \pm p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}.
+$$
+
+Its corresponding exponent vector over $\mathbb{F}_2$ is
+
+$$
+(e_1\bmod 2,e_2\bmod 2,\ldots,e_k\bmod 2).
+$$
+
+The Quadratic Sieve searches for a set of exponent vectors whose sum is the zero vector over $\mathbb{F}_2$. This means that every prime occurs with an even total exponent in the corresponding product, so the product is a perfect square.
+
+This linear dependency makes it possible to construct a congruence of squares
+
+$$
+x^2 \equiv y^2 \pmod{N}.
+$$
+
+From such a congruence, non-trivial factors of $N$ can be obtained using
+
+$$
+\gcd(x-y,N)
+$$
+
+and
+
+$$
+\gcd(x+y,N).
+$$
+
+\subsection*{Tonelli-Shanks Algorithm}
+
+The Tonelli-Shanks algorithm is used to find a solution to
+
+$$
+x^2 \equiv a \pmod{p}
+$$
+
+when $p$ is an odd prime and $a$ is a quadratic residue modulo $p$. Such square roots can be used when determining which values in the sieving interval can produce factors belonging to the factor base.
+
+The algorithm therefore provides a computational method for finding modular square roots, which are useful in the construction of the sieve.
+
 
 \section*{Algorithm}
 %3. Algorithm: Explain the algorithm or computational method used to solve the problem. Pseudocode may be used to clarify the main steps.
@@ -83,7 +216,7 @@ Factorization requires the problem ...
 \section*{Worked example by hand}
 % 5. Worked Example: Provide at least one non-trivial example and demonstrate the algorithm step by step.
 
-\section*{Implementatino and experiment}
+\section*{Implementation and experiment}
 % 6. Implementation and Experiment: Implement a small version of the algorithm and demonstrate it on suitable test cases. The implementation should support and illustrate the theoretical discussion rather than replace it. (for A grade only)
 
 \section*{Discussion}
@@ -116,18 +249,5 @@ ISBN: 9789144031026.
 IX1500 Discrete Mathematics, lecture notes F10--F12.
 
 \end{thebibliography}
-
-\clearpage
-\appendix
-
-\section{Handwritten solution for assignment 0}
-\label{app:handwritten}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{handwritten_2.jpg}
-    \caption{Screenshot of the application.}
-    \label{fig:screenshot}
-\end{figure}
 
 \end{document}
