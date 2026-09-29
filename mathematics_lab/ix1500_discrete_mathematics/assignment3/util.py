@@ -28,17 +28,21 @@ def integer_sqrt(number: int) -> int:
             return root
         root = next_root
 
-def is_perfect_square(number: int) -> Tuple[bool, int]:
+def perfect_square(number: int) -> Tuple[bool, int]:
     root = integer_sqrt(number)
     return root * root == number, root
 
-def prime_list(bound: int) -> List[int]:
+def prime_list(bound: int) -> list[int]:
     if bound < 2:
         return []
-    composite = bytearray(bound + 1)
-    composite[0] = composite[1] = 1
+
+    composite = [False] * (bound + 1)
+    composite[0] = composite[1] = True
+
     for number in range(2, integer_sqrt(bound) + 1):
         if not composite[number]:
             marks = len(range(number * number, bound + 1, number))
-            composite[number * number::number] = b'\x01' * marks
-    return [number for number in range(2, bound + 1) if not composite[number]]
+            composite[number * number::number] = [True] * marks
+
+    return [number for number in range(2, bound + 1)
+            if not composite[number]]
