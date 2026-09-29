@@ -1,6 +1,7 @@
 CXX = g++
 PYTHON ?= python3
 
+# setup pybind11
 PYBIND11_INCLUDE := $(shell $(PYTHON) -c "import pybind11; print(pybind11.get_include())" 2>/dev/null)
 PYTHON_INCLUDE   := $(shell $(PYTHON) -c "from sysconfig import get_config_var as g; print(g('INCLUDEPY'))")
 EXT_SUFFIX       := $(shell $(PYTHON) -c "from sysconfig import get_config_var as g; print(g('EXT_SUFFIX'))")
@@ -8,7 +9,7 @@ EXT_SUFFIX       := $(shell $(PYTHON) -c "from sysconfig import get_config_var a
 CXXFLAGS = -O3 -fPIC -std=c++17 -I$(PYBIND11_INCLUDE) -I$(PYTHON_INCLUDE)
 
 TARGET = factor_ext$(EXT_SUFFIX)
-OBJECTS = factor.o factor_shim.o
+OBJECTS = factor.o factor_wrap.o
 
 all: $(TARGET)
 
@@ -22,7 +23,7 @@ $(TARGET): $(OBJECTS)
 factor.o: factor.cpp | check-deps
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-factor_shim.o: factor_shim.cpp | check-deps
+factor_wrap.o: factor_wrap.cpp | check-deps
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
