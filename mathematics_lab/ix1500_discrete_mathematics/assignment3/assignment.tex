@@ -1,0 +1,133 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+
+\usepackage{graphicx}
+\usepackage{float}
+
+\usepackage{geometry}
+\geometry{
+    a4paper,
+    margin=2.5cm
+}
+
+\usepackage{booktabs}
+\usepackage{array}
+
+\usepackage{xcolor}
+\usepackage{listings}
+
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    showstringspaces=false
+}
+
+\title{
+    \textbf{IX1500 Discrete Mathematics}\\
+    Project 2
+}
+
+\author{
+    Mo Wang\\
+    \texttt{mowang@kth.se}
+}
+
+\date{September 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+This report presents the solutions to RSA encryption-decryption algorithm and problems of Project~2. The RSA algorithm includes modulus arithmetics and factorizations. The first problem considering cracking RSA is small enough to be calculated mathematically by hand by number factorization, while the second one concerns decrypting RSA problems computationally. The last one measures the execution time for both encryption and decryption, compared with different sizes of keys.
+
+\end{abstract}
+
+\section*{Introduction}
+
+This report concerns implementation of an RSA encryption-decryption algorithm that uses modulus arithmetics and factorizations. 
+
+The project consists of three parts: one hand-solved problem for a small RSA-cracking problem through small number factorization and recover the original message, while the second one concerns decrypting larger problems computationally. The third one measures the execution time for both encryption and decryption for different sizes of public exponent $e$ and private exponent $d$.
+
+\section*{Problem}
+% 1. Problem Definition: Clearly define the problem and explain its significance.
+
+Factorization requires the problem ...
+
+\section*{Mathematical Background}
+% 2. Mathematical Background: Introduce the mathematical concepts, definitions, and theorems needed to understand the problem.
+
+\section*{Algorithm}
+%3. Algorithm: Explain the algorithm or computational method used to solve the problem. Pseudocode may be used to clarify the main steps.
+
+\section*{Correctness}
+% 4. Correctness: Explain why the algorithm produces a correct result. Where appropriate, provide a proof or justification of correctness.
+
+\section*{Worked example by hand}
+% 5. Worked Example: Provide at least one non-trivial example and demonstrate the algorithm step by step.
+
+\section*{Implementatino and experiment}
+% 6. Implementation and Experiment: Implement a small version of the algorithm and demonstrate it on suitable test cases. The implementation should support and illustrate the theoretical discussion rather than replace it. (for A grade only)
+
+\section*{Discussion}
+% 7. Discussion: Discuss the strengths and limitations of the approach and, where relevant, mention practical applications.
+
+\section*{Program structure}
+
+The program structure consists of multiple program files, grouped by category below:
+\begin{lstlisting}
+- Utility files:
+  - util.py
+  - matrix_util.py
+- tonelli_shanks.py
+- quadratic_sieve.py (main file)
+\end{lstlisting}
+The following files are found separately as submission.
+
+
+
+\begin{thebibliography}{9}
+
+\bibitem{boiers}
+Lars-Christer Böiers,
+\textit{Diskret matematik},
+2nd ed.,
+Studentlitteratur AB, 2003.
+ISBN: 9789144031026.
+
+\bibitem{lectures}
+IX1500 Discrete Mathematics, lecture notes F10--F12.
+
+\end{thebibliography}
+
+\clearpage
+\appendix
+
+\section{Handwritten solution for assignment 0}
+\label{app:handwritten}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{handwritten_2.jpg}
+    \caption{Screenshot of the application.}
+    \label{fig:screenshot}
+\end{figure}
+
+\end{document}
