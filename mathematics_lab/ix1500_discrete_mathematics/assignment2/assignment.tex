@@ -666,10 +666,38 @@ Using the RSA implementation with benchmarks, the computational measurements can
 
 The graphs corresponding to these measurements show the same trends visually. The first pair of graphs shows encryption and decryption time as a function of RSA key size. The second pair shows the effect of changing the public/private exponent size while keeping the modulus fixed.
 
-\subsection*{Conclusion}
+\section*{Program structure}
 
-The benchmark shows that RSA performance depends strongly on public and private exponent size in modular exponentation. For encryption, the cost depends primarily on public exponent size, while private exponent size for decryption. The reason is because larger exponents require more iterations of the repeated-squaring algorithm. Additionally, larger RSA moduli also contribute to slightly more expensive arithmetic as well, but it is not the dominant factor compared to exponent size.
+The program structure consists of multiple program files, grouped by category below:
+\begin{lstlisting}
+- Assignment high-level files:
+  - assignment1_consts.py
+  - assignment1.py
+  - assignment2_consts.py
+  - assignment2.py
+  
+- Python utility files:
+  - enc_util.py
+  - util.py
+  
+- C++ factorization using pybind11:
+  - factor_wrap.cpp
+  - factor.cpp
+  - factor.py
+  - Makefile
+  
+- Probe file:
+  - gen_large_prime.py
+\end{lstlisting}
+The following files are found separately as submission.
 
+The program files \texttt{util.py} and \texttt{enc\_util.py} are Python utility modules that contain common arithmetic operations, such as modular exponentiation and the conversion of ASCII strings into numerical blocks for RSA computations. These functions are essentially simple RSA-arithmetical building blocks for the assignment programs and do not rely on external dependencies except Python's static typing functionality  \texttt{typing} and the \texttt{time} module for benchmarking. The utility functions are built from the ground up using Python's built-in operators.
+
+Additionally, the program file \texttt{factor.cpp} contains trial-division algorithm for integer factorization implemented in C++ that can handle computational intensive loops faster. The file \texttt{factor\_wrap.cpp} provides a C++-side \texttt{pybind11} wrapper, which can be invoked from the Python stub file \texttt{factor.py}. However, in order to import \texttt{factor.py}, both C++ files must be compiled into a shared object file, which can be done by running \texttt{make} using the file \texttt{Makefile}. The compilation is platform-dependent and guaranteed to be working on Linux Ubuntu 22.04 or WSL with Linux Ubuntu 22.04. Both GNU toolchain \texttt{g++} for C++ and \texttt{pybind11} for Python invocation is required in order to compile respectively invoke the shared object file from Python. \texttt{pybind11} can be installed using \texttt{pip install -r pybind11>=2.10}.
+
+Finally, the files \texttt{assignment1.py} and \texttt{assignment2.py} contain high-level implementation of the assignments depending on the mentioned utility functions. the files \texttt{assignment1\_consts.py} and \texttt{assignment2\_consts.py} contain the necessary constant values needed for computing results of assignments, such as RSA keys and encrypted messages. The reason for the separation is to avoid unnecessary data from cluttering the implementation files.
+
+Lastly, the file \texttt{gen\_large\_prime.py} is used only to generate and obtain two random 64-bit unsigned integer primes for task 2.2. It is not used as utility function to any library.
 
 \begin{thebibliography}{9}
 
