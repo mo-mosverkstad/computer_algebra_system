@@ -384,9 +384,154 @@ $$
 
 In Quadratic Sieve, the modular square roots are used to identify the position of the sieving interval that is divisable by a prime factor in the factor base. Instead of trial-dividing every number in the sieving interval for each prime, the Tonelli-Shanks algorithm is used for calculating modular square root once for each prime and quickly identify the corresponding positions, which makes sieving more efficient.
 
-
 \section*{Algorithm}
 %3. Algorithm: Explain the algorithm or computational method used to solve the problem. Pseudocode may be used to clarify the main steps.
+
+The primary intent of the algorithm is to find two non-trivial factors $a$ and $b$ whereas their product composes the integer $N$.
+\[
+    N = a \times b
+\]
+However, the integers $a$ and $b$ may not be useful. The expression can be rewriten by substituting the two variables into $a=x+y$ and $b=x-y$, where $x$ and $y$ are two new integer variables. Using the $x$ and $y$ representation, values of $a$ and $b$ can be uniquely identified and vice versa. The same product decomposition equation for number $N$ can be instead written as:
+\[
+    N = (x + y) \times (x - y) = x^2 - y^2
+\]
+Once the numbers $x$ and $y$ are found, the factors are given as $x+y$ and $x-y$
+
+Quadratic Sieve algorithm bases on the idea of Fermat's method, but introduces multiple algorithmic enhancements. Considering the number $N$ is being multiplied with $k$ where $k>1$ such that:
+\[
+    k \times N = (x + y) \times (x - y) = x^2 - y^2
+\]
+or
+\[
+    x^2 \equiv y^2 \pmod N
+\]
+If the integer values $x$ and $y$ are obtained, one factor can be obtained by $a = \gcd(N, x+y)$, while the other is $b = N/a$.
+
+Instead of searching directly for $x$ and $y$, the Quadratic Sieve defines the polynomial $Q$ below as:
+\[
+    Q(x) == x^2 - N
+\]
+
+For values of $x$ close to the integer square root $\lfloor \sqrt{N} \rfloor$, the value of $Q(x)$ is relatively small and therefore more possible to factor into small prime factors. In this case, the algorithm selects a \emph{factor base} given below:
+\[
+    \mathcal{B}={p_1,p_2,\ldots,p_m}
+\]
+consisting of small primes up to a specific bound. Recall that a value $Q(x)$ is  A value $Q(x)$ is called \emph{$\mathcal{B}$-smooth} if all of its consistent prime factors belong to the factor base.
+
+For every $x$ in a selected sieving interval larger than $\lfloor \sqrt{N} \rfloor$, the algorithm evaluates all $Q(x)$ integer values, and filter out the $Q(x)$ values that are not $\mathcal{B}$-smooth.
+
+A tiny example for visualizing the sieving interval can be constructed below, given that $N = 123$, and $\lfloor \sqrt{N} \rfloor = 11$. The quadratic polynomial used by the sieve is:
+\[
+    Q(x)=x^2-N=x^2-123
+\]
+
+The sieve interval can be written as:
+\[
+\begin{array}{c|c|l}
+    x  & Q(x) = x^2 - 123 & \text{Factorization} \\ \hline
+    11 & 121 - 123 = -2    & (-1) \times 2 \\
+    12 & 144 - 123 = 21    & 3 \times 7 \\
+    13 & 169 - 123 = 46    & 2 \times 23 \\
+    14 & 196 - 123 = 73    & 73 \\
+    15 & 225 - 123 = 102   & 2 \times 3 \times 17 \\
+    16 & 256 - 123 = 133   & 7 \times 19 \\
+    17 & 289 - 123 = 166   & 2 \times 83 \\
+    18 & 324 - 123 = 201   & 3 \times 67 \\
+    19 & 361 - 123 = 238   & 2 \times 7 \times 17 \\
+    20 & 400 - 123 = 277   & 277
+\end{array}
+\]
+
+For this example, a factor base can be choosen as:
+\[
+    \mathcal{B}=\{2,3,5,7\}
+\]
+
+Using the prime factorization in the array, only $x=11$ and $x=12$ are smooth, whereas other numbers are non-smooth since they contain prime factors larger than the given bound $7$.
+
+However, manually sieving using prime factorization can be tedious and inefficient for large numbers, since this factorization algorithm recursively requires prime factorization. Trial division with all integers $Q(x)$ with each prime number in the factor base $\mathcal{B}$ isn't either the most efficient solution. In this case, the \emph{Tonelli--Shanks algorithm} can be used to sieve out the given $Q(x)$ that are divisible with each prime number.
+
+For each prime $p$ in the factor base, the algorithm determines the values of $x$ for which
+\[
+Q(x)\equiv0\pmod p
+\]
+or moreover rewritten as:
+\[
+\begin{aligned}
+    x^2 - N &\equiv 0 &\pmod{p}\\
+    x^2 &\equiv N &\pmod{p}
+\end{aligned}
+\]
+
+If $r$ is a solution to this congruence, then all values
+\[
+x\equiv r\pmod p
+\]
+and
+\[
+x\equiv -r\pmod p
+\]
+are candidates for being divisible by $p$.
+
+By obtaining the roots from the modular equation, the positions of these roots can be marked in the sieving inteveral. When the numbers are marked, the numbers are also repeatedly divided as well, while the number of exponents of the prime number are also recorded. Values that receive enough marks are candidates for being $\mathcal{B}$-smooth and are subsequently factored explicitly.
+
+
+------
+
+The sieve adds the prime factor $p$ to the corresponding positions. Repeating this process for all primes in the factor base makes it possible to efficiently identify values of $Q(x)$ that are likely to be smooth.
+
+For every smooth value, its factorization over the factor base is recorded. For example,
+[
+Q(x)=p_1^{e_1}p_2^{e_2}\cdots p_m^{e_m}.
+]
+Only the parity of each exponent is required for the linear algebra step. Therefore, the factorization is represented by the binary exponent vector
+[
+\mathbf v(x)=
+(e_1\bmod2,e_2\bmod2,\ldots,e_m\bmod2).
+]
+
+The algorithm then searches for a linear dependency between these vectors over the field $\mathbb{F}2$. Such a dependency means that a subset of the smooth relations can be multiplied together so that every prime occurs with an even exponent. Consequently, the product of their $Q(x)$ values is a perfect square:
+[
+\prod{i\in S} Q(x_i)=y^2.
+]
+Since
+[
+Q(x_i)=x_i^2-N,
+]
+we have
+[
+x_i^2\equiv Q(x_i)\pmod N.
+]
+Multiplying these congruences gives
+[
+\left(\prod_{i\in S}x_i\right)^2
+\equiv
+\prod_{i\in S}Q(x_i)
+\equiv y^2
+\pmod N.
+]
+Thus, defining
+[
+X=\prod_{i\in S}x_i,
+]
+the algorithm obtains
+[
+X^2\equiv y^2\pmod N.
+]
+This can be rewritten as
+[
+(X-y)(X+y)\equiv0\pmod N.
+]
+A non-trivial factor can therefore be obtained by computing
+[
+d=\gcd(N,X-y).
+]
+If $d\notin{1,N}$, then $d$ is a factor of $N$, and the complementary factor is
+[
+\frac{N}{d}.
+]
+
+The main computational advantage of the Quadratic Sieve is therefore the sieving step. Instead of attempting to factor each value $x^2-N$ independently, the algorithm simultaneously uses the small primes in the factor base to identify many smooth values. The subsequent linear algebra combines these relations into the required congruence of squares.
 
 \section*{Correctness}
 % 4. Correctness: Explain why the algorithm produces a correct result. Where appropriate, provide a proof or justification of correctness.
