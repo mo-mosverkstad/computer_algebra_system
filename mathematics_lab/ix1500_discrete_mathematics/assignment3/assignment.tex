@@ -409,7 +409,7 @@ If the integer values $x$ and $y$ are obtained, one factor can be obtained by $a
 
 Instead of searching directly for $x$ and $y$, the Quadratic Sieve defines the polynomial $Q$ below as:
 \[
-    Q(x) == x^2 - N
+    Q(x) = x^2 - N
 \]
 
 For values of $x$ close to the integer square root $\lfloor \sqrt{N} \rfloor$, the value of $Q(x)$ is relatively small and therefore more possible to factor into small prime factors. In this case, the algorithm selects a \emph{factor base} given below:
@@ -473,65 +473,73 @@ x\equiv -r\pmod p
 \]
 are candidates for being divisible by $p$.
 
-By obtaining the roots from the modular equation, the positions of these roots can be marked in the sieving inteveral. When the numbers are marked, the numbers are also repeatedly divided as well, while the number of exponents of the prime number are also recorded. Values that receive enough marks are candidates for being $\mathcal{B}$-smooth and are subsequently factored explicitly.
+By obtaining the roots from the modular equation, the positions of these roots can be marked in the sieving inteveral. Values that receive enough marks are candidates for being $\mathcal{B}$-smooth and are subsequently factored explicitly. The sieve adds the prime factor $p$ to the corresponding positions. Repeating this process for all primes in the factor base makes it possible to efficiently identify values of $Q(x)$ that are likely to be smooth.
 
+For every smooth value, its factorization over the factor base is given for instance as:
+\[
+Q(x)=p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}.
+\]
+for the base $\mathcal{B}=\{e_1,e_2,\ldots,e_k\}$. The prime exponent can be written as $(p_1, p_2, \ldots, p_k)$ The parity of each exponent can be extracted out and form an exponent vector over Galois Field $\mathbb{F}_2$.
 
-------
+With the parity exponent vectors, using linear algebra, a selection vector
+\[
+\mathbf{x} =
+\begin{pmatrix}
+x_1 \\
+x_2 \\
+\vdots \\
+x_m
+\end{pmatrix},
+\qquad x_i \in \mathbb{F}_2 = \{0,1\}
+\]
+can be calculated specifying which integer values of $Q(x)$ composes into a product that forms a perfect square. This can be done by solving the equation system 
+\[
+A^T \mathbf{x} = 0
+\]
+using Gaussian elimination over $\mathbb{F}_2$
+\[
+\mathbf v(x)=(e_1\bmod2,e_2\bmod2,\ldots,e_m\bmod2)
+\]
 
-The sieve adds the prime factor $p$ to the corresponding positions. Repeating this process for all primes in the factor base makes it possible to efficiently identify values of $Q(x)$ that are likely to be smooth.
+The matrix $A$ can be formed by the smooth integer numbers $\{n_1, n_2, n_3, \ldots, n_k\}$ over the given sieve interval, written as a set of prime exponent vectors on $\mathbb{F}_2$. The matrix can be shown below
+\[
+A =
+\begin{pmatrix}
+e_{11} & e_{12} & \cdots & e_{1k} \\
+e_{21} & e_{22} & \cdots & e_{2k} \\
+\vdots & \vdots & \ddots & \vdots \\
+e_{m1} & e_{m2} & \cdots & e_{mk}
+\end{pmatrix}
+\pmod{2}
+\]
 
-For every smooth value, its factorization over the factor base is recorded. For example,
-[
-Q(x)=p_1^{e_1}p_2^{e_2}\cdots p_m^{e_m}.
-]
-Only the parity of each exponent is required for the linear algebra step. Therefore, the factorization is represented by the binary exponent vector
-[
-\mathbf v(x)=
-(e_1\bmod2,e_2\bmod2,\ldots,e_m\bmod2).
-]
+Notice that the number of columns of $A$ must be larger than the number of rows. The reason is that the linear equation system $A^T \mathbf{x} = 0$, has only a trivial solution vector $\mathbf{x} = \mathbf{0}$, meaning that none of the smooth numbers are selected.
 
-The algorithm then searches for a linear dependency between these vectors over the field $\mathbb{F}2$. Such a dependency means that a subset of the smooth relations can be multiplied together so that every prime occurs with an even exponent. Consequently, the product of their $Q(x)$ values is a perfect square:
-[
-\prod{i\in S} Q(x_i)=y^2.
-]
-Since
-[
-Q(x_i)=x_i^2-N,
-]
-we have
-[
-x_i^2\equiv Q(x_i)\pmod N.
-]
-Multiplying these congruences gives
-[
-\left(\prod_{i\in S}x_i\right)^2
-\equiv
-\prod_{i\in S}Q(x_i)
-\equiv y^2
-\pmod N.
-]
-Thus, defining
-[
-X=\prod_{i\in S}x_i,
-]
-the algorithm obtains
-[
-X^2\equiv y^2\pmod N.
-]
-This can be rewritten as
-[
-(X-y)(X+y)\equiv0\pmod N.
-]
-A non-trivial factor can therefore be obtained by computing
-[
-d=\gcd(N,X-y).
-]
-If $d\notin{1,N}$, then $d$ is a factor of $N$, and the complementary factor is
-[
-\frac{N}{d}.
-]
+For a non-zero solution to exist, the columns of $A$ must be linearly dependent. Since the columns are vectors in $\mathbb{F}_2^m$, there can be at most $m$ linearly independent columns. Therefore, choosing more smooth values of $Q(x)$ than the number of primes in the factor base
+\[
+k>m,
+\]
+guarantees that the columns of $A$ are linearly dependent. In this case, a non-trivial solution exist to
+\[
+A\mathbf{x}=\mathbf{0}
+\]
 
-The main computational advantage of the Quadratic Sieve is therefore the sieving step. Instead of attempting to factor each value $x^2-N$ independently, the algorithm simultaneously uses the small primes in the factor base to identify many smooth values. The subsequent linear algebra combines these relations into the required congruence of squares.
+When the selected integer values of the sieving inteval can be calculated, the product decomposition equation earlier using modulo
+\[
+x^2 \equiv y^2 \pmod N
+\]
+can be written as
+\[
+    \left(\prod_{i=1}^{k} x_i\right)^2
+    \equiv
+    \prod_{i=1}^{k} Q(x_i)
+    \equiv y^2
+    \pmod N
+\]
+
+Using $a = gcd(N, x+y)$, one potential non-trivial factor can be solved out. Another factor can be subsequently solved out by division $b = N/a$.
+
+The main computational advantage of the Quadratic Sieve is the sieving step using Tonelli-Shanks algorithm. Instead of attempting to factor each value $Q(x) = x^2-N$, the algorithm uses the small primes in the factor base to identify many smooth values and sieve the non-smooth factors out. The subsequent linear algebra combines these relations into the required congruence of squares.
 
 \section*{Correctness}
 % 4. Correctness: Explain why the algorithm produces a correct result. Where appropriate, provide a proof or justification of correctness.
