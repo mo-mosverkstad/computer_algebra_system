@@ -156,43 +156,33 @@ Notice how $e_0$ correspond to the sign, where an even sign produces positive nu
 
 For instance, a number $n_1 = 24$ can be written as the exponent vector $v_1 = (3, 1, 0)$ over the factor base $\mathcal{B}=\{2, 3, 5\}$.
 
-Factor bases are however not bases for linear general vector spaces. In a conventional vector space, applying a linear combination implies scaling vectors via scalar multiplication and combining them via vector addition. However, in this particular case, applying a linear combination to the exponent vectors corresponds to exponentiation and multiplication of the underlying prime bases instead. Operators for exponent vectors are one level lower than operators for equivalent numbers, meaning that an addition of two exponent vectors correspond to a multiplication of two numbers.
+Factor bases are however not bases for linear general vector spaces. In a conventional linear vector space, applying a linear combination implies scaling vectors via scalar multiplication and combining them via vector addition. However, in this particular case, applying a linear combination to the exponent vectors corresponds to exponentiation and multiplication of the underlying prime bases instead. Operators for exponent vectors are one level lower than operators for equivalent numbers, meaning that an addition of two exponent vectors correspond to a multiplication of two numbers.
 
 Since the parity of each exponent is sufficient to determine if a product of numbers in exponent vector form, these vectors can be considered existing in the Galois field 2 $\mathbb{F}_2$. Exponent vectors over $\mathbb{F}_2$ may not be unique for each number, but facilitates computation for searching perfect squares.
 
 \subsection*{Linear Algebra over $\mathbb{F}_2$}
 
-Let a smooth value have the factorization
+Despite that factor bases are not linear bases for linear vector spaces, the exponent vectors can still be used in linear algebra. Multiplication of two integer numbers can be represented as addition between two exponent vectors.
+
+Exponent vectors over Galois Field $\mathbb{F}_2$ becomes interesting for calculating perfect squares.
+
+Considerong than an integer $n$, having the prime factorization:
 
 $$
-x^2-N = \pm p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}.
+n = (-1)^{e_0} p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}.
 $$
 
 Its corresponding exponent vector over $\mathbb{F}_2$ is
 
 $$
-(e_1\bmod 2,e_2\bmod 2,\ldots,e_k\bmod 2).
+(e_0\bmod 2, e_1\bmod 2, e_2\bmod 2,\ldots, e_k\bmod 2).
 $$
 
-The Quadratic Sieve searches for a set of exponent vectors whose sum is the zero vector over $\mathbb{F}_2$. This means that every prime occurs with an even total exponent in the corresponding product, so the product is a perfect square.
+If $n$ is a perfect square, its exponent vector over $\mathbb{F}_2$ of all zeros, since zero corresponds to an even exponent. If all prime exponents are odd, the number can be considered as a perfect square.
 
-This linear dependency makes it possible to construct a congruence of squares
+Finding a product from a set of numbers ...
 
-$$
-x^2 \equiv y^2 \pmod{N}.
-$$
-
-From such a congruence, non-trivial factors of $N$ can be obtained using
-
-$$
-\gcd(x-y,N)
-$$
-
-and
-
-$$
-\gcd(x+y,N).
-$$
+Searching a product of numbers ... (matrices)
 
 \subsection*{Tonelli-Shanks Algorithm}
 
