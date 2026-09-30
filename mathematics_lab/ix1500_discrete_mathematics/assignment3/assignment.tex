@@ -80,13 +80,13 @@ where $1 < p,q < N$. For a sufficiently large composite number, finding such fac
 The Quadratic Sieve solves this problem by searching for a congruence of squares modulo $N$,
 
 \[
-x^2 \equiv y^2 \pmod{N},
+x^2 \equiv y^2 \pmod{N}
 \]
 
 where $x \not\equiv \pm y \pmod{N}$. By solving the modular equation into the given congruence between $x$ and $y$, a non-trivial factor of $N$ can be obtained through the greatest common divisor,
 
 \[
-\gcd(x-y,N) \quad \text{or} \quad \gcd(x+y,N).
+\gcd(x-y,N) \quad \text{or} \quad \gcd(x+y,N)
 \]
 
 In order to efficiently find the suitable values $x$ and $y$, the algorithm generates quadratic differences and searches for smooth values that can be represented using only small prime factors with even exponents. In this case, a pair of $x$ and $y$ can be found, whereas gcd can be calculated. This avoid searching through all $\lfloor \sqrt{N}/2 \rfloor + 1$ candidate numbers during factorization.
@@ -149,7 +149,7 @@ Suppose that a basis can be written as:
 then a smooth number in basis $\mathcal{B}$ can be written as, considering the number can be represented as ($e_0$, $e_1$, $e_2$, $\cdots$, $e_k$) in vector-form:
 
 $$
-n = (-1)^{e_0}p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k},
+n = (-1)^{e_0}p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}
 $$
 
 Notice how $e_0$ correspond to the sign, where an even sign produces positive number, while odd sign for negative number.
@@ -166,27 +166,72 @@ Despite that factor bases are not linear bases for linear vector spaces, the exp
 
 Exponent vectors over Galois Field $\mathbb{F}_2$ becomes interesting for calculating perfect squares.
 
-Considerong than an integer $n$, having the prime factorization:
+Considering an integer $n$, having the prime factorization:
 
 $$
 n = (-1)^{e_0} p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}.
 $$
 
-Its corresponding exponent vector over $\mathbb{F}_2$ is
+Its corresponding exponent vector on $\mathbb{F}_2$ is
 
 $$
-(e_0\bmod 2, e_1\bmod 2, e_2\bmod 2,\ldots, e_k\bmod 2).
+(e_0\bmod 2, e_1\bmod 2, e_2\bmod 2,\ldots, e_k\bmod 2)
 $$
 
-If $n$ is a perfect square, its exponent vector over $\mathbb{F}_2$ of all zeros, since zero corresponds to an even exponent. If all prime exponents are odd, the number can be considered as a perfect square.
+If $n$ is a perfect square, its exponent vector on $\mathbb{F}_2$ is of all zeros, since zero corresponds to an even exponent. If all prime exponents are odd, the number can be considered as a perfect square.
 
-Finding a product from a set of numbers ...
+Finding a product that is a perfect square from a set of numbers $\{n_1, n_2, n_3, \ldots, n_k\}$ can be solved using linear algebra. The integer numbers $\{n_1, n_2, n_3, \ldots, n_k\}$ can be written as a set of prime exponent vectors on $\mathbb{F}_2$. These vectors can be formed into a matrix 
 
-Searching a product of numbers ... (matrices)
+\[
+A =
+\begin{pmatrix}
+e_{11} & e_{12} & \cdots & e_{1k} \\
+e_{21} & e_{22} & \cdots & e_{2k} \\
+\vdots & \vdots & \ddots & \vdots \\
+e_{m1} & e_{m2} & \cdots & e_{mk}
+\end{pmatrix}
+\pmod{2}
+\]
+
+where $m$ is number of prime exponents used for the numbers. To specify which integers should be multiplied together, a selection vector
+
+\[
+\mathbf{x} =
+\begin{pmatrix}
+x_1 \\
+x_2 \\
+\vdots \\
+x_m
+\end{pmatrix},
+\qquad x_i \in \mathbb{F}_2 = \{0,1\}
+\]
+
+can be introduced. The value $n_i = 1$ indicates that the number in position $i$ is included in the product, while $n_i = 0$ indicate that the number is absent from the product. As mentioned before, since multiplying two integer numbers is equivalent for adding two corresponding prime exponent vectors, multiplying the transpose of the matrix $A$ by the selection vector gives the result in prime exponent vector:
+
+\[
+A^T \mathbf{x}
+\]
+
+For computing a perfect product square, the matrix product must be zero vector, if all prime exponent vectors belong to $\mathbb{F}_2$.
+
+\[
+A^T \mathbf{x} = 0
+\]
+
+This system can be later solved using Gaussian elimination over $\mathbb{F}_2$. Since the only elements of $\mathbb{F}_2$ are $0$ and $1$, addition is performed modulo $2$. In particular, this means that
+
+\[
+0+0=0,\qquad
+0+1=1,\qquad
+1+0=1,\qquad
+1+1=0
+\]
+
+This means that addition in $\mathbb{F}_2$ is equivalent to the XOR operation. Gaussian elimination over $\mathbb{F}_2$ can therefore be implemented efficiently using XOR operations instead of the usual arithmetic operations.
 
 \subsection*{Tonelli-Shanks Algorithm}
 
-The Tonelli-Shanks algorithm is used to find a solution to
+Finally, Tonelli-Shanks is a separate algorithm that is used in the Quadratic Sieves to check which numbers having quadratic residues. The purpose of this algorithm is used to find a solution to the quadratic residue equation
 
 $$
 x^2 \equiv a \pmod{p}
@@ -194,7 +239,87 @@ $$
 
 when $p$ is an odd prime and $a$ is a quadratic residue modulo $p$. Such square roots can be used when determining which values in the sieving interval can produce factors belonging to the factor base.
 
-The algorithm therefore provides a computational method for finding modular square roots, which are useful in the construction of the sieve.
+The Tonelli-Shanks algorithm works by first writing $p-1$ in the form
+
+$$
+p-1 = Q2^S,
+$$
+
+where $Q$ is odd. It then finds a quadratic non-residue $z$ modulo $p$ and uses repeated modular exponentiation to construct a square root of $a$.
+
+\begin{enumerate}
+    \item If $a \equiv 0 \pmod p$, return $x=0$.
+
+    \item Check whether $a$ is a quadratic residue modulo $p$ using Euler's criterion:
+    $$
+    a^{(p-1)/2} \equiv 1 \pmod p.
+    $$
+    If this congruence does not hold, then no square root exists.
+
+    \item Write
+    $$
+    p-1 = Q2^S,
+    $$
+    where $Q$ is odd.
+
+    \item Find a quadratic non-residue $z$ modulo $p$, i.e.,
+    $$
+    z^{(p-1)/2} \equiv -1 \pmod p.
+    $$
+
+    \item Initialize
+    $$
+    M=S,
+    $$
+    $$
+    c=z^Q \pmod p,
+    $$
+    $$
+    t=a^Q \pmod p,
+    $$
+    and
+    $$
+    R=a^{(Q+1)/2} \pmod p.
+    $$
+
+    \item While $t \not\equiv 1 \pmod p$, find the smallest integer $i$ such that
+    $$
+    t^{2^i} \equiv 1 \pmod p.
+    $$
+
+    \item Set
+    $$
+    b=c^{2^{M-i-1}} \pmod p.
+    $$
+
+    \item Update the variables:
+    $$
+    M=i,
+    $$
+    $$
+    c=b^2 \pmod p,
+    $$
+    $$
+    t=tb^2 \pmod p,
+    $$
+    and
+    $$
+    R=Rb \pmod p.
+    $$
+
+    \item Repeat until $t\equiv1\pmod p$. The resulting value $R$ is a solution to
+    $$
+    R^2\equiv a\pmod p.
+    $$
+\end{enumerate}
+
+The algorithm therefore returns one of the two possible square roots of $a$ modulo $p$. The other root is given by $p-R$, since
+
+$$
+(-R)^2 \equiv R^2 \equiv a \pmod p.
+$$
+
+In the Quadratic Sieve, these modular square roots can be used to identify the positions in the sieving interval where a polynomial value is divisible by a particular prime in the factor base. This makes the Tonelli-Shanks algorithm an important subroutine for efficiently determining the locations that need to be considered during the sieving process.
 
 
 \section*{Algorithm}
