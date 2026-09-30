@@ -130,6 +130,71 @@ If an integer $a$ is not a quadratic residue, it is called instead a quadratic n
 
 Quadratic residues are important for Quadratic Sieve algorithm since  the algorithm checks every quadratic difference $x^2 - N$ to be divisable by a prime number $p$. This problem can be rewritten as $x^2 \equiv N \pmod{p}$, whereas similar rewrite is mentioned above in Modular Arithmetic. Solving such modular equation requires Tonelli-Shanks algorithm, which will be investigated in detail later.
 
+\subsection*{Euler's criterion}
+
+Euler's criterion is an important property to check if a given integer number $a$ is a quadratic residue modulo an odd prime $p$. The property is useful in Tonelli-Shanks algorithm. 
+
+For $a \not\equiv 0 \pmod p$, it states that
+\[
+a^{(p-1)/2} \equiv
+\begin{cases}
+1 \pmod p, & \text{if } a \text{ is a quadratic residue}\\
+-1 \pmod p, & \text{otherwise, } a \text{ is not a quadratic residue}
+\end{cases}
+\]
+
+Using this property, whether an integer $a$ has a square root modulo $p$ can be tested, in order to determine if a modular square root exists.
+
+This property can be simply proven by applying Fermat's little theorem
+
+\[
+x^{p-1} \equiv 1 \pmod p
+\]
+
+which can be rewritten using conjugate rule:
+\[
+a^{p-1} - 1 = (a^{(p-1)/2} - 1)(a^{(p-1)/2} + 1) \equiv 0 \pmod p
+\]
+
+Since $p$ is prime, this implies
+\[
+a^{(p-1)/2} \equiv 1 \pmod p
+\qquad\text{or}\qquad
+a^{(p-1)/2} \equiv -1 \pmod p.
+\]
+
+If $a$ is a quadratic residue modulo $p$, this means that $y$ fulfilling $a \equiv y^2 \pmod p$ can be rewritten as
+
+\[
+a^{(p-1)/2}
+\equiv
+(y^2)^{(p-1)/2}
+=
+y^{p-1}
+\equiv 1 \pmod p,
+\]
+where the last congruence applies Fermat's little theorem.
+
+Consequently, the reversed also applies. Given $a^{(p-1)/2} \equiv 1\pmod p$, $a$ can be derived as a quadratic residue. Constructing a polynomial $f(x)=x^{(p-1)/2}-1$, it has the degree $(p-1)/2$ and can have at most $(p-1)/2$ roots modulo the prime $p$. Since every non-zero quadratic residue  $a$ satisfies
+\[
+a^{(p-1)/2}\equiv 1\pmod p,
+\]
+there are exactly $(p-1)/2$ distinct nonzero quadratic residues modulo $p$, since
+\[
+1^2,2^2,\ldots,\left(\frac{p-1}{2}\right)^2
+\]
+are all distinct modulo $p$ and these nonzero quadratic residues are exactly the roots of $f(x)$.
+\[
+a^{(p-1)/2}\equiv 1\pmod p
+\]
+if and only if $a$ is a quadratic residue modulo $p$.
+Combining this result with
+\[
+a^{(p-1)/2}\equiv \pm1\pmod p,
+\]
+Euler's criterion can be obtained.
+
+
 \subsection*{Smooth Numbers}
 
 Another important concept is smooth number. A number is called smooth, or specifically $B$-smooth, if all its prime factors are smooth, which is essentially less than or equal to $B$. For instance, the number $2^3\times 3 \times 5 = 120$ is $5$-smooth since its prime factors after prime factorization are less than the bound $5$. However, a number $5 * 23 = 115$ is not $5$-smooth since it contains a prime factor $23$ which is over the bound.
