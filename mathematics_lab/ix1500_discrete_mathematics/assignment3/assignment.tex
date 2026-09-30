@@ -298,84 +298,82 @@ This means that addition in $\mathbb{F}_2$ is equivalent to the XOR operation. G
 
 Finally, Tonelli-Shanks is a separate algorithm that is used in the Quadratic Sieves to check which numbers having quadratic residues. The purpose of this algorithm is used to find a solution to the quadratic residue equation
 
-$$
+\[
 x^2 \equiv a \pmod{p}
-$$
+\]
 
-when $p$ is an odd prime and $a$ is a quadratic residue modulo $p$. Such square roots can be used when determining which values in the sieving interval can produce factors belonging to the factor base.
+when $p$ is an odd prime and $a$ is a quadratic residue modulo $p$. Such modular square roots can be used when determining which values in the sieving interval can produce factors belonging to the factor base.
 
-The Tonelli-Shanks algorithm works by first writing $p-1$ in the form
+The Tonelli-Shanks algorithm works by first decomposing $p-1$ into factors, one odd part $Q$ and $S$ as an exponent to $2$
 
-$$
-p-1 = Q2^S,
-$$
+\[
+p-1 = Q \times 2^S,
+\]
 
 where $Q$ is odd. It then finds a quadratic non-residue $z$ modulo $p$ and uses repeated modular exponentiation to construct a square root of $a$.
 
+The algorithm begins with two checks:
+
 \begin{enumerate}
-    \item If $a \equiv 0 \pmod p$, return $x=0$.
+    \item If $a$ is congruent to $0$, the root is trivial and is $x=0$ for $a \equiv 0 \pmod p$. The root can be returned immediately.
+    \item The value $a$ can also be checked if a quadratic residue modulo $p$ exists using Euler's criterion:
+    \[
+        a^{(p-1)/2} \equiv 1 \pmod p.
+    \]
+    If $a^{(p-1)/2}$ is modular to $-1$ with prime $p$, no root can be found and the algorithm can be exited immediately.
+\end{enumerate}
 
-    \item Check whether $a$ is a quadratic residue modulo $p$ using Euler's criterion:
-    $$
-    a^{(p-1)/2} \equiv 1 \pmod p.
-    $$
-    If this congruence does not hold, then no square root exists.
+Afterwards, the algorithm begins by setting up initial variables that are used for the iterations of the algorithm.
 
-    \item Write
-    $$
-    p-1 = Q2^S,
-    $$
-    where $Q$ is odd.
+\begin{enumerate}
+    \item A minimal quadratic non-residue $z$ modulo $p$ is found should be found, or with other words:
+    \[
+        z^{(p-1)/2} \equiv -1 \pmod p.
+    \]
+    \item The initial guess of the root $R$ is initialized to
+    \[
+        R=a^{(Q+1)/2} \pmod p
+    \]
+    \item The error multiplier $t$ is initialized to
+    \[
+        t=a^Q \pmod p
+    \]
+    \item The tracking exponent $M$ is also initialized to the same value as $S$:
+    \[
+        M=S
+    \]
+    \item Lastly, the so-called "Fudge factor" $c$ is initialized as:
+    \[
+        c=z^Q \pmod p
+    \]
+\end{enumerate}
 
-    \item Find a quadratic non-residue $z$ modulo $p$, i.e.,
-    $$
-    z^{(p-1)/2} \equiv -1 \pmod p.
-    $$
 
-    \item Initialize
-    $$
-    M=S,
-    $$
-    $$
-    c=z^Q \pmod p,
-    $$
-    $$
-    t=a^Q \pmod p,
-    $$
-    and
-    $$
-    R=a^{(Q+1)/2} \pmod p.
-    $$
+The algorithm is an approaching algorithm where it loops though iterations until the desired root to the quadratic modular equation is found. When $t$ is modular with $1$ modular to the odd prime $p$, in other words $t \equiv 1 \pmod p$, the loop can be stopped.
 
-    \item While $t \not\equiv 1 \pmod p$, find the smallest integer $i$ such that
-    $$
-    t^{2^i} \equiv 1 \pmod p.
-    $$
+For each iteration in the algorithm, the following steps are performed.
+\begin{enumerate}
+ 
+    \item The smallest integer $i$ is found for the modular equation:
+    \[
+        t^{2^i} \equiv 1 \pmod p.
+    \]
 
-    \item Set
-    $$
-    b=c^{2^{M-i-1}} \pmod p.
-    $$
+    \item Afterwards, an intermediate factor $b$ is set to:
+    \[
+        b=c^{2^{M-i-1}} \pmod p.
+    \]
 
-    \item Update the variables:
-    $$
-    M=i,
-    $$
-    $$
-    c=b^2 \pmod p,
-    $$
-    $$
-    t=tb^2 \pmod p,
-    $$
-    and
-    $$
-    R=Rb \pmod p.
-    $$
+    \item The variables $R$, $t$, $c$ and $m$ are updates accordingly:
+    \[
+        \begin{aligned}
+            R &= Rb \pmod p,\\
+            t &= tb^2 \pmod p,\\
+            c &= b^2 \pmod p,\\
+            M &= i.
+        \end{aligned}
+    \]
 
-    \item Repeat until $t\equiv1\pmod p$. The resulting value $R$ is a solution to
-    $$
-    R^2\equiv a\pmod p.
-    $$
 \end{enumerate}
 
 The algorithm therefore returns one of the two possible square roots of $a$ modulo $p$. The other root is given by $p-R$, since
@@ -384,7 +382,7 @@ $$
 (-R)^2 \equiv R^2 \equiv a \pmod p.
 $$
 
-In the Quadratic Sieve, these modular square roots can be used to identify the positions in the sieving interval where a polynomial value is divisible by a particular prime in the factor base. This makes the Tonelli-Shanks algorithm an important subroutine for efficiently determining the locations that need to be considered during the sieving process.
+In Quadratic Sieve, the modular square roots are used to identify the position of the sieving interval that is divisable by a prime factor in the factor base. Instead of trial-dividing every number in the sieving interval for each prime, the Tonelli-Shanks algorithm is used for calculating modular square root once for each prime and quickly identify the corresponding positions, which makes sieving more efficient.
 
 
 \section*{Algorithm}
