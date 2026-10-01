@@ -501,7 +501,7 @@ using Gaussian elimination over $\mathbb{F}_2$
 \mathbf v(x)=(e_1\bmod2,e_2\bmod2,\ldots,e_m\bmod2)
 \]
 
-The matrix $A$ can be formed by the smooth integer numbers $\{n_1, n_2, n_3, \ldots, n_k\}$ over the given sieve interval, written as a set of prime exponent vectors on $\mathbb{F}_2$. The matrix can be shown below
+The matrix $A$ can be formed by the smooth integer numbers in prime exponent vectors $\{n_1, n_2, n_3, \ldots, n_k\}$ over the given sieve interval. The rows of the matrices are the prime exponent vectors.
 \[
 A =
 \begin{pmatrix}
@@ -524,7 +524,7 @@ guarantees that the columns of $A$ are linearly dependent. In this case, a non-t
 A\mathbf{x}=\mathbf{0}
 \]
 
-When the selected integer values of the sieving inteval can be calculated, the product decomposition equation earlier using modulo
+When the selected integer values of the sieving interval can be calculated, the product decomposition equation earlier using modulo
 \[
 x^2 \equiv y^2 \pmod N
 \]
@@ -544,8 +544,71 @@ The main computational advantage of the Quadratic Sieve is the sieving step usin
 \section*{Correctness}
 % 4. Correctness: Explain why the algorithm produces a correct result. Where appropriate, provide a proof or justification of correctness.
 
+The correctness of the Quadratic Sieve algorithm stems mostly from the congruence of squares equation. The smooth integer numbers $Q(x)$ of the given sieving interval makes it easier to find multiple $Q(x)$ where product of them produce perfect squares, since an unbounded prime base makes the matrix unnecessary huge and inefficient. 
+
+Considering that for each selected value $x_i$, the quadratic polynomial gives $Q(x_i) = x_i^2 - N$, whereas its modular relation to $N$ can be written as
+\[
+Q(x_i) = x_i^2 - N\equiv x_i^2 \pmod N
+\]
+
+The product of the selected smooth integer values that produces a perfect square $\prod_{i\in S} Q(x_i)$ can be calculated as:
+\[
+    \prod_{i\in S} Q(x_i) \equiv \prod_{i\in S} x_i^2 = \left(\prod_{i\in S}x_i\right)^2
+\pmod N
+\]
+where $S$ is the selected smooth integer values $Q(x)$ in the sieving interval.
+
+\subsection*{Perfect product square}
+The product of selected $Q(x_i)$ values is intended to be a perfect square, since the Gauss elimination over $\mathbb{F}_2$ finds a selection vector of selected smooth $Q(x_i)$ values to be a perfect square. 
+
+Every $\mathcal{B}$-smooth value has a prime  factorization of the form
+\[
+Q(x_i)=(-1)^{e_{i0}}p_1^{e_{i1}}p_2^{e_{i2}}\ldots p_m^{e_{im}}
+\]
+where the prime base $\mathcal{B}$ is given as $\mathcal{B} = \{p_1, p_2, \ldots, p_m\}$ and the prime exponent vector for smooth number $i$ of the sieving interval as $(e_{i0}, e_{i1}, e_{i2}, \ldots, e_{im})$.
+
+The exponent vectors on $\mathbb{F}_2$ are used since only the parity of the exponents is relevant when determining whether the product is a perfect square. A non-zero selection vector must in this case satisfy
+\[
+\mathbf{A}^T\mathbf{x}=\mathbf{0}
+\]
+The zero vector means that the sum of every selected exponent parity is even. This means that every prime number in the prime base occurs with an even total exponent, which means it is a perfect square. The sign exponent is also included in the vector, meaning the resulting product is positive as well. In this case, there exist an integer
+\[
+\prod_{i\in S}Q(x_i)=y^2
+\]
+
+Given that the product of the selected $Q(x_i)$ values, $\prod_{i\in S} Q(x_i)$, is a perfect square, the value $x=\prod_{i\in S}x_i$ and $y^2=\prod_{i\in S} Q(x_i)$, can be inserted into the modular equation $x^2 \equiv y^2 \pmod N$.
+
+\subsection*{Quadratic congruence}
+When both numbers $x$ and $y$ are obtained, the both factors to $N$ in the equation $x^2 \equiv y^2 \pmod N$ can easily be determined using greatest common divisor
+\[
+a = \gcd(N, x+y)
+\]
+while the other one through division $b = N/a$. The modular equation $x^2 \equiv y^2 \pmod N$ can be rewritten as
+\[
+(x+y)(x-y) = k \times N
+\]
+for some integer $k$.
+
+This means that the factors $a$ and $b$ of $N$ are related to the two factors $x+y$ and $x-y$. The greatest common divisor can be used to determine which factors are shared between $N$ and $x+y$. Because of using greatest common divisor, the factors in $x+y$ that contributes to $k$ can be automatically removed, since only the factors that shares between $N$ and $x+y$ are kept.
+
+Since $a$ divides both $N$ and $x+y$, it is necessarily a divisor of $N$. If the congruence is non-trivial, meaning that $x\not\equiv \pm y\pmod N$, then $a$ can be a non-trivial factor satisfying $1<a<N$.
+
+The remaining factor can then be obtained directly from the original number $N$ by division.
+
+\subsection*{Trivial factors being produced}
+However, there are two cases where the algorithm may not produce a non-trivial factor. 
+
+\begin{enumerate}
+    \item First, the Gauss elimination may only produce the trivial zero selection vector if the amount of smooth $Q(n)$ in sieving interval is too small. In this case, larger sieving interal may mitigate the problem.
+    \item Second, a non-trivial selection vector can produce a congruence where the gcd is $1$ or $N$. In this case, another linear dependency can be selected and the process repeated.
+\end{enumerate}
+
+Therefore, the Quadratic Sieve is considered to be correct that every factor returned by the final gcd calculation is a divisor of $N$. However, in some cases, the algorithm may fail to produce non-trivial factors, where $1$ and $N$ are produced.
+
 \section*{Worked example by hand}
 % 5. Worked Example: Provide at least one non-trivial example and demonstrate the algorithm step by step.
+
+
 
 \section*{Implementation and experiment}
 % 6. Implementation and Experiment: Implement a small version of the algorithm and demonstrate it on suitable test cases. The implementation should support and illustrate the theoretical discussion rather than replace it. (for A grade only)
