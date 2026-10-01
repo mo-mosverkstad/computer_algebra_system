@@ -616,9 +616,13 @@ The algorithm begins by calculating the sieving base. A prime factor that isn't 
 
 \[\mathbb{B} = \{2, 3, 11, 13\}\]
 
-As the sieving base is calculated, the non-smooth values are discarded from the sieving interval. By discarding the values from the sieving interval, the values must first be identified using Tonelli-Shanks algorithm for solving the modular equation $x^2 \equiv p \pmod N$ and then marked.
+As the sieving base is calculated, the non-smooth values are discarded from the sieving interval. By discarding the values from the sieving interval, the values must first be identified using Tonelli-Shanks algorithm for solving the modular equation $x^2 \equiv N \pmod p$ and then marked. Since the Tonelli-Shanks algorithm only works for odd prime $p$, the lowest number is $3$.
 
-Tonelli-Shanks algorithm here ...
+For $p=3$, the solution to the modular equation $x^2 \equiv 1057 \equiv 1 \pmod 3$ is $x \equiv 1$. The other base solution $x \equiv 2$ can be obtained by taking its negative modulo $p$. This means that all $x \equiv 1$ and $x \equiv 2$ should be marked for divisible by $3$, while the rest $x \equiv 0$ is not marked. In this case, Tonelli-Shanks algorithm will not be extended, since it is not the main focus of the algorithm.
+
+The similar step works for the rest primes $11$ and $13$ as well.
+
+After calculating the Tonelli-Shanks algorithm and marking the prime divisibility, the non-smooth numbers that cannot be divided by any of the prime numbers are discarded. The full interval can be shown below.
 
 The interval is calculated from $x=33$ to $x=53$ with $20$ numbers, since it is not a large number. The bound number and the sieving factor base bound are chosen a bit arbitrary, since there is no golden rule for it. If the number is too small, only trivial factors will be produced. Otherwise, the computation might be too big. The sieving interval with only smooth numbers can be shown below:
 \[
