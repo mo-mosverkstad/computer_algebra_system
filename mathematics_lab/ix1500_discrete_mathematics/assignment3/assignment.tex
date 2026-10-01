@@ -608,6 +608,31 @@ Therefore, the Quadratic Sieve is considered to be correct that every factor ret
 \section*{Worked example by hand}
 % 5. Worked Example: Provide at least one non-trivial example and demonstrate the algorithm step by step.
 
+\[
+\{2, 7, 11, 13, 17, 19, 29, 31, 41, 43, 53, 59, 61, 73, 79, 89\}
+\]
+
+\[
+\begin{aligned}
+x&=3554, & Q(x)&=10013, & \operatorname{factor}(Q(x))&=17\times19\times31\\
+x&=3565, & Q(x)&=88322, & \operatorname{factor}(Q(x))&=2\times13\times43\times79\\
+x&=3571, & Q(x)&=131138, & \operatorname{factor}(Q(x))&=2\times7\times17\times19\times29\\
+x&=3573, & Q(x)&=145426, & \operatorname{factor}(Q(x))&=2\times19\times43\times89\\
+x&=3585, & Q(x)&=231322, & \operatorname{factor}(Q(x))&=2\times7\times13\times31\times41\\
+x&=3590, & Q(x)&=267197, & \operatorname{factor}(Q(x))&=7^{3}\times19\times41\\
+x&=3592, & Q(x)&=281561, & \operatorname{factor}(Q(x))&=7\times19\times29\times73\\
+x&=3605, & Q(x)&=375122, & \operatorname{factor}(Q(x))&=2\times11\times17^{2}\times59\\
+x&=3611, & Q(x)&=418418, & \operatorname{factor}(Q(x))&=2\times7\times11^{2}\times13\times19\\
+x&=3616, & Q(x)&=454553, & \operatorname{factor}(Q(x))&=11\times31^{2}\times43\\
+x&=3708, & Q(x)&=1128361, & \operatorname{factor}(Q(x))&=13\times29\times41\times73\\
+x&=3723, & Q(x)&=1239826, & \operatorname{factor}(Q(x))&=2\times7\times19\times59\times79\\
+x&=3725, & Q(x)&=1254722, & \operatorname{factor}(Q(x))&=2\times7\times19\times53\times89\\
+x&=3737, & Q(x)&=1344266, & \operatorname{factor}(Q(x))&=2\times7^{2}\times11\times29\times43\\
+x&=3782, & Q(x)&=1682621, & \operatorname{factor}(Q(x))&=19^{2}\times59\times79\\
+x&=3790, & Q(x)&=1743197, & \operatorname{factor}(Q(x))&=17\times41^{2}\times61\\
+x&=3831, & Q(x)&=2055658, & \operatorname{factor}(Q(x))&=2\times11\times41\times43\times53\\
+\end{aligned}
+\]
 
 
 \section*{Implementation and experiment}
