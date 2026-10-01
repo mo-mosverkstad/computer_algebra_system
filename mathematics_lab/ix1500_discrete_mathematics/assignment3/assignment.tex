@@ -4,6 +4,7 @@
 \usepackage[T1]{fontenc}
 
 \usepackage{amsmath}
+\usepackage{cancel}
 \usepackage{amssymb}
 \usepackage{amsthm}
 
@@ -23,6 +24,7 @@
 \usepackage{listings}
 
 \usepackage{hyperref}
+\usepackage{bookmark}
 \usepackage{graphicx}
 
 \usepackage{tikz}
@@ -608,32 +610,156 @@ Therefore, the Quadratic Sieve is considered to be correct that every factor ret
 \section*{Worked example by hand}
 % 5. Worked Example: Provide at least one non-trivial example and demonstrate the algorithm step by step.
 
-\[
-\{2, 7, 11, 13, 17, 19, 29, 31, 41, 43, 53, 59, 61, 73, 79, 89\}
-\]
+Consider a small non-trivial example $N=1057$ to be factorized. The square root of the number can be calculated as $\lceil \sqrt{1057} \rceil = 33$. This means that the sieving interval starts at $x=33$.
+
+After that, the sieving base is calculated. In terms of the sieving base, the number
+
+factor base: \[\{2, 3, 11, 13\}\]
 
 \[
 \begin{aligned}
-x&=3554, & Q(x)&=10013, & \operatorname{factor}(Q(x))&=17\times19\times31\\
-x&=3565, & Q(x)&=88322, & \operatorname{factor}(Q(x))&=2\times13\times43\times79\\
-x&=3571, & Q(x)&=131138, & \operatorname{factor}(Q(x))&=2\times7\times17\times19\times29\\
-x&=3573, & Q(x)&=145426, & \operatorname{factor}(Q(x))&=2\times19\times43\times89\\
-x&=3585, & Q(x)&=231322, & \operatorname{factor}(Q(x))&=2\times7\times13\times31\times41\\
-x&=3590, & Q(x)&=267197, & \operatorname{factor}(Q(x))&=7^{3}\times19\times41\\
-x&=3592, & Q(x)&=281561, & \operatorname{factor}(Q(x))&=7\times19\times29\times73\\
-x&=3605, & Q(x)&=375122, & \operatorname{factor}(Q(x))&=2\times11\times17^{2}\times59\\
-x&=3611, & Q(x)&=418418, & \operatorname{factor}(Q(x))&=2\times7\times11^{2}\times13\times19\\
-x&=3616, & Q(x)&=454553, & \operatorname{factor}(Q(x))&=11\times31^{2}\times43\\
-x&=3708, & Q(x)&=1128361, & \operatorname{factor}(Q(x))&=13\times29\times41\times73\\
-x&=3723, & Q(x)&=1239826, & \operatorname{factor}(Q(x))&=2\times7\times19\times59\times79\\
-x&=3725, & Q(x)&=1254722, & \operatorname{factor}(Q(x))&=2\times7\times19\times53\times89\\
-x&=3737, & Q(x)&=1344266, & \operatorname{factor}(Q(x))&=2\times7^{2}\times11\times29\times43\\
-x&=3782, & Q(x)&=1682621, & \operatorname{factor}(Q(x))&=19^{2}\times59\times79\\
-x&=3790, & Q(x)&=1743197, & \operatorname{factor}(Q(x))&=17\times41^{2}\times61\\
-x&=3831, & Q(x)&=2055658, & \operatorname{factor}(Q(x))&=2\times11\times41\times43\times53\\
+x&=33, & Q(x)&=32, & \operatorname{factor}(Q(x))&=2^{5}\\
+x&=34, & Q(x)&=99, & \operatorname{factor}(Q(x))&=3^{2}\times11\\
+x&=37, & Q(x)&=312, & \operatorname{factor}(Q(x))&=2^{3}\times3\times13\\
+x&=41, & Q(x)&=624, & \operatorname{factor}(Q(x))&=2^{4}\times3\times13\\
+x&=43, & Q(x)&=792, & \operatorname{factor}(Q(x))&=2^{3}\times3^{2}\times11\\
+x&=45, & Q(x)&=968, & \operatorname{factor}(Q(x))&=2^{3}\times11^{2}\\
+x&=47, & Q(x)&=1152, & \operatorname{factor}(Q(x))&=2^{7}\times3^{2}
 \end{aligned}
 \]
 
+\[
+A = \left(
+\begin{array}{*{4}{c}}
+5 & 0 & 0 & 0 \\
+0 & 2 & 1 & 0 \\
+3 & 1 & 0 & 1 \\
+4 & 1 & 0 & 1 \\
+3 & 2 & 1 & 0 \\
+3 & 0 & 2 & 0 \\
+7 & 2 & 0 & 0 \\
+\end{array}
+\right)
+\]
+
+
+matrix over f2 to LaTeX
+\[
+A = \left(
+\begin{array}{*{4}{c}}
+1 & 0 & 0 & 0 \\
+0 & 0 & 1 & 0 \\
+1 & 1 & 0 & 1 \\
+0 & 1 & 0 & 1 \\
+1 & 0 & 1 & 0 \\
+1 & 0 & 0 & 0 \\
+1 & 0 & 0 & 0 \\
+\end{array}
+\right)
+\]
+
+By solving the Gauss elimination for $\mathbf{A}^T*\mathbf{x} = \mathbf{0}$, where $x$ denotes the selection vector in $\mathbb{R}^7$:
+
+\begin{align*}
+&\left[
+\begin{array}{cccccc|c}
+1 & 0 & 1 & 0 & 1 & 1 & 1 \\
+0 & 0 & 1 & 1 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 & 1 & 0 & 0 \\
+0 & 0 & 1 & 1 & 0 & 0 & 0 
+\end{array}
+\right]
+\xrightarrow{\substack{R_1 \leftarrow R_1 \oplus R_2 \\ R_4 \leftarrow R_4 \oplus R_2}}
+\left[
+\begin{array}{cccccc|c}
+1 & 0 & 0 & 1 & 1 & 1 & 1 \\
+0 & 0 & 1 & 1 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 & 1 & 0 & 0 \\
+\cancel{0} & \cancel{0} & \cancel{1} & \cancel{1} & \cancel{0} & \cancel{0} & \cancel{0}
+\end{array}
+\right] \\[1.5em]
+&\xrightarrow{\text{Remove zero row}}
+\left[
+\begin{array}{cccccc|c}
+1 & 0 & 0 & 1 & 1 & 1 & 1 \\
+0 & 0 & 1 & 1 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 & 1 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0
+\end{array}
+\right]
+\xrightarrow{R_2 \leftrightarrow R_3}
+\left[
+\begin{array}{cccccc|c}
+1 & 0 & 0 & 1 & 1 & 1 & 1 \\
+0 & 1 & 0 & 0 & 1 & 0 & 0 \\
+0 & 0 & 1 & 1 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0
+\end{array}
+\right]
+\end{align*}
+
+
+
+\[
+\begin{aligned}
+x_0 \oplus x_3 \oplus x_4 \oplus x_5 \oplus x_6 &= 0 \\
+x_1 \oplus x_4                                  &= 0 \\
+x_2 \oplus x_3                                  &= 0
+\end{aligned}
+\]
+
+
+\[
+\begin{aligned}
+x_0 &= x_3 \oplus x_4 \oplus x_5 \oplus x_6 \\
+x_1 &= x_4 \\
+x_2 &= x_3 \\
+x_3 &= x_3 \\
+x_4 &= x_4 \\
+x_5 &= x_5 \\
+x_6 &= x_6
+\end{aligned}
+\]
+
+
+Gauss elimination produces the dependency vectors:
+['1101', '10011', '100001', '1000001']
+
+For instance, the vector '10011' correspond to the $x$ values $33$, $34$, and $43$. The corresponding $Q(x)$ are $32$, $99$, and $729$.
+
+\[
+x = 33 \times 34 \times 43 = 48246
+\]
+
+\[
+y = \sqrt{32 \times 99 \times 729} = \sqrt{2509056} = 1584
+\]
+
+By reducing the both $x$ and $y$ values modulo \(N=1057\), the following can be obtained
+
+\[
+\begin{aligned}
+x&\equiv681\pmod{1057},\\
+y&\equiv527\pmod{1057}.
+\end{aligned}
+\]
+
+Since $x^2\equiv y^2\pmod N$, the GCD of $x-y$ and $N$ can be calculated and a non-trivial factor can be found as following:
+
+\[
+\begin{aligned}
+b = \gcd(x-y,N)&=\gcd(681-527,1057)\\
+&=\gcd(154,1057)\\
+&=7
+\end{aligned}
+\]
+
+The other factor can be obtained through division
+\[
+a = 1057/7 = 151
+\]
+
+As a result, the number $1057$ can be factorized into $1057 = 7 \times 151$.
 
 \section*{Implementation and experiment}
 % 6. Implementation and Experiment: Implement a small version of the algorithm and demonstrate it on suitable test cases. The implementation should support and illustrate the theoretical discussion rather than replace it. (for A grade only)

@@ -1,0 +1,319 @@
+We factor
+\[
+N = 12620903
+\]
+by hand. The number is large enough to be non-trivial, yet the factor base can be kept small enough that the whole Gauss elimination can still be carried out on paper.
+
+\subsection*{Step 1: factor base}
+We choose the smoothness bound $90$ first and then reduce it. A prime $p$ can only divide $Q(x)=x^2-N$ when $N$ is a quadratic residue modulo $p$, so by Euler's criterion we keep $p=2$ together with those odd primes $p$ for which $N^{(p-1)/2}\equiv 1\pmod p$. With bound $40$ this leaves
+\[
+\mathcal{B}=\{2,\;7,\;11,\;13,\;17,\;19,\;29,\;31\},\qquad m=|\mathcal{B}|=8 .
+\]
+The primes $3,5,23,37$ are discarded, since $N$ is a quadratic non-residue modulo each of them and can therefore never divide any $Q(x)$.
+
+\subsection*{Step 2: sieving}
+Since
+\[
+\lfloor\sqrt{N}\rfloor=\lfloor\sqrt{12620903}\rfloor=3552 ,
+\]
+we sieve $Q(x)=x^2-N$ for $x\ge 3553$. The values that are completely $\mathcal{B}$-smooth are
+\[
+\begin{aligned}
+x&=3554, & Q(x)&=10013, & \operatorname{factor}(Q(x))&=17\times19\times31\\
+x&=3571, & Q(x)&=131138, & \operatorname{factor}(Q(x))&=2\times7\times17\times19\times29\\
+x&=3611, & Q(x)&=418418, & \operatorname{factor}(Q(x))&=2\times7\times11^{2}\times13\times19\\
+x&=3858, & Q(x)&=2263261, & \operatorname{factor}(Q(x))&=7^{2}\times11\times13\times17\times19\\
+x&=4143, & Q(x)&=4543546, & \operatorname{factor}(Q(x))&=2\times7\times19^{2}\times29\times31\\
+x&=4521, & Q(x)&=7818538, & \operatorname{factor}(Q(x))&=2\times7^{2}\times13\times17\times19^{2}\\
+x&=5305, & Q(x)&=15522122, & \operatorname{factor}(Q(x))&=2\times7^{3}\times11^{3}\times17\\
+x&=7043, & Q(x)&=36982946, & \operatorname{factor}(Q(x))&=2\times7^{3}\times11\times13^{2}\times29\\
+x&=7088, & Q(x)&=37618841, & \operatorname{factor}(Q(x))&=13\times17^{3}\times19\times31\\
+\end{aligned}
+\]
+We have collected $n=9$ relations against $m=8$ factor base primes. Since $n>m$, at least $n-m=1$ linear dependency over $\mathbb{F}_2$ is guaranteed to exist.
+
+\subsection*{Step 3: exponent matrix}
+With the column ordering $(2,7,11,13,17,19,29,31)$ the exponent matrix becomes
+\[
+A = \left(
+\begin{array}{*{8}{c}}
+0 & 0 & 0 & 0 & 1 & 1 & 0 & 1 \\
+1 & 1 & 0 & 0 & 1 & 1 & 1 & 0 \\
+1 & 1 & 2 & 1 & 0 & 1 & 0 & 0 \\
+0 & 2 & 1 & 1 & 1 & 1 & 0 & 0 \\
+1 & 1 & 0 & 0 & 0 & 2 & 1 & 1 \\
+1 & 2 & 0 & 1 & 1 & 2 & 0 & 0 \\
+1 & 3 & 3 & 0 & 1 & 0 & 0 & 0 \\
+1 & 3 & 1 & 2 & 0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 1 & 3 & 1 & 0 & 1 \\
+\end{array}
+\right)
+\]
+and reducing every entry modulo $2$ gives the parity matrix
+\[
+A \bmod 2 = \left(
+\begin{array}{*{8}{c}}
+0 & 0 & 0 & 0 & 1 & 1 & 0 & 1 \\
+1 & 1 & 0 & 0 & 1 & 1 & 1 & 0 \\
+1 & 1 & 0 & 1 & 0 & 1 & 0 & 0 \\
+0 & 0 & 1 & 1 & 1 & 1 & 0 & 0 \\
+1 & 1 & 0 & 0 & 0 & 0 & 1 & 1 \\
+1 & 0 & 0 & 1 & 1 & 0 & 0 & 0 \\
+1 & 1 & 1 & 0 & 1 & 0 & 0 & 0 \\
+1 & 1 & 1 & 0 & 0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 1 & 1 & 1 & 0 & 1 \\
+\end{array}
+\right)
+\]
+
+\subsection*{Step 4: Gauss elimination over $\mathbb{F}_2$}
+We adjoin a $9\times9$ identity matrix on the right, so that every row operation records which of the original relations have been combined. Row reducing $(A \bmod 2 \mid I)$ gives
+\[
+\left(
+\begin{array}{*{8}{c}|*{9}{c}}
+1&0&0&0&0&0&1&0 & 0&1&1&0&0&1&0&0&0\\
+0&1&0&0&0&0&0&1 & 0&1&1&0&1&1&0&0&0\\
+0&0&1&0&0&0&0&1 & 0&0&0&0&1&0&0&1&0\\
+0&0&0&1&0&0&0&0 & 0&1&0&1&0&0&0&1&0\\
+0&0&0&0&1&0&1&0 & 0&0&1&1&0&0&0&1&0\\
+0&0&0&0&0&1&1&1 & 0&1&1&1&1&0&0&1&0\\
+0&0&0&0&0&0&0&0 & 0&0&1&1&0&0&1&0&0\\
+0&0&0&0&0&0&0&0 & 1&1&0&0&1&0&0&0&0\\
+0&0&0&0&0&0&0&0 & 0&0&0&1&1&0&0&1&1\\
+\end{array}
+\right)
+\]
+The rank is $6$, so the null space has dimension $9-6=3$. The three zero rows on the left give the selection vectors
+\[
+\begin{aligned}
+\mathbf{x}_1&=(0,0,1,1,0,0,1,0,0), &S_1&=\{3611,\;3858,\;5305\},\\
+\mathbf{x}_2&=(1,1,0,0,1,0,0,0,0), &S_2&=\{3554,\;3571,\;4143\},\\
+\mathbf{x}_3&=(0,0,0,1,1,0,0,1,1), &S_3&=\{3858,\;4143,\;7043,\;7088\}.
+\end{aligned}
+\]
+
+\subsection*{Step 5: the two dependencies that fail}
+The first two selection vectors are non-zero and do produce perfect squares, but they fail to split $N$. For $S_1$,
+\[
+\prod_{i\in S_1}Q(x_i)=2^{2}\,7^{6}\,11^{6}\,13^{2}\,17^{2}\,19^{2},
+\qquad
+x\equiv 9830525,\quad y\equiv 9830525 \pmod N ,
+\]
+so $x\equiv y \pmod N$ and consequently
+\[
+\gcd(N,\,x-y)=N, \qquad \gcd(N,\,x+y)=1 .
+\]
+The same thing happens for $S_2$, where
+\[
+\prod_{i\in S_2}Q(x_i)=2^{2}\,7^{2}\,17^{2}\,19^{4}\,29^{2}\,31^{2},
+\qquad
+x\equiv y\equiv 1514864 \pmod N .
+\]
+These are precisely the degenerate cases $x\equiv\pm y\pmod N$ described in the previous section, and the algorithm simply continues with the next dependency.
+
+\subsection*{Step 6: the successful dependency}
+We use $S_3=\{3858,\;4143,\;7043,\;7088\}$. Multiplying the four smooth values gives
+\[
+\begin{aligned}
+\prod_{i\in S_3}Q(x_i)
+&=\bigl(7^{2}\cdot11\cdot13\cdot17\cdot19\bigr)
+ \bigl(2\cdot7\cdot19^{2}\cdot29\cdot31\bigr)
+ \bigl(2\cdot7^{3}\cdot11\cdot13^{2}\cdot29\bigr)
+ \bigl(13\cdot17^{3}\cdot19\cdot31\bigr)\\[2pt]
+&=2^{2}\,7^{6}\,11^{2}\,13^{4}\,17^{4}\,19^{4}\,29^{2}\,31^{2},
+\end{aligned}
+\]
+and every exponent is even, which confirms that the product is a perfect square. Halving all exponents yields
+\[
+y=2\cdot7^{3}\cdot11\cdot13^{2}\cdot17^{2}\cdot19^{2}\cdot29\cdot31 = 119610206970254 ,
+\]
+which reduces to
+\[
+y \equiv 3482901 \pmod N .
+\]
+On the other side,
+\[
+x=\prod_{i\in S_3}x_i = 3858\cdot4143\cdot7043\cdot7088 ,
+\]
+reduced step by step modulo $N$:
+\[
+\begin{aligned}
+3858\cdot 4143 &= 15983694 \equiv 3362791 ,\\
+3362791\cdot 7043 &\equiv 7322985 ,\\
+7322985\cdot 7088 &\equiv 8164544 \pmod N .
+\end{aligned}
+\]
+Hence $x\equiv 8164544 \pmod N$, and the congruence of squares can be verified directly:
+\[
+x^2 \equiv 5836448 \equiv y^2 \pmod{12620903}.
+\]
+
+\subsection*{Step 7: extracting the factors}
+Here $x\not\equiv\pm y \pmod N$, so the congruence is non-trivial. With
+\[
+x+y = 8164544+3482901 = 11647445 ,
+\]
+the Euclidean algorithm gives
+\[
+\begin{aligned}
+12620903 &= 1\cdot 11647445 + 973458,\\
+11647445 &= 11\cdot 973458 + 939407,\\
+973458 &= 1\cdot 939407 + 34051,\\
+939407 &= 27\cdot 34051 + 20030,\\
+34051 &= 1\cdot 20030 + 14021,\\
+20030 &= 1\cdot 14021 + 6009,\\
+14021 &= 2\cdot 6009 + 2003,\\
+6009 &= 3\cdot 2003 + 0,
+\end{aligned}
+\]
+so that
+\[
+a=\gcd(N,\,x+y)=\gcd(12620903,\;11647445)=2003 .
+\]
+The complementary factor follows by division,
+\[
+b=\frac{N}{a}=\frac{12620903}{2003}=6301 ,
+\]
+and in agreement with this, $\gcd(N,\,x-y)=\gcd(12620903,\;4681643)=6301$. Therefore
+\[
+\boxed{12620903 = 2003 \times 6301}
+\]
+where both factors are prime, so this is the complete factorization.
+
+\subsection*{Remark on the trivial outcome}
+This example illustrates the second failure mode described above. Had we stopped at the first dependency produced by the elimination, the algorithm would have returned $\gcd(N,x+y)=1$ and $\gcd(N,x-y)=N$, that is, only the trivial factorization. Two of the three dependencies here are useless and only the third one splits $N$. Each non-trivial dependency succeeds with probability at least $1/2$, so it is essential to collect strictly more relations than factor base primes, preferably with a comfortable surplus, and to iterate over every vector in the null space rather than testing only the first one.
+
+\subsection*{A smaller illustration: $N=221$}
+
+For comparison we also run the algorithm on a number small enough that every step is a one-line computation.
+\[
+N=221
+\]
+The number is small enough that all computations can be carried out by hand, while still demonstrating the main steps of the algorithm.
+
+We define
+\[
+Q(x)=x^2-N=x^2-221.
+\]
+
+Since
+\[
+\sqrt{221}\approx14.87,
+\]
+we search for values of \(x\) close to \(15\) for which \(Q(x)\) is smooth over a small factor base. We choose
+\[
+\mathcal{B}=\{2,3,5,7,11,13,17\}.
+\]
+
+The following values of \(Q(x)\) factor completely over this factor base:
+\[
+\begin{aligned}
+x&=16, & Q(x)&=35, & \operatorname{factor}(Q(x))&=5\times7,\\
+x&=17, & Q(x)&=68, & \operatorname{factor}(Q(x))&=2^2\times17,\\
+x&=19, & Q(x)&=140, & \operatorname{factor}(Q(x))&=2^2\times5\times7,\\
+x&=21, & Q(x)&=220, & \operatorname{factor}(Q(x))&=2^2\times5\times11.
+\end{aligned}
+\]
+
+We record the exponent vectors modulo \(2\), using the ordering
+\[
+(2,3,5,7,11,13,17).
+\]
+
+Thus the relations give the matrix
+\[
+A=
+\left(
+\begin{array}{*{7}{c}}
+0&0&1&1&0&0&0\\
+0&0&0&0&0&0&1\\
+0&0&1&1&0&0&0\\
+0&0&1&0&1&0&0
+\end{array}
+\right).
+\]
+
+For example, the first row corresponds to
+\[
+35=2^0 3^0 5^1 7^1 11^0 13^0 17^0,
+\]
+so its parity vector is
+\[
+(0,0,1,1,0,0,0).
+\]
+
+We now find a linear dependency among the rows over \(\mathbb{F}_2\). Rows one and three are identical, so
+\[
+(0,0,1,1,0,0,0)
++
+(0,0,1,1,0,0,0)
+=
+(0,0,0,0,0,0,0).
+\]
+Note that the row belonging to $x=17$ is \emph{not} the zero vector: $Q(17)=68=2^2\times 17$ has the parity vector $(0,0,0,0,0,0,1)$, since the exponent of $17$ is odd. Only the exponent of $2$ is even.
+
+Therefore we use the relations corresponding to
+\[
+x_1=16,\qquad x_2=19.
+\]
+
+Multiplying their defining equations gives
+\[
+(16^2-221)(19^2-221)
+=(5\times7)(2^2\times5\times7).
+\]
+
+The right-hand side is a perfect square:
+\[
+(5\times7)(2^2\times5\times7)
+=2^2 5^2 7^2
+=70^2.
+\]
+
+Hence
+\[
+(16^2-221)(19^2-221)=70^2.
+\]
+
+Modulo \(221\), this gives
+\[
+16^2\,19^2\equiv70^2\pmod{221}.
+\]
+
+Equivalently,
+\[
+(16\cdot19)^2\equiv70^2\pmod{221}.
+\]
+
+Reducing $304$ modulo $221$ gives $304-221=83$, so we have found the congruence of squares
+\[
+83^2\equiv70^2\pmod{221},
+\]
+both sides being $\equiv 38 \pmod{221}$.
+
+The quadratic sieve now computes the greatest common divisor
+\[
+\gcd(x-y,\,221)=\gcd(83-70,\,221)=\gcd(13,\,221).
+\]
+
+Since $221=17\cdot 13+0$, we obtain
+\[
+\gcd(13,221)=13.
+\]
+
+Therefore one non-trivial factor of \(221\) is
+\[
+13.
+\]
+
+The other factor is
+\[
+\frac{221}{13}=17.
+\]
+
+Consequently,
+\[
+\boxed{221=13\times17}.
+\]
+
+This example demonstrates the main steps of the quadratic sieve: selecting a factor base, finding smooth values of \(Q(x)\), constructing exponent vectors modulo \(2\), finding a linear dependency, producing a congruence of squares, and finally extracting a factor using the greatest common divisor.

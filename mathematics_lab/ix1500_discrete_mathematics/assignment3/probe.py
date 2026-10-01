@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Dict, Tuple
 import math
 
-N = 12620903
+# N = 12620903
+N=1057
 base = math.ceil(math.sqrt(N))
 
 
@@ -95,6 +96,64 @@ def factorization_to_latex(
         rf"& \operatorname{{factor}}(Q(x))&={factor_expression}\\"
     )
 
+def matrix_to_latex(matrix: List[List[int]]) -> str:
+    latex_rows = []
+    for row in matrix:
+        latex_rows.append(" & ".join(str(i) for i in row) + " \\\\")
+    return (
+        f"\\begin{{array}}{{*{{{len(matrix[0])}}}{{c}}}}\n"
+        f"{"\n".join(latex_rows)}\n"
+        "\\end{array}"
+    )
+
+def matrix_transpose(matrix: List[List[int]]) -> List[List[int]]:
+    return [list(row) for row in zip(*matrix)]
+
+def matrix_f2(matrix: List[List[int]]) -> List[List[int]]:
+    return [[i % 2 for i in row] for row in matrix]
+
+def pack_vectors(matrix: List[List[int]]) -> List[int]:
+    packed_matrix = []
+    for row in matrix:
+        value = 0
+        for i in row:
+            value = value << 1 | i
+        packed_matrix.append(value)
+    return packed_matrix
+
+def unpack_vectors(
+    vectors: List[int],
+    width: int,
+) -> List[List[int]]:
+    matrix = []
+
+    for value in vectors:
+        row = [(value >> i) & 1 for i in range(width - 1, -1, -1)]
+        matrix.append(row)
+
+    return matrix
+
+
+def gf2_gauss_elimination(vectors: List[int]) -> List[int]:
+    '''
+    Gauss elimination of a matrix given in ...
+    '''
+    pivots: Dict[int, Tuple[int, int]] = {}
+    dependencies: List[int] = []
+    for index, vector in enumerate(vectors):
+        mask = 1 << index
+        while vector:
+            lowest = vector & -vector
+            if lowest not in pivots:
+                pivots[lowest] = (vector, mask)
+                break
+            pivot_vector, pivot_mask = pivots[lowest]
+            vector ^= pivot_vector
+            mask ^= pivot_mask
+        else:
+            dependencies.append(mask)
+    return dependencies
+
 def is_smooth(
     factors: dict[int, int],
     factor_base: list[int],
@@ -105,12 +164,13 @@ def is_smooth(
     return all(prime in factor_base for prime in factors)
 
 
-factor_base = sieve_factor_base(N, 90)
-print("factor base:", factor_base)
+factor_base = sieve_factor_base(N, 18)
+matrix: List[List[int]] = []
 
+print("factor base:", factor_base)
 print(r"\begin{aligned}")
 
-for x in range(base, base + 300):
+for x in range(base, base + 20):
     q_x = Q(x)
     factors = prime_factorization(q_x)
 
@@ -122,5 +182,24 @@ for x in range(base, base + 300):
                 factors
             )
         )
+        matrix.append([factors.get(prime_factor, 0) for prime_factor in factor_base])
 
 print(r"\end{aligned}")
+
+print("\n")
+print("matrix:")
+for row in matrix:
+    print(row)
+
+print("matrix to LaTeX")
+print(matrix_to_latex(matrix))
+
+matrix_field_2 = matrix_f2(matrix)
+print("matrix over f2 to LaTeX")
+print(matrix_to_latex(matrix_field_2))
+print("matrix over f2")
+print(matrix_field_2)
+
+print("\n")
+print("Gauss elimination")
+print([bin(i)[2:] for i in gf2_gauss_elimination(pack_vectors(matrix_field_2))])
