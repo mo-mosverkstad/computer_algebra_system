@@ -610,12 +610,17 @@ Therefore, the Quadratic Sieve is considered to be correct that every factor ret
 \section*{Worked example by hand}
 % 5. Worked Example: Provide at least one non-trivial example and demonstrate the algorithm step by step.
 
-Consider a small non-trivial example $N=1057$ to be factorized. The square root of the number can be calculated as $\lceil \sqrt{1057} \rceil = 33$. This means that the sieving interval starts at $x=33$.
+Consider a small non-trivial example $N=1057$ to be factorized. The square root of the number can be calculated as $\lceil \sqrt{1057} \rceil = 33$. This means that the sieving interval starts at $x=33$. Additionally, the bound for the factor base is calculated to $17$.
 
-After that, the sieving base is calculated. In terms of the sieving base, the number
+The algorithm begins by calculating the sieving base. A prime factor that isn't used in any of the sieving interval for the specific number can be discarded. This means that all prime numbers of the sieving prime base must have an arbitrary number $x$ to the modular equation $x^2 \equiv p \pmod N$. By applying the Euler's criterion on all the prime numbers up to $17$, the sieving base can be calculated as below:
 
-factor base: \[\{2, 3, 11, 13\}\]
+\[\mathbb{B} = \{2, 3, 11, 13\}\]
 
+As the sieving base is calculated, the non-smooth values are discarded from the sieving interval. By discarding the values from the sieving interval, the values must first be identified using Tonelli-Shanks algorithm for solving the modular equation $x^2 \equiv p \pmod N$ and then marked.
+
+Tonelli-Shanks algorithm here ...
+
+The interval is calculated from $x=33$ to $x=53$ with $20$ numbers, since it is not a large number. The bound number and the sieving factor base bound are chosen a bit arbitrary, since there is no golden rule for it. If the number is too small, only trivial factors will be produced. Otherwise, the computation might be too big. The sieving interval with only smooth numbers can be shown below:
 \[
 \begin{aligned}
 x&=33, & Q(x)&=32, & \operatorname{factor}(Q(x))&=2^{5}\\
@@ -628,6 +633,7 @@ x&=47, & Q(x)&=1152, & \operatorname{factor}(Q(x))&=2^{7}\times3^{2}
 \end{aligned}
 \]
 
+The factors can be assembled into a matrix $A$ where the columns correspond to the prime numbers of the sieving prime base in rising order from left to right and the rows corresponding each smooth $Q(x)$ value in rising order from top to down. Using the matrix $A$, the integer numbers $Q(x)$ that produces a product of a perfect square can be identified.
 \[
 A = \left(
 \begin{array}{*{4}{c}}
@@ -641,9 +647,7 @@ A = \left(
 \end{array}
 \right)
 \]
-
-
-matrix over f2 to LaTeX
+A more useful matrix can be built where each element is modular to $\mathbb{F}_2$.
 \[
 A = \left(
 \begin{array}{*{4}{c}}
@@ -657,8 +661,7 @@ A = \left(
 \end{array}
 \right)
 \]
-
-By solving the Gauss elimination for $\mathbf{A}^T*\mathbf{x} = \mathbf{0}$, where $x$ denotes the selection vector in $\mathbb{R}^7$:
+By solving the Gauss elimination for $\mathbf{A}^T*\mathbf{x} = \mathbf{0}$, where $x$ denotes the selection vector in $\mathbb{R}^7$, the linear combinations of the solution can be determined. Since the matrix is over the Galois field $\mathbb{F}_2$, the only difference is that all addition operation becomes XOR operations written in $\oplus$. 
 
 \begin{align*}
 &\left[
@@ -698,8 +701,7 @@ By solving the Gauss elimination for $\mathbf{A}^T*\mathbf{x} = \mathbf{0}$, whe
 \right]
 \end{align*}
 
-
-
+From the last Gauss-elimination matrix in reduced row echelon form, the relationship $x_i$ can be states as following, considering that each $x_i$ value correspond to $i$-th element of the solution vector $x$.
 \[
 \begin{aligned}
 x_0 \oplus x_3 \oplus x_4 \oplus x_5 \oplus x_6 &= 0 \\
@@ -707,8 +709,7 @@ x_1 \oplus x_4                                  &= 0 \\
 x_2 \oplus x_3                                  &= 0
 \end{aligned}
 \]
-
-
+Rearranging the equation shows
 \[
 \begin{aligned}
 x_0 &= x_3 \oplus x_4 \oplus x_5 \oplus x_6 \\
@@ -720,12 +721,41 @@ x_5 &= x_5 \\
 x_6 &= x_6
 \end{aligned}
 \]
+since $x \oplus y = 0$ implies $x = y$, otherwise $x \oplus y = 1$.
 
+Rearranging the equation shows
+\[
+\begin{aligned}
+x_0 &= x_3 \oplus x_4 \oplus x_5 \oplus x_6 \\
+x_1 &= x_4 \\
+x_2 &= x_3 \\
+x_3 &= x_3 \\
+x_4 &= x_4 \\
+x_5 &= x_5 \\
+x_6 &= x_6
+\end{aligned}
+\]
+since $x \oplus y = 0$ implies $x = y$, otherwise $x \oplus y = 1$.
+
+Lastly, from the calculated relationships above, the linear dependencies can be written as:
+\[
+\mathbf{x} = 
+c_1 \begin{pmatrix} 1 \\ 0 \\ 1 \\ 1 \\ 0 \\ 0 \\ 0 \end{pmatrix} \oplus
+c_2 \begin{pmatrix} 1 \\ 1 \\ 0 \\ 0 \\ 1 \\ 0 \\ 0 \end{pmatrix} \oplus
+c_3 \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \\ 0 \\ 1 \\ 0 \end{pmatrix} \oplus
+c_4 \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \\ 0 \\ 0 \\ 1 \end{pmatrix}
+\]
 
 Gauss elimination produces the dependency vectors:
-['1101', '10011', '100001', '1000001']
+\[
+\mathbf{x}_1 = \begin{pmatrix} 1 \\ 0 \\ 1 \\ 1 \\ 0 \\ 0 \\ 0 \end{pmatrix}, \quad
+\mathbf{x}_2 = \begin{pmatrix} 1 \\ 1 \\ 0 \\ 0 \\ 1 \\ 0 \\ 0 \end{pmatrix}, \quad
+\mathbf{x}_3 = \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \\ 0 \\ 1 \\ 0 \end{pmatrix}, \quad
+\mathbf{x}_4 = \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \\ 0 \\ 0 \\ 1 \end{pmatrix}
+\]
 
-For instance, the vector '10011' correspond to the $x$ values $33$, $34$, and $43$. The corresponding $Q(x)$ are $32$, $99$, and $729$.
+
+For instance, the vector $(1, 1, 0, 0, 1, 0, 0)^T$ correspond to the $x$ values $33$, $34$, and $43$. The corresponding $Q(x)$ are $32$, $99$, and $729$.
 
 \[
 x = 33 \times 34 \times 43 = 48246
