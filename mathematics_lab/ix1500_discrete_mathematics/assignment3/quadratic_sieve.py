@@ -44,10 +44,6 @@ def sieve_interval(number: int, base: List[int], width: int) -> List[Tuple[int, 
         relations.append((root + offset, residues[offset], powers))
     return relations
 
-def heuristic_bound(number: int) -> int:
-    logarithm = util.natural_log(number)
-    return max(30, int(math.exp(0.5 * math.sqrt(logarithm * math.log(logarithm)))))
-
 def quadratic_sieve(number: int, bound: int, width: int) -> Tuple[Optional[int], int, int]:
     base = sieve_factor_base(number, bound)
     relations = sieve_interval(number, base, width)
