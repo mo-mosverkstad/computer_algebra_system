@@ -880,51 +880,13 @@ However, the factor base introduces a trade-off between the number of smooth rel
 
 Another strength is the use of linear algebra over $\mathbb{F}_2$ to find a product among $Q(x)$ that is a perfect square into a system of linear equations. In this case, Gauss elimination can be applied to identify the numbers. This can be particularly useful because the algorithm can process several smooth number together. However, the matrix is sparse and the resulting matrix can grow unnecessary large when the number of $Q(x)$ grow for larger factorization numbers.
 
-Despite the given advantages, the Quadratic Sieve algorithn still has its limitations. 
+Despite the given advantages, the Quadratic Sieve algorithn still has its limitations. Its performance depends heavily on finding enough smooth values within the sieving interval. If the sieving factor base is too small or the sieving interval too narrow, the algorithm may fail collect useful $Q(x)$ values to find a non-trivial selection vector. Even such selection vector exists, the algorithm may fail to produce non-trivial factors.
 
- Its performance depends heavily on finding
-enough smooth values within the selected sieving interval.
-If the factor base is too small or the interval is too
-short, the algorithm may not collect enough useful
-relations to find a dependency. Even when a dependency
-is found, the resulting congruence of squares does not
-necessarily produce a non-trivial factor. The greatest
-common divisor may instead return either $1$ or the
-original number $N$. In such cases, another dependency
-must be selected and tested.
+Additionally, if $N$ is a perfect square, the value $Q(x)$ produces $Q(x)=0$, and the factorization loop in \texttt{sieve\_interval} does not terminate since dividing zero by a prime leaves zero. As a mitigation, a perfect square must be detected beforehand.
 
-The algorithm also requires careful parameter selection.
-The factor base bound, sieving interval, and number of
-relations all influence the computational cost. A larger
-interval can provide more smooth values, but it also
-increases the amount of work required during sieving.
-Similarly, increasing the factor base may reduce the
-difficulty of finding smooth values while making the
-linear algebra more expensive. These competing factors
-make parameter selection an important consideration when
-implementing the algorithm.
+If $N$ is a prime, then no non-trivial factors exist and the program correctly returns no factor, but only after exhausting the whole interval. A primality test before sieving could significantly reduce wasted work.
 
-In terms of practical applications, integer factorization
-is relevant to number theory and public-key cryptography.
-The difficulty of factoring sufficiently large integers
-is an important assumption behind the security of RSA.
-The Quadratic Sieve demonstrates how mathematical
-properties of quadratic residues and modular arithmetic
-can be combined with computational techniques to solve
-factorization problems more efficiently than basic
-trial division for suitable input sizes. However, the
-security of modern cryptographic systems relies on
-numbers that are far beyond the intended scale of a
-small educational implementation.
-
-\subsection*{Limitations of the prototype}
-
-However, some limitations of the prototype of Quadratic sieves can be observed when proceeded on several trivial cases:
-\begin{enumerate}
-    \item If $N$ is a perfect square, the offset $x=\lfloor\sqrt{N}\rfloor$ gives $Q(x)=0$, and the factorization loop in \texttt{sieve\_interval} does not terminate because dividing zero by a prime leaves zero. A perfect square should be detected beforehand, which is what the unused helper \texttt{perfect\_square} in \texttt{util.py} is for.
-    \item If $N$ is prime, no non-trivial congruence can exist and the program correctly returns no factor, but only after exhausting the whole interval. A probabilistic primality test before sieving would avoid the wasted work.
-    \item The prototype returns a single factor rather than a complete factorization, and gives no useful answer when $N$ has small prime factors or more than two prime factors. In practice the sieve is applied only after small factors have been removed by trial division.
-\end{enumerate}
+Finally, in terms of practical applications, integer factorization is highly relevant in number theory. Computational number theory would highly benefit from Quadratic Sieves since it relies on studying the properties and structure of integers, such as divisors, prime factors, and arithmetic functions. Primality and arithmetic algorithm can also benefit from efficient factorization, since they relies on divisors and Euler's totient function.
 
 \begin{thebibliography}{9}
 
