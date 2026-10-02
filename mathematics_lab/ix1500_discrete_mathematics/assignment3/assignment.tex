@@ -855,71 +855,34 @@ By solving the linear dependencies from the linear algebra step for finding a se
 \end{array}
 \]
 
-The experiment also illustrates the first failured cases. The first two dependencies produces trivial values, which are not useful and are therefore removed. However the third one produces meaningful non-trivial factor $6301$. Once it can be identified, one factor is found and the other one can be calculated as $12620903/6301 = 2003$.
+The example case above also illustrates the first unfruitful cases. The first two dependencies produce trivial values, which are not useful and are therefore removed. However, the third produces a meaningful non-trivial factor $6301$. Once it can be identified, one factor is found and the other one can be calculated as $12620903/6301 = 2003$.
 
-Running the same number and bound with a shorter interval gives
+Restraining the bound with the same number, the sieving interval must be widened in order to produce a meaningful factor:
 
 \[
-\begin{array}{c|c|c|c|c}
-\text{width} & |\mathcal{B}| & k & k-m & \text{result} \\ \hline
-1000 & 8 & 6 & -2 & \text{no factor} \\
-2000 & 8 & 7 & -1 & \text{no factor} \\
-3000 & 8 & 7 & -1 & \text{no factor} \\
-4000 & 8 & 9 & +1 & 6301 \\
+\begin{array}{c|c|c}
+\text{width} & |\mathcal{B}| & \text{result} \\ \hline
+1000 & 8 & \text{trivial factor} \\
+2000 & 8 & \text{trivial factor} \\
+3000 & 8 & \text{trivial factor} \\
+4000 & 8 & 6301 \\
 \end{array}
 \]
-
-The implementation returns immediately when $k \le m$, since the condition $k>m$ derived in the algorithm section is what guarantees that a non-trivial dependency exists at all. Only once the interval is wide enough to produce more relations than factor base primes does the sieve succeed.
 
 \section*{Discussion}
 % 7. Discussion: Discuss the strengths and limitations of the approach and, where relevant, mention practical applications.
 
-The Quadratic Sieve algorithm provides an efficient approach to
-integer factorization by combining modular arithmetic, smooth
-number generation, and linear algebra. Instead of directly
-searching for divisors of a composite number, the algorithm
-attempts to find a congruence of squares modulo the given
-number. This approach allows multiple relations to be collected
-and processed together, reducing the need for direct trial
-division.
+As a conclusion, the Quadratic Sieve algorithm provides efficient integer factorization by combining modular arithmetic, smooth number generation, and linear algebra. Instead of directly searching for divisors of a composite number, the algorithm finds a congruence of squares modulo the composite number to be factorized, which allows multiple values to be collected and processed together using linear algebra than direct division.
 
-One of the main strengths of the Quadratic Sieve is its use
-of smooth numbers. By selecting values close to the square
-root of the number being factorized, the resulting quadratic
-differences tend to be relatively small. This increases the
-possibility of finding values that can be factorized using
-only small primes from the factor base. The sieving process
-further improves efficiency by identifying positions where
-these small prime factors occur without having to perform
-complete prime factorization on every value individually.
+One main strength of Quadratic Sieve is its use of smooth numbers. By selecting $x$ values beginning from the square root of the "to-be-factorized" number, the values for $Q(x)$ becomes smaller, which increases the possibility of small prime factorization from the factor base. Additionally, sieving process restrict the number of primes without having to perform complete prime factorization on every value individually. A small set of factor base means also smaller matrices.
 
-The factor base introduces a trade-off between the number
-of smooth relations that can be found and the computational
-cost of processing them. A larger factor base increases the
-probability that a quadratic difference is smooth, since
-more prime factors are allowed. However, it also increases
-the dimensions of the exponent matrix and consequently the
-cost of solving the corresponding linear system. A smaller
-factor base reduces the cost of linear algebra but may
-require a larger sieving interval to collect enough smooth
-relations. Therefore, choosing an appropriate factor base
-bound is an important part of optimizing the algorithm.
+However, the factor base introduces a trade-off between the number of smooth relations that can be found and the computational cost of processing them. A larger factor base provides higher possibility of finding a smooth congruence of square modulo, but the dimensions of the exponent matrix also increases, alongside with computation. A smaller factor base might reduce the cost, but require a larger sieving interval to collect enough smooth relations.
 
-Another important strength of the Quadratic Sieve is the use
-of linear algebra over $\mathbb{F}_2$. By reducing the prime
-exponents modulo two, the algorithm transforms the problem
-of finding a product that is a perfect square into a system
-of linear equations. Gaussian elimination can then be used
-to identify dependencies between the collected relations.
-This is particularly useful because the algorithm can
-process many smooth numbers together rather than relying
-on a single relation. However, as the factor base and the
-number of collected relations grow, the resulting matrix
-can become large. For larger inputs, more advanced sparse
-matrix algorithms may be required to maintain performance.
+Another strength is the use of linear algebra over $\mathbb{F}_2$ to find a product among $Q(x)$ that is a perfect square into a system of linear equations. In this case, Gauss elimination can be applied to identify the numbers. This can be particularly useful because the algorithm can process several smooth number together. However, the matrix is sparse and the resulting matrix can grow unnecessary large when the number of $Q(x)$ grow for larger factorization numbers.
 
-Despite its advantages, the Quadratic Sieve also has
-limitations. Its performance depends heavily on finding
+Despite the given advantages, the Quadratic Sieve algorithn still has its limitations. 
+
+ Its performance depends heavily on finding
 enough smooth values within the selected sieving interval.
 If the factor base is too small or the interval is too
 short, the algorithm may not collect enough useful
@@ -954,18 +917,6 @@ security of modern cryptographic systems relies on
 numbers that are far beyond the intended scale of a
 small educational implementation.
 
-The worked example with $N=1057$ illustrates the main
-mathematical ideas behind the algorithm. The factor base
-is used to identify smooth quadratic differences, and
-the corresponding exponent vectors are reduced modulo
-two. Gaussian elimination then provides a dependency
-that produces a perfect square. Finally, the congruence
-of squares allows a non-trivial factor to be extracted
-using the greatest common divisor. Although this example
-is small enough to be calculated by hand, it demonstrates
-the same fundamental process used for larger composite
-numbers.
-
 \subsection*{Limitations of the prototype}
 
 However, some limitations of the prototype of Quadratic sieves can be observed when proceeded on several trivial cases:
@@ -974,20 +925,6 @@ However, some limitations of the prototype of Quadratic sieves can be observed w
     \item If $N$ is prime, no non-trivial congruence can exist and the program correctly returns no factor, but only after exhausting the whole interval. A probabilistic primality test before sieving would avoid the wasted work.
     \item The prototype returns a single factor rather than a complete factorization, and gives no useful answer when $N$ has small prime factors or more than two prime factors. In practice the sieve is applied only after small factors have been removed by trial division.
 \end{enumerate}
-
-Overall, the Quadratic Sieve is an example of how
-different mathematical concepts can be combined into
-a practical computational algorithm. Its main advantage
-comes from replacing direct factor searches with the
-collection of smooth relations and the subsequent
-identification of dependencies. Its main limitations
-are the probabilistic nature of finding smooth numbers,
-the computational cost of linear algebra, and the
-sensitivity of performance to parameter selection.
-These characteristics make the Quadratic Sieve both
-an effective factorization method for suitable input
-sizes and an instructive example of the relationship
-between number theory and algorithm design.
 
 \begin{thebibliography}{9}
 
