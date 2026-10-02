@@ -798,53 +798,66 @@ As a result, the number $1057$ can be factorized into $1057 = 7 \times 151$.
 \section*{Implementation and experiment}
 % 6. Implementation and Experiment: Implement a small version of the algorithm and demonstrate it on suitable test cases. The implementation should support and illustrate the theoretical discussion rather than replace it. (for A grade only)
 
-A prototype of the algorithm is implemented in Python, deliberately without any external libraries, so that every step discussed in the theoretical sections is visible in the source code. The purpose of the prototype is to confirm the theory rather than to compete with production factoring software.
+A prototype of the algorithm is implemented in Python without external libraries. The purpose is to reconstruct the algorithm as well as confirming the theory. This also overlays the required algorithms and arithmetical functionalities that are required to build the algorithm.
 
-\subsection*{Structure of the implementation}
+\subsection*{Algorithm implementation structure}
 
-The implementation is split into four modules that follow the structure of the theoretical discussion.
+The implementation is split into four different files that follow the structure of the theoretical discussion.
+
+The program structure consists of multiple program files, grouped by category below:
+\begin{lstlisting}
+- Utility files:
+  - util.py
+  - matrix_util.py
+- tonelli_shanks.py
+- quadratic_sieve.py (main file)
+\end{lstlisting}
+The following files are found separately as submission.
 
 \begin{itemize}
-    \item \texttt{util.py} contains the elementary number-theoretic helpers: \texttt{gcd} by Euclid's algorithm, \texttt{power\_modulo} for modular exponentiation by repeated squaring, \texttt{integer\_sqrt} for an exact integer square root by Newton iteration, and \texttt{prime\_list} for the sieve of Eratosthenes.
-    \item \texttt{tonelli\_shanks.py} implements the Tonelli--Shanks algorithm as a single function \texttt{tonelli\_shanks(residue, prime)} which returns a solution of $x^2\equiv a \pmod p$, or \texttt{None} when no solution exists.
-    \item \texttt{matrix\_util.py} contains the linear algebra over $\mathbb{F}_2$.
-    \item \texttt{quadratic\_sieve.py} is the main module and contains the three phases \texttt{sieve\_factor\_base}, \texttt{sieve\_interval} and \texttt{quadratic\_sieve}.
+    \item \texttt{util.py} contains the number-theoretic helper function. This file includes \texttt{gcd} using Euclid's algorithm, \texttt{power\_modulo} for modular exponentiation by repeated squaring, \texttt{integer\_sqrt} for an exact integer square root by Newton iteration, and \texttt{prime\_list} using the sieve of Eratosthenes algorithm. The reason that \texttt{integer\_sqrt} must be implemented is that \texttt{math.sqrt} operates on floating point number with limited precision and resolution.
+    \item \texttt{tonelli\_shanks.py} implements the Tonelli--Shanks algorithm as a single function \newline \texttt{tonelli\_shanks(residue, prime)} which returns a solution of $x^2\equiv a \pmod p$, or \texttt{None} when no solution exists.
+    \item \texttt{matrix\_util.py} contains the linear algebra utility functions over Galois Field $\mathbb{F}_2$, especially in terms of Gauss elimination.
+    \item \texttt{quadratic\_sieve.py} is the main file and contains the three phases \texttt{sieve\_factor\_base} which generates a sieving factor base, \texttt{sieve\_interval} that applies Tonelli--Shanks algorithm on the sieving interval and the main \texttt{quadratic\_sieve} function that integrates the mentioned two functions and apply a Gauss elimination over $\mathbb{F}_2$ where the solution is returned.
 \end{itemize}
 
-Two design choices deserve comment, since they are where the theory translates most directly into code.
+In terms of code implementation, most of the theory can be translated into code by converting most of the manual steps into programming logic. However, several additional code features are applied for faster calculating the number without altering the theoretical behavior.
 
-First, the factor base is not simply the list of all primes below the bound. The function \texttt{sieve\_factor\_base} keeps $p=2$ unconditionally and applies Euler's criterion to every odd prime,
+For instance, the factor base is not simply the list of primes below the bound. The function \texttt{sieve\_factor\_base} keeps $p=2$ unconditionally and applies Euler's criterion to every odd prime,
 \[
 N^{(p-1)/2} \bmod p = 1 ,
 \]
-discarding $p$ when the test fails. This is exactly the argument from Step 1 of the worked example: a prime for which $N$ is a quadratic non-residue can never divide any $Q(x)$, so including it would only add a column of zeros to the matrix. Measured on the test numbers, the criterion removes roughly half of the candidate primes, for example $46 \to 22$ primes at bound $200$ for $N=1000036000099$, and $139 \to 64$ at bound $800$ for $N=10000004400000259$.
+discarding $p$ when the test fails. Since a prime for which $N$ is a quadratic non-residue can never divide any $Q(x)$, including it will only increase another redundant column of zeros to the matrix. This reduces the matrix size, which makes them faster.
 
-Second, the exponent vectors are not stored as lists but as machine integers. The function \texttt{prime\_to\_integer\_vector} sets bit $i$ of an integer when the exponent of $p_i$ is odd, so that an entire row of the matrix $A \bmod 2$ occupies one integer. Since addition in $\mathbb{F}_2$ is the XOR operation, as established in the background section, a row operation becomes a single \texttt{\^} instruction. The function \texttt{gf2\_gauss\_elimination} exploits this: it keeps a dictionary from the lowest set bit to the pivot row that owns it, and reduces each incoming vector against the existing pivots until either a new pivot bit is found or the vector becomes zero. A vector that reduces to zero is a linear dependency, and the accompanying mask, maintained in parallel over the identity matrix, records which relations were combined. This is the same bookkeeping as the augmented matrix $(A \bmod 2 \mid I)$ used by hand, expressed in bit operations.
+Additionally, the exponent vectors are not stored as lists but as bigints using Python's native \texttt{int}. The reason is that each element in the matrix can either be $0$ or $1$, it can be mapped cleanly into a bit. Multiple elements can be packed into one \texttt{int} and since \texttt{int} doesn't have a fixed capacity limit, unlike \texttt{uint32\_t} in C or C++ that can only hold $32$ bits, this means that a bigint essentially works as an immutable list of bits.
+The function \texttt{prime\_to\_integer\_vector} sets bit $i$ of an integer when the exponent of $p_i$ is odd. Since addition in $\mathbb{F}_2$ is the XOR operation, a row operation becomes a single \texttt{\^} operation between two \texttt{int}s without any loops.
 
-\subsection*{Reproducing the worked example}
+Finally, the function \texttt{gf2\_gauss\_elimination} solves $\textbf{A}^T\textbf{x} = \textbf{0}$ is column-based gauss-elimination for the matrix $\textbf{A}^T$ than a conventional row-based method. First, it stores a hashmap from the lowest set bit to the pivot row that owns it, and reduces each incoming column in $\textbf{A}^T$ against the existing pivots until a new pivot bit is found or the vector becomes zero. During the pivot marking, a vector that reduces to zero is a linear dependency recorded for which relations are being combined.
 
-The prototype is first run on the number factored by hand, $N = 12620903$ with bound $40$, in order to check that the program and the manual computation agree. The factor base returned by \texttt{sieve\_factor\_base} is
+\subsection*{Suitable test case demonstration}
+
+As a suitable case, the number $N = 12620903$ is factorized with bound $40$. The factor base returned by \texttt{sieve\_factor\_base} is
 \[
 \mathcal{B}=\{2,\;7,\;11,\;13,\;17,\;19,\;29,\;31\},
 \]
-identical to the one derived by hand, and \texttt{sieve\_interval} with width $4000$ returns the nine relations
+with nine smooth integer values of $Q(x)$ in the sieving interval produced by \texttt{sieve\_interval} with sieving width $4000$
 \[
 x \in \{3554,\;3571,\;3611,\;3858,\;4143,\;4521,\;5305,\;7043,\;7088\},
 \]
-again matching the table of Step 2 exactly. The elimination finds three dependencies, in agreement with the rank $6$ computed by hand, and evaluating them in order gives
+By solving the linear dependencies from the linear algebra step for finding a selection vector to $\textbf{A}^T\textbf{x} = \textbf{0}$ using linear algebra with function \texttt{gf2\_gauss\_elimination}. The elimination finds three dependencies listed below
 
 \[
-\begin{array}{c|l|r|r|l}
-\text{dep} & S & x & y & \gcd(|x-y|,N) \\ \hline
-1 & \{3554, 3571, 4143\} & 1514864 & 1514864 & N \quad \text{(trivial)} \\
-2 & \{3611, 3858, 5305\} & 9830525 & 9830525 & N \quad \text{(trivial)} \\
-3 & \{3554, 3571, 3858, 7043, 7088\} & 12588218 & 8725705 & 6301 \\
+\begin{array}{l|r|r|l}
+\text{selected }x \text{ values} & y & \gcd(|x-y|,N) \\ \hline
+\{3554, 3571, 4143\} & 1514864 & 1514864 & N \quad \text{(trivial)} \\
+\{3611, 3858, 5305\} & 9830525 & 9830525 & N \quad \text{(trivial)} \\
+\{3554, 3571, 3858, 7043, 7088\} & 12588218 & 8725705 & 6301 \\
 \end{array}
 \]
 
-The first two dependencies are precisely the two degenerate cases identified in Step 5 of the manual computation, with the same values of $x$ and $y$. The third one splits $N$ and the program returns $6301$, whose cofactor is $12620903/6301 = 2003$. The successful selection set differs from the one used by hand, $\{3858, 4143, 7043, 7088\}$, but the two are not independent: their symmetric difference is exactly dependency $1$. Both therefore lie in the same null space and lead to the same factorization, which illustrates that the splitting selection vector is not unique.
+The experiment also illustrates the first failured cases. The first two dependencies produces trivial values, which are not useful and are therefore removed. However the third one produces meaningful non-trivial factor $6301$. Once it can be identified, one factor is found and the other one can be calculated as $12620903/6301 = 2003$.
 
-The experiment also illustrates the first failure mode. Running the same number and bound with a shorter interval gives
+Running the same number and bound with a shorter interval gives
 
 \[
 \begin{array}{c|c|c|c|c}
@@ -857,71 +870,6 @@ The experiment also illustrates the first failure mode. Running the same number 
 \]
 
 The implementation returns immediately when $k \le m$, since the condition $k>m$ derived in the algorithm section is what guarantees that a non-trivial dependency exists at all. Only once the interval is wide enough to produce more relations than factor base primes does the sieve succeed.
-
-\subsection*{Test cases}
-
-The prototype was then run on a sequence of balanced semiprimes of increasing size, each the product of two consecutive primes, which is the hardest case for a factoring algorithm since neither factor is small. For every number the returned factor was verified to be a proper divisor.
-
-\[
-\begin{array}{r|c|r|r|r|r}
-N & \text{digits} & \text{bound} & |\mathcal{B}| & k & \text{factor found} \\ \hline
-8051 & 4 & 30 & 5 & 16 & 83 \\
-12620903 & 8 & 50 & 10 & 26 & 2003 \\
-100160063 & 9 & 100 & 12 & 28 & 10007 \\
-10002200057 & 11 & 120 & 14 & 31 & 100003 \\
-1000036000099 & 13 & 200 & 22 & 30 & 1000003 \\
-100000980001501 & 15 & 800 & 63 & 234 & 10000019 \\
-10000004400000259 & 17 & 1500 & 110 & 994 & 100000007 \\
-\end{array}
-\]
-
-The Tonelli--Shanks module was tested separately by computing a root for every prime below $500$ that admits one for $N=12620903$, and verifying $r^2 \equiv N \pmod p$ in each case. All $54$ roots were correct.
-
-\subsection*{Comparison with trial division}
-
-To show that the sieving machinery actually buys something, the prototype is compared against straightforward trial division by all integers up to $\sqrt{N}$, implemented in the same language so that the comparison is meaningful.
-
-\[
-\begin{array}{r|c|r|r|r}
-N & \text{digits} & \text{trial division} & \text{quadratic sieve} & \text{speedup} \\ \hline
-100160063 & 9 & 0.5 \text{ ms} & 16.7 \text{ ms} & 0.03\times \\
-10002200057 & 11 & 6.1 \text{ ms} & 10.0 \text{ ms} & 0.6\times \\
-1000036000099 & 13 & 67 \text{ ms} & 15.0 \text{ ms} & 4.5\times \\
-100000980001501 & 15 & 671 \text{ ms} & 121 \text{ ms} & 5.5\times \\
-10000004400000259 & 17 & 10400 \text{ ms} & 397 \text{ ms} & 26\times \\
-\end{array}
-\]
-
-For the smallest numbers trial division wins, because the sieve has to build a factor base, run Tonelli--Shanks for every prime and allocate the whole interval before it can produce a single relation, and that fixed overhead dominates. The crossover occurs around $13$ digits. Beyond it the asymptotic difference takes over: trial division costs $O(\sqrt{N})$ and grows by a factor of about $10$ for every two extra digits, which is clearly visible in the column, whereas the sieve grows far more slowly.
-
-Profiling the three phases confirms where the time is spent. For $N=10000004400000259$ the factor base construction takes $0.3$ ms, the sieving $342$ ms and the whole $\mathbb{F}_2$ elimination only $13$ ms, so sieving accounts for over $96\%$ of the runtime at this size. The bit-packed elimination is cheap precisely because of the XOR representation discussed above. This matches the claim in the algorithm section that sieving, not the linear algebra, is the computational core of the method at these sizes.
-
-The choice of bound shows the expected trade-off. For $N = 1000036000099$:
-
-\[
-\begin{array}{r|r|r|r|l}
-\text{bound} & |\mathcal{B}| & k & \text{time} & \text{result} \\ \hline
-50 & 8 & 2 & 12.5 \text{ ms} & \text{no factor} \\
-100 & 14 & 7 & 12.2 \text{ ms} & \text{no factor} \\
-200 & 22 & 30 & 12.7 \text{ ms} & 1000003 \\
-800 & 78 & 421 & 20.0 \text{ ms} & 1000003 \\
-3200 & 226 & 1517 & 56.0 \text{ ms} & 1000003 \\
-\end{array}
-\]
-
-A bound that is too small makes smooth values too rare to reach $k>m$, while an excessively large bound raises the number of relations that must be collected and the size of the matrix. The density of smooth values in the interval is low in absolute terms, around $0.1\%$ for the larger test cases, which is why the interval has to be several hundred thousand wide for a $17$-digit input.
-
-\subsection*{Limitations of the prototype}
-
-Three limitations were observed, all of them inherent to this minimal version rather than to the method.
-
-\begin{enumerate}
-    \item If $N$ is a perfect square, the offset $x=\lfloor\sqrt{N}\rfloor$ gives $Q(x)=0$, and the factorization loop in \texttt{sieve\_interval} does not terminate because dividing zero by a prime leaves zero. A perfect square should be detected beforehand, which is what the unused helper \texttt{perfect\_square} in \texttt{util.py} is for.
-    \item If $N$ is prime, no non-trivial congruence can exist and the program correctly returns no factor, but only after exhausting the whole interval. A probabilistic primality test before sieving would avoid the wasted work.
-    \item The prototype returns a single factor rather than a complete factorization, and gives no useful answer when $N$ has small prime factors or more than two prime factors. In practice the sieve is applied only after small factors have been removed by trial division.
-\end{enumerate}
-
-Furthermore, the implementation keeps the whole sieving interval in memory as a list of Python integers and strips prime powers by repeated division rather than by accumulating logarithms, which is the standard optimisation. Neither affects correctness, but both limit the sizes that can be reached. The largest semiprime factored here has $17$ digits, far below what an optimised implementation handles, which is sufficient to demonstrate the theory.
 
 \section*{Discussion}
 % 7. Discussion: Discuss the strengths and limitations of the approach and, where relevant, mention practical applications.
@@ -1018,6 +966,15 @@ is small enough to be calculated by hand, it demonstrates
 the same fundamental process used for larger composite
 numbers.
 
+\subsection*{Limitations of the prototype}
+
+However, some limitations of the prototype of Quadratic sieves can be observed when proceeded on several trivial cases:
+\begin{enumerate}
+    \item If $N$ is a perfect square, the offset $x=\lfloor\sqrt{N}\rfloor$ gives $Q(x)=0$, and the factorization loop in \texttt{sieve\_interval} does not terminate because dividing zero by a prime leaves zero. A perfect square should be detected beforehand, which is what the unused helper \texttt{perfect\_square} in \texttt{util.py} is for.
+    \item If $N$ is prime, no non-trivial congruence can exist and the program correctly returns no factor, but only after exhausting the whole interval. A probabilistic primality test before sieving would avoid the wasted work.
+    \item The prototype returns a single factor rather than a complete factorization, and gives no useful answer when $N$ has small prime factors or more than two prime factors. In practice the sieve is applied only after small factors have been removed by trial division.
+\end{enumerate}
+
 Overall, the Quadratic Sieve is an example of how
 different mathematical concepts can be combined into
 a practical computational algorithm. Its main advantage
@@ -1031,20 +988,6 @@ These characteristics make the Quadratic Sieve both
 an effective factorization method for suitable input
 sizes and an instructive example of the relationship
 between number theory and algorithm design.
-
-\section*{Program structure}
-
-The program structure consists of multiple program files, grouped by category below:
-\begin{lstlisting}
-- Utility files:
-  - util.py
-  - matrix_util.py
-- tonelli_shanks.py
-- quadratic_sieve.py (main file)
-\end{lstlisting}
-The following files are found separately as submission.
-
-
 
 \begin{thebibliography}{9}
 
