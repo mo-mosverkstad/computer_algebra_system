@@ -74,7 +74,7 @@ The problem scope of the Quadratic Sieve concerns the factorization of a composi
 Given a composite integer $N$, the factorization problem is to find integers $p$ and $q$ such that
 
 \[
-N = pq,
+N = pq
 \]
 
 where $1 < p,q < N$. For a sufficiently large composite number, finding such factors can become computationally difficult. Simple algorithms such as trial-division that tests all prime numbers can quickly become a bottleneck since the algorithm has to check the prime number $2$ and all odd numbers since all prime numbers except $2$ are odd, up to $\sqrt{N}$.
@@ -140,8 +140,8 @@ For $a \not\equiv 0 \pmod p$, it states that
 \[
 a^{(p-1)/2} \equiv
 \begin{cases}
-1 \pmod p, & \text{if } a \text{ is a quadratic residue}\\
--1 \pmod p, & \text{otherwise, } a \text{ is not a quadratic residue}
+1 \pmod p & \text{if } a \text{ is a quadratic residue}\\
+-1 \pmod p & \text{otherwise, } a \text{ is not a quadratic residue}
 \end{cases}
 \]
 
@@ -162,7 +162,7 @@ Since $p$ is prime, this implies
 \[
 a^{(p-1)/2} \equiv 1 \pmod p
 \qquad\text{or}\qquad
-a^{(p-1)/2} \equiv -1 \pmod p.
+a^{(p-1)/2} \equiv -1 \pmod p
 \]
 
 If $a$ is a quadratic residue modulo $p$, this means that $y$ fulfilling $a \equiv y^2 \pmod p$ can be rewritten as
@@ -173,13 +173,13 @@ a^{(p-1)/2}
 (y^2)^{(p-1)/2}
 =
 y^{p-1}
-\equiv 1 \pmod p,
+\equiv 1 \pmod p
 \]
 where the last congruence applies Fermat's little theorem.
 
 Consequently, the reversed also applies. Given $a^{(p-1)/2} \equiv 1\pmod p$, $a$ can be derived as a quadratic residue. Constructing a polynomial $f(x)=x^{(p-1)/2}-1$, it has the degree $(p-1)/2$ and can have at most $(p-1)/2$ roots modulo the prime $p$. Since every non-zero quadratic residue  $a$ satisfies
 \[
-a^{(p-1)/2}\equiv 1\pmod p,
+a^{(p-1)/2}\equiv 1\pmod p
 \]
 there are exactly $(p-1)/2$ distinct nonzero quadratic residues modulo $p$, since
 \[
@@ -192,7 +192,7 @@ a^{(p-1)/2}\equiv 1\pmod p
 if and only if $a$ is a quadratic residue modulo $p$.
 Combining this result with
 \[
-a^{(p-1)/2}\equiv \pm1\pmod p,
+a^{(p-1)/2}\equiv \pm1\pmod p
 \]
 Euler's criterion can be obtained.
 
@@ -236,7 +236,7 @@ Exponent vectors over Galois Field $\mathbb{F}_2$ becomes interesting for calcul
 Considering an integer $n$, having the prime factorization:
 
 $$
-n = (-1)^{e_0} p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}.
+n = (-1)^{e_0} p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}
 $$
 
 Its corresponding exponent vector on $\mathbb{F}_2$ is
@@ -309,7 +309,7 @@ when $p$ is an odd prime and $a$ is a quadratic residue modulo $p$. Such modular
 The Tonelli-Shanks algorithm works by first decomposing $p-1$ into factors, one odd part $Q$ and $S$ as an exponent to $2$
 
 \[
-p-1 = Q \times 2^S,
+p-1 = Q \times 2^S
 \]
 
 where $Q$ is odd. It then finds a quadratic non-residue $z$ modulo $p$ and uses repeated modular exponentiation to construct a square root of $a$.
@@ -320,7 +320,7 @@ The algorithm begins with two checks:
     \item If $a$ is congruent to $0$, the root is trivial and is $x=0$ for $a \equiv 0 \pmod p$. The root can be returned immediately.
     \item The value $a$ can also be checked if a quadratic residue modulo $p$ exists using Euler's criterion:
     \[
-        a^{(p-1)/2} \equiv 1 \pmod p.
+        a^{(p-1)/2} \equiv 1 \pmod p
     \]
     If $a^{(p-1)/2}$ is modular to $-1$ with prime $p$, no root can be found and the algorithm can be exited immediately.
 \end{enumerate}
@@ -330,7 +330,7 @@ Afterwards, the algorithm begins by setting up initial variables that are used f
 \begin{enumerate}
     \item A minimal quadratic non-residue $z$ modulo $p$ is found should be found, or with other words:
     \[
-        z^{(p-1)/2} \equiv -1 \pmod p.
+        z^{(p-1)/2} \equiv -1 \pmod p
     \]
     \item The initial guess of the root $R$ is initialized to
     \[
@@ -358,21 +358,21 @@ For each iteration in the algorithm, the following steps are performed.
  
     \item The smallest integer $i$ is found for the modular equation:
     \[
-        t^{2^i} \equiv 1 \pmod p.
+        t^{2^i} \equiv 1 \pmod p
     \]
 
     \item Afterwards, an intermediate factor $b$ is set to:
     \[
-        b=c^{2^{M-i-1}} \pmod p.
+        b=c^{2^{M-i-1}} \pmod p
     \]
 
     \item The variables $R$, $t$, $c$ and $m$ are updates accordingly:
     \[
         \begin{aligned}
-            R &= Rb \pmod p,\\
-            t &= tb^2 \pmod p,\\
-            c &= b^2 \pmod p,\\
-            M &= i.
+            R &= Rb \pmod p\\
+            t &= tb^2 \pmod p\\
+            c &= b^2 \pmod p\\
+            M &= i
         \end{aligned}
     \]
 
@@ -381,7 +381,7 @@ For each iteration in the algorithm, the following steps are performed.
 The algorithm therefore returns one of the two possible square roots of $a$ modulo $p$. The other root is given by $p-R$, since
 
 $$
-(-R)^2 \equiv R^2 \equiv a \pmod p.
+(-R)^2 \equiv R^2 \equiv a \pmod p
 $$
 
 In Quadratic Sieve, the modular square roots are used to identify the position of the sieving interval that is divisable by a prime factor in the factor base. Instead of trial-dividing every number in the sieving interval for each prime, the Tonelli-Shanks algorithm is used for calculating modular square root once for each prime and quickly identify the corresponding positions, which makes sieving more efficient.
@@ -479,7 +479,7 @@ By obtaining the roots from the modular equation, the positions of these roots c
 
 For every smooth value, its factorization over the factor base is given for instance as:
 \[
-Q(x)=p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}.
+Q(x)=p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}
 \]
 for the base $\mathcal{B}=\{e_1,e_2,\ldots,e_k\}$. The prime exponent can be written as $(p_1, p_2, \ldots, p_k)$ The parity of each exponent can be extracted out and form an exponent vector over Galois Field $\mathbb{F}_2$.
 
@@ -519,7 +519,7 @@ Notice that the number of columns of $A$ must be larger than the number of rows.
 
 For a non-zero solution to exist, the columns of $A$ must be linearly dependent. Since the columns are vectors in $\mathbb{F}_2^m$, there can be at most $m$ linearly independent columns. Therefore, choosing more smooth values of $Q(x)$ than the number of primes in the factor base
 \[
-k>m,
+k>m
 \]
 guarantees that the columns of $A$ are linearly dependent. In this case, a non-trivial solution exist to
 \[
@@ -773,8 +773,8 @@ By reducing the both $x$ and $y$ values modulo \(N=1057\), the following can be 
 
 \[
 \begin{aligned}
-x&\equiv681\pmod{1057},\\
-y&\equiv527\pmod{1057}.
+x&\equiv681\pmod{1057}\\
+y&\equiv527\pmod{1057}
 \end{aligned}
 \]
 
@@ -825,7 +825,7 @@ In terms of code implementation, most of the theory can be translated into code 
 
 For instance, the factor base is not simply the list of primes below the bound. The function \texttt{sieve\_factor\_base} keeps $p=2$ unconditionally and applies Euler's criterion to every odd prime,
 \[
-N^{(p-1)/2} \bmod p = 1 ,
+N^{(p-1)/2} \bmod p = 1
 \]
 discarding $p$ when the test fails. Since a prime for which $N$ is a quadratic non-residue can never divide any $Q(x)$, including it will only increase another redundant column of zeros to the matrix. This reduces the matrix size, which makes them faster.
 
@@ -838,11 +838,11 @@ Finally, the function \texttt{gf2\_gauss\_elimination} solves $\textbf{A}^T\text
 
 As a suitable case, the number $N = 12620903$ is factorized with bound $40$. The factor base returned by \texttt{sieve\_factor\_base} is
 \[
-\mathcal{B}=\{2,\;7,\;11,\;13,\;17,\;19,\;29,\;31\},
+\mathcal{B}=\{2,\;7,\;11,\;13,\;17,\;19,\;29,\;31\}
 \]
 with nine smooth integer values of $Q(x)$ in the sieving interval produced by \texttt{sieve\_interval} with sieving width $4000$
 \[
-x \in \{3554,\;3571,\;3611,\;3858,\;4143,\;4521,\;5305,\;7043,\;7088\},
+x \in \{3554,\;3571,\;3611,\;3858,\;4143,\;4521,\;5305,\;7043,\;7088\}
 \]
 By solving the linear dependencies from the linear algebra step for finding a selection vector to $\textbf{A}^T\textbf{x} = \textbf{0}$ using linear algebra with function \texttt{gf2\_gauss\_elimination}. The elimination finds three dependencies listed below
 
