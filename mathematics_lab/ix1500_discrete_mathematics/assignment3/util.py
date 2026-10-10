@@ -1,6 +1,3 @@
-from typing import Tuple
-import math
-
 def gcd(factor1: int, factor2: int) -> int:
     '''
     gcd of two numbers using Euclid's algorithm
@@ -25,7 +22,7 @@ def power_modulo(base: int, exponent: int, modulo: int) -> int:
 
 def integer_sqrt(number: int) -> int:
     '''
-    Square root of number, handles large numbers
+    Square root of number, handles large big int numbers
     '''
     if number < 0:
         raise ValueError(f"integer_sqrt of negative number {number}")
@@ -38,18 +35,6 @@ def integer_sqrt(number: int) -> int:
             return root
         root = next_root
 
-def natural_log(number: int) -> float:
-    shift = number.bit_length() - 53
-    if shift > 0:
-        return math.log(number >> shift) + shift * math.log(2)
-    return math.log(number)
-
-def perfect_square(number: int) -> Tuple[bool, int]:
-    '''
-    Check if number is a complete square and retrieve its square root
-    '''
-    root = integer_sqrt(number)
-    return root * root == number, root
 
 def prime_list(bound: int) -> list[int]:
     '''
@@ -66,5 +51,4 @@ def prime_list(bound: int) -> list[int]:
             marks = len(range(number * number, bound + 1, number))
             composite[number * number::number] = [True] * marks
 
-    return [number for number in range(2, bound + 1)
-            if not composite[number]]
+    return [number for number in range(2, bound + 1) if not composite[number]]
