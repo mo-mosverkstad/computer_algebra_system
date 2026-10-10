@@ -28,6 +28,14 @@ class BitVector:
     def __int__(self) -> int:
         return self.value
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BitVector):
+            return NotImplemented
+        return self.value == other.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+
     def __repr__(self) -> str:
         return f"BitVector({self.value:b})"
 
@@ -44,13 +52,11 @@ class BitVector:
         indices = []
         value = self.value
         index = 0
-
         while value:
             if value & 1:
                 indices.append(index)
             value >>= 1
             index += 1
-
         return indices
 
 def prime_to_integer_vector(powers: Dict[int, int], factor_base: List[int]) -> int:
@@ -74,12 +80,12 @@ def gf2_gauss_elimination(vectors: List[BitVector]) -> List[BitVector]:
     '''
     Gauss elimination of a matrix given in ...
     '''
-    pivots: Dict[int, Tuple[BitVector, BitVector]] = {}
+    pivots: Dict[BitVector, Tuple[BitVector, BitVector]] = {}
     dependencies: List[BitVector] = []
     for index, vector in enumerate(vectors):
         mask = BitVector(1 << index)
         while vector:
-            lowest = int(vector.lowest_set_bit())
+            lowest = vector.lowest_set_bit()
             if lowest not in pivots:
                 pivots[lowest] = (vector, mask)
                 break
@@ -89,16 +95,3 @@ def gf2_gauss_elimination(vectors: List[BitVector]) -> List[BitVector]:
         else:
             dependencies.append(mask)
     return dependencies
-
-def mask_to_indices(mask: int) -> List[int]:
-    '''
-    Mask indices ...
-    '''
-    indices: List[int] = []
-    index = 0
-    while mask:
-        if mask & 1:
-            indices.append(index)
-        mask >>= 1
-        index += 1
-    return indices
