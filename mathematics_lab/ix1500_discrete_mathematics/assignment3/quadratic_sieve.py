@@ -20,17 +20,22 @@ def sieve_interval(number: int, base: List[int], width: int) -> List[Tuple[int, 
     residues = [(root + offset) * (root + offset) - number for offset in range(width)]
     remaining = list(residues)
 
+    # Sieve using Tonelli-Shanks algorithm
     for prime in base:
-        target = tonelli_shanks(number, prime) # target^2 === number (mod prime)
-        if target is None:
-            continue
-        starts = {(target - root) % prime, (-target - root) % prime}
-        for start in starts:
-            for index in range(start, width, prime):
-                while remaining[index] % prime == 0:
-                    remaining[index] //= prime
+        base_root = tonelli_shanks(number, prime) # base_root^2 === number (mod prime)
+        if base_root is None: continue
+        root1 = (base_root - root) % prime
+        root2 = (-base_root - root) % prime
+        for index in range(root1, width, prime):
+            while remaining[index] % prime == 0:
+                remaining[index] //= prime
+        if root1 == root2: continue
+        for index in range(root2, width, prime):
+            while remaining[index] % prime == 0:
+                remaining[index] //= prime
 
-    relations: List[Tuple[int, int, Dict[int, int]]] = []
+    # Create the smooth interval
+    smooth_interval: List[Tuple[int, int, Dict[int, int]]] = []
     for offset in range(width):
         if residues[offset] == 0 or remaining[offset] != 1:
             continue
@@ -40,8 +45,8 @@ def sieve_interval(number: int, base: List[int], width: int) -> List[Tuple[int, 
             while value % prime == 0:
                 powers[prime] = powers.get(prime, 0) + 1
                 value //= prime
-        relations.append((root + offset, residues[offset], powers))
-    return relations
+        smooth_interval.append((root + offset, residues[offset], powers))
+    return smooth_interval
 
 def quadratic_sieve(number: int, bound: int, width: int) -> Tuple[Optional[int], int, int]:
     base = sieve_factor_base(number, bound)
