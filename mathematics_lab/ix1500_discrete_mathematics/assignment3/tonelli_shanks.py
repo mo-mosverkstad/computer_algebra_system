@@ -3,6 +3,9 @@ from typing import Optional
 import util
 
 def calculate_smallest_i(square: int, prime: int) -> int:
+    '''
+    Solve smallest i for sqaure^2^i === 1 (mod prime)
+    '''
     smallest_i = 0
     while square != 1:
         square = (square * square) % prime
