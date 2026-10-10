@@ -70,28 +70,28 @@ def prime_to_integer_vector(powers: Dict[int, int], factor_base: List[int]) -> i
         ...
         Bit n       -> factor_base[n]
     """
-    vector = BitVector(0)
+    bit_vector = BitVector(0)
     for index, prime in enumerate(factor_base):
         if powers.get(prime, 0) & 1:
-            vector = vector.set_bit(index)
-    return vector
+            bit_vector = bit_vector.set_bit(index)
+    return bit_vector
 
 def gf2_gauss_elimination(vectors: List[BitVector]) -> List[BitVector]:
     '''
     Gauss elimination of a matrix given in ...
     '''
-    pivots: Dict[BitVector, Tuple[BitVector, BitVector]] = {}
-    dependencies: List[BitVector] = []
+    pivot_rows: Dict[BitVector, Tuple[BitVector, BitVector]] = {}
+    lin_comb_vectors: List[BitVector] = []
     for index, vector in enumerate(vectors):
-        mask = BitVector(1 << index)
+        index_mask = BitVector(1 << index)
         while vector:
-            lowest = vector.lowest_set_bit()
-            if lowest not in pivots:
-                pivots[lowest] = (vector, mask)
+            lowest_set_bit_vector = vector.lowest_set_bit()
+            if lowest_set_bit_vector not in pivot_rows:
+                pivot_rows[lowest_set_bit_vector] = (vector, index_mask)
                 break
-            pivot_vector, pivot_mask = pivots[lowest]
+            pivot_vector, pivot_mask = pivot_rows[lowest_set_bit_vector]
             vector = vector ^ pivot_vector
-            mask = mask ^ pivot_mask
+            index_mask = index_mask ^ pivot_mask
         else:
-            dependencies.append(mask)
-    return dependencies
+            lin_comb_vectors.append(index_mask)
+    return lin_comb_vectors
