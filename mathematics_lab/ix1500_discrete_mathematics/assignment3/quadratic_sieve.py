@@ -2,7 +2,6 @@ from typing import List, Tuple, Dict, Optional
 from tonelli_shanks import tonelli_shanks
 import util
 import matrix_util
-import math
 
 def sieve_factor_base(number: int, bound: int) -> List[int]:
     base: List[int] = []
@@ -54,7 +53,7 @@ def quadratic_sieve(number: int, bound: int, width: int) -> Tuple[Optional[int],
     for mask in matrix_util.gf2_gauss_elimination(vectors):
         left = 1
         combined: Dict[int, int] = {}
-        for index in matrix_util.mask_indices(mask):
+        for index in mask.to_indices():
             candidate, _, powers = relations[index]
             left = (left * candidate) % number
             for prime, power in powers.items():

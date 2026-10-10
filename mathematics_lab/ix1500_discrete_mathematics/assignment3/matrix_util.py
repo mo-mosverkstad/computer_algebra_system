@@ -1,5 +1,58 @@
 from typing import Dict, List, Tuple
 
+class BitVector:
+    value: int = 0
+    def __init__(self, value: int):
+        if value < 0:
+            raise ValueError("BitVector value must be non-negative")
+        self.value = value
+
+    def __xor__(self, other: BitVector) -> BitVector:
+        return BitVector(self.value ^ other.value)
+
+    def __and__(self, other: BitVector) -> BitVector:
+        return BitVector(self.value & other.value)
+
+    def __or__(self, other: BitVector) -> BitVector:
+        return BitVector(self.value | other.value)
+
+    def __lshift__(self, amount: int) -> BitVector:
+        return BitVector(self.value << amount)
+
+    def __rshift__(self, amount: int) -> BitVector:
+        return BitVector(self.value >> amount)
+
+    def __bool__(self) -> bool:
+        return self.value != 0
+
+    def __int__(self) -> int:
+        return self.value
+
+    def __repr__(self) -> str:
+        return f"BitVector({self.value:b})"
+
+    def is_set(self, index: int) -> bool:
+        return bool(self.value & (1 << index))
+
+    def set_bit(self, index: int) -> BitVector:
+        return BitVector(self.value | (1 << index))
+
+    def lowest_set_bit(self) -> BitVector:
+        return BitVector(self.value & -self.value)
+
+    def to_indices(self) -> list[int]:
+        indices = []
+        value = self.value
+        index = 0
+
+        while value:
+            if value & 1:
+                indices.append(index)
+            value >>= 1
+            index += 1
+
+        return indices
+
 def prime_to_integer_vector(powers: Dict[int, int], factor_base: List[int]) -> int:
     """
     Converts a prime factorization into a bit vector representing exponent parity
@@ -11,33 +64,33 @@ def prime_to_integer_vector(powers: Dict[int, int], factor_base: List[int]) -> i
         ...
         Bit n       -> factor_base[n]
     """
-    vector = 0
+    vector = BitVector(0)
     for index, prime in enumerate(factor_base):
         if powers.get(prime, 0) & 1:
-            vector |= 1 << index
+            vector = vector.set_bit(index)
     return vector
 
-def gf2_gauss_elimination(vectors: List[int]) -> List[int]:
+def gf2_gauss_elimination(vectors: List[BitVector]) -> List[BitVector]:
     '''
     Gauss elimination of a matrix given in ...
     '''
-    pivots: Dict[int, Tuple[int, int]] = {}
-    dependencies: List[int] = []
+    pivots: Dict[int, Tuple[BitVector, BitVector]] = {}
+    dependencies: List[BitVector] = []
     for index, vector in enumerate(vectors):
-        mask = 1 << index
+        mask = BitVector(1 << index)
         while vector:
-            lowest = vector & -vector
+            lowest = int(vector.lowest_set_bit())
             if lowest not in pivots:
                 pivots[lowest] = (vector, mask)
                 break
             pivot_vector, pivot_mask = pivots[lowest]
-            vector ^= pivot_vector
-            mask ^= pivot_mask
+            vector = vector ^ pivot_vector
+            mask = mask ^ pivot_mask
         else:
             dependencies.append(mask)
     return dependencies
 
-def mask_indices(mask: int) -> List[int]:
+def mask_to_indices(mask: int) -> List[int]:
     '''
     Mask indices ...
     '''
