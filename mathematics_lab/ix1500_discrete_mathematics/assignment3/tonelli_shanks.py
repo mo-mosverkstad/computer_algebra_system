@@ -2,6 +2,13 @@ from typing import Optional
 
 import util
 
+def calculate_smallest_i(square: int, prime: int) -> int:
+    smallest_i = 0
+    while square != 1:
+        square = (square * square) % prime
+        smallest_i += 1
+    return smallest_i
+
 def tonelli_shanks(residue: int, prime: int) -> Optional[int]:
     '''
     Solve x from x^2 === residue (mod prime) using Tonelli-Shanks algorithm
@@ -38,19 +45,15 @@ def tonelli_shanks(residue: int, prime: int) -> Optional[int]:
         non_residue += 1
 
     root = util.power_modulo(residue, (odd_part + 1) // 2, prime)
-    value = util.power_modulo(residue, odd_part, prime)
+    error_multiplier = util.power_modulo(residue, odd_part, prime)
     shift = util.power_modulo(non_residue, odd_part, prime)
-    order = power_of_two
+    tracking_exponent = power_of_two
 
-    while value != 1:
-        square = value
-        level = 0
-        while square != 1:
-            square = (square * square) % prime
-            level += 1
-        correction = util.power_modulo(shift, 1 << (order - level - 1), prime)
+    while error_multiplier != 1:
+        smallest_i = calculate_smallest_i(error_multiplier, prime)
+        correction = util.power_modulo(shift, 1 << (tracking_exponent - smallest_i - 1), prime)
         root = (root * correction) % prime
         shift = (correction * correction) % prime
-        value = (value * shift) % prime
-        order = level
+        error_multiplier = (error_multiplier * shift) % prime
+        tracking_exponent = smallest_i
     return root
