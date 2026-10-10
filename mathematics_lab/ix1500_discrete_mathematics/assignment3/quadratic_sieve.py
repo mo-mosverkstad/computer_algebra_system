@@ -50,26 +50,28 @@ def sieve_interval(number: int, base: List[int], width: int) -> List[Tuple[int, 
 
 def quadratic_sieve(number: int, bound: int, width: int) -> Tuple[Optional[int], int, int]:
     base = sieve_factor_base(number, bound)
-    relations = sieve_interval(number, base, width)
-    if len(relations) <= len(base):
-        return None, len(base), len(relations)
+    sieving_interval = sieve_interval(number, base, width)
+    if len(sieving_interval) <= len(base):
+        return None, len(base), len(sieving_interval)
 
-    vectors = [matrix_util.prime_to_integer_vector(powers, base) for _, _, powers in relations]
-    for mask in matrix_util.gf2_gauss_elimination(vectors):
+    # Unpack vectors and calculate x^2 === y (mod p), where y is perfect square
+    # x is considered as left, and y is considered as right
+    vectors = [matrix_util.prime_to_integer_vector(powers, base) for _, _, powers in sieving_interval]
+    for lin_comb_vector in matrix_util.gf2_gauss_elimination(vectors):
         left = 1
-        combined: Dict[int, int] = {}
-        for index in mask.to_indices():
-            candidate, _, powers = relations[index]
-            left = (left * candidate) % number
+        right_prime_exp: Dict[int, int] = {}
+        for index in lin_comb_vector.to_indices():
+            left_factor, _, powers = sieving_interval[index]
+            left = (left * left_factor) % number
             for prime, power in powers.items():
-                combined[prime] = combined.get(prime, 0) + power
+                right_prime_exp[prime] = right_prime_exp.get(prime, 0) + power
         right = 1
-        for prime, power in combined.items():
+        for prime, power in right_prime_exp.items():
             right = (right * util.power_modulo(prime, power // 2, number)) % number
-        shared = util.gcd(abs(left - right), number)
-        if 1 < shared < number:
-            return shared, len(base), len(relations)
-    return None, len(base), len(relations)
+        result_factor = util.gcd(abs(left - right), number)
+        if 1 < result_factor < number:
+            return result_factor, len(base), len(sieving_interval)
+    return None, len(base), len(sieving_interval)
 
 
 number = 8051
